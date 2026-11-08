@@ -64,7 +64,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-blue-500 text-white flex items-center justify-center font-extrabold text-sm shadow-sm group-hover:scale-105 transition-transform">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-blue-500 text-white flex items-center justify-center font-extrabold text-sm shadow-sm active:scale-95 transition-transform duration-150">
             Φ
           </div>
           <div className="flex flex-col">
@@ -92,7 +92,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
           {/* Main Link: Curriculum */}
           <Link
             href="/"
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors duration-150 ${
               isHome
                 ? 'bg-slate-100 text-indigo-700 font-bold'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -105,7 +105,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
           {/* Quick Link: Mistakes (if any) */}
           <Link
             href="/mistakes"
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors duration-150 ${
               isMistakes
                 ? 'bg-rose-50 text-rose-700 font-bold'
                 : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50/60'

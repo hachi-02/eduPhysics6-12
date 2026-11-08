@@ -20,7 +20,7 @@ export default function RootLayout({
 
   return (
     <html lang="vi">
-      <body className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-800">
+      <body className="min-h-screen flex flex-col bg-[#F8FAFC] bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] text-slate-800 antialiased selection:bg-indigo-500 selection:text-white">
         <SiteHeader admin={admin} activeMistakeCount={activeMistakeCount} />
         <main className="flex-1">{children}</main>
       </body>

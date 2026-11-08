@@ -74,7 +74,7 @@ export default function HomeBoardPage({
                   <Link
                     key={g.grade_number}
                     href={`/?grade=${g.grade_number}`}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors duration-150 ${
                       isSelected
                         ? 'bg-indigo-600 text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
@@ -95,7 +95,7 @@ export default function HomeBoardPage({
                   <Link
                     key={g.grade_number}
                     href={`/?grade=${g.grade_number}`}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors duration-150 ${
                       isSelected
                         ? 'bg-indigo-600 text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
@@ -130,7 +130,7 @@ export default function HomeBoardPage({
                 </div>
                 <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1.5">
                   <div
-                    className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                    className="bg-indigo-600 h-full rounded-full transition-[width] duration-500 ease-out"
                     style={{ width: `${stats.completion_rate}%` }}
                   />
                 </div>
@@ -241,7 +241,7 @@ export default function HomeBoardPage({
               {chTotal > 0 && (
                 <div className="w-full bg-slate-100 h-1">
                   <div
-                    className="bg-indigo-600 h-full transition-all duration-500"
+                    className="bg-indigo-600 h-full transition-[width] duration-500 ease-out"
                     style={{ width: `${chPercent}%` }}
                   />
                 </div>

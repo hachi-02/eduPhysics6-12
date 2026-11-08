@@ -124,7 +124,7 @@ export default function CheatsheetViewer({
                     setSelectedChapterId('all');
                     router.push(`/cheatsheet?grade=${g.grade_number}`);
                   }}
-                  className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap transition-all ${
+                  className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap transition-colors duration-150 ${
                     active
                       ? 'bg-blue-600 text-white shadow-sm'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -140,7 +140,7 @@ export default function CheatsheetViewer({
           <div className="flex items-center gap-2 w-full md:w-auto justify-end">
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-lg shadow-md hover:shadow-lg transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-lg shadow-md hover:shadow-lg transition-colors duration-150 active:scale-[0.98]"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -165,7 +165,7 @@ export default function CheatsheetViewer({
                 const val = e.target.value;
                 setSelectedChapterId(val === 'all' ? 'all' : Number(val));
               }}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
               <option value="all">Tất cả {data.chapters.length} chương</option>
               {data.chapters.map((ch) => (

@@ -279,7 +279,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
                 <button
                   type="button"
                   onClick={() => setDiffFilter('all')}
-                  className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+                  className={`px-3 py-1 rounded-lg font-semibold transition-colors duration-150 ${
                     diffFilter === 'all'
                       ? 'bg-indigo-600 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -290,7 +290,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
                 <button
                   type="button"
                   onClick={() => setDiffFilter('basic')}
-                  className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+                  className={`px-3 py-1 rounded-lg font-semibold transition-colors duration-150 ${
                     diffFilter === 'basic'
                       ? 'bg-emerald-600 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -301,7 +301,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
                 <button
                   type="button"
                   onClick={() => setDiffFilter('advanced')}
-                  className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+                  className={`px-3 py-1 rounded-lg font-semibold transition-colors duration-150 ${
                     diffFilter === 'advanced'
                       ? 'bg-amber-600 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -345,7 +345,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
             <button
               type="button"
               onClick={handleStartQuiz}
-              className="px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg transition-all hover:scale-[1.01]"
+              className="px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg transition-colors duration-150 active:scale-[0.98]"
             >
               <Play className="w-4 h-4 fill-current" />
               <span>Bắt đầu làm bài thi ngay</span>
