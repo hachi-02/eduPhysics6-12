@@ -241,133 +241,147 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
     );
   }
 
-  // Screen before starting the quiz: Quiz Settings (Feature 3) & Attempt History (Feature 4)
+  // State for collapsible history
+  const [showHistory, setShowHistory] = useState<boolean>(false);
+
+  // Screen before starting the quiz: Clean, focused & consolidated
   if (!started) {
+    const highestScore =
+      attempts.length > 0 ? Math.max(...attempts.map((a) => a.score)) : null;
+
     return (
       <div className="max-w-2xl mx-auto space-y-6">
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 sm:p-8 text-center space-y-6">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 sm:p-8 text-center space-y-6">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-2xs">
             <CheckSquare className="w-6 h-6" />
           </div>
 
           <div className="space-y-1.5">
-            <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+            <div className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
               {scopeType === 'chapter' ? 'Đề kiểm tra tổng hợp Chương' : 'Bài kiểm tra cuối Chủ đề'}
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{title}</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{title}</h2>
             <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-              Ngân hàng gồm <strong>{questions.length} câu hỏi trắc nghiệm</strong> từ cơ bản đến vận dụng cao. Đồng hồ bấm giờ chỉ bắt đầu tính khi bạn nhấn nút bên dưới.
+              Ngân hàng gồm <strong>{questions.length} câu hỏi trắc nghiệm</strong> từ cơ bản đến vận dụng cao. Thời gian làm bài 45 phút có bấm giờ.
             </p>
           </div>
 
-          {/* Feature 3: Difficulty Filter Pills */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3 text-left">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
-              <Filter className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Chế độ kiểm tra & Lọc mức độ khó:</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setDiffFilter('all')}
-                className={`p-2.5 rounded-xl border font-semibold text-left transition flex items-center justify-between ${
-                  diffFilter === 'all'
-                    ? 'border-indigo-600 bg-white text-indigo-900 shadow-2xs ring-1 ring-indigo-600'
-                    : 'border-slate-200 bg-white/70 text-slate-600 hover:bg-white'
-                }`}
-              >
-                <span>Toàn bộ đề thi</span>
-                <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[10px] font-bold">
-                  {questions.length} câu
-                </span>
-              </button>
+          {/* Consolidated Exam Configuration Box */}
+          <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-3.5 text-left">
+            {/* Difficulty Segmented Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Mức độ câu hỏi:</span>
+              </span>
 
-              <button
-                type="button"
-                onClick={() => setDiffFilter('basic')}
-                className={`p-2.5 rounded-xl border font-semibold text-left transition flex items-center justify-between ${
-                  diffFilter === 'basic'
-                    ? 'border-indigo-600 bg-white text-indigo-900 shadow-2xs ring-1 ring-indigo-600'
-                    : 'border-slate-200 bg-white/70 text-slate-600 hover:bg-white'
-                }`}
-              >
-                <span>Cơ bản (NB + TH)</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                  {basicCount} câu
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDiffFilter('advanced')}
-                className={`p-2.5 rounded-xl border font-semibold text-left transition flex items-center justify-between ${
-                  diffFilter === 'advanced'
-                    ? 'border-indigo-600 bg-white text-indigo-900 shadow-2xs ring-1 ring-indigo-600'
-                    : 'border-slate-200 bg-white/70 text-slate-600 hover:bg-white'
-                }`}
-              >
-                <span>Nâng cao (VD + VDC)</span>
-                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
-                  {advancedCount} câu
-                </span>
-              </button>
+              <div className="inline-flex rounded-xl bg-white p-1 border border-slate-200 shadow-2xs text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDiffFilter('all')}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+                    diffFilter === 'all'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Tất cả ({questions.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDiffFilter('basic')}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+                    diffFilter === 'basic'
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Cơ bản ({basicCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDiffFilter('advanced')}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+                    diffFilter === 'advanced'
+                      ? 'bg-amber-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Nâng cao ({advancedCount})
+                </button>
+              </div>
             </div>
 
-            {/* Feature 3: Shuffle Options & Questions Toggles */}
-            <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700">
+            {/* Compact Shuffle Options */}
+            <div className="pt-2.5 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700 hover:text-indigo-600 transition-colors">
                 <input
                   type="checkbox"
                   checked={shuffleQuestionsSetting}
                   onChange={(e) => setShuffleQuestionsSetting(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 accent-indigo-600"
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 accent-indigo-600"
                 />
                 <span className="flex items-center gap-1 font-medium">
-                  <Shuffle className="w-3.5 h-3.5 text-indigo-500" /> Đảo ngẫu nhiên thứ tự câu hỏi
+                  <Shuffle className="w-3.5 h-3.5 text-indigo-500" /> Đảo thứ tự câu hỏi
                 </span>
               </label>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700 hover:text-indigo-600 transition-colors">
                 <input
                   type="checkbox"
                   checked={shuffleOptionsSetting}
                   onChange={(e) => setShuffleOptionsSetting(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 accent-indigo-600"
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 accent-indigo-600"
                 />
                 <span className="flex items-center gap-1 font-medium">
-                  <Shuffle className="w-3.5 h-3.5 text-indigo-500" /> Đảo vị trí đáp án (A-B-C-D)
+                  <Shuffle className="w-3.5 h-3.5 text-indigo-500" /> Xáo trộn đáp án A-B-C-D
                 </span>
               </label>
             </div>
           </div>
 
-          <div className="pt-2">
+          {/* Prominent Start Button */}
+          <div className="pt-1">
             <button
               type="button"
               onClick={handleStartQuiz}
-              className="px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold inline-flex items-center gap-2 shadow-sm transition hover:scale-[1.01]"
+              className="px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg transition-all hover:scale-[1.01]"
             >
               <Play className="w-4 h-4 fill-current" />
-              <span>Bắt đầu làm bài ngay</span>
+              <span>Bắt đầu làm bài thi ngay</span>
             </button>
           </div>
         </div>
 
-        {/* Feature 4: Quiz Attempt History Box */}
+        {/* Collapsible History Section */}
         {attempts.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowHistory(!showHistory)}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
                 <History className="w-4 h-4 text-indigo-600" />
-                <span>Lịch sử các lần làm bài ({attempts.length} lần gần nhất):</span>
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Lịch sử làm bài ({attempts.length} lần gần nhất)
+                </span>
               </div>
-              <span className="text-xs text-slate-400">
-                Điểm cao nhất: <strong className="text-emerald-700 font-bold">{Math.max(...attempts.map((a) => a.score))}/{questions.length}</strong>
-              </span>
-            </div>
+              <div className="flex items-center gap-2 text-xs">
+                {highestScore !== null && (
+                  <span className="text-slate-500">
+                    Điểm cao nhất: <strong className="text-emerald-700 font-bold">{highestScore}/{questions.length}</strong>
+                  </span>
+                )}
+                <span className="text-slate-400 font-bold text-xs">
+                  {showHistory ? '▲ Thu gọn' : '▼ Xem chi tiết'}
+                </span>
+              </div>
+            </button>
 
-            <div className="divide-y divide-slate-100">
-              {attempts.map((att, idx) => {
+            {showHistory && (
+              <div className="p-4 pt-0 border-t border-slate-100 divide-y divide-slate-100">
+                {attempts.map((att, idx) => {
                 const isViewingThis = viewingAttempt?.id === att.id;
                 let parsedAnswers: Record<string, number> = {};
                 try {
@@ -460,6 +474,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
                 );
               })}
             </div>
+            )}
           </div>
         )}
       </div>

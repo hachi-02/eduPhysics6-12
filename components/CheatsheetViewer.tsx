@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CheatsheetGradeData, GradeItem } from '@/types/cms';
 import { KatexFormula, RichPhysicsText } from './KatexRenderer';
+import { DropdownMenu, DropdownItem } from './ui/DropdownMenu';
+import { SlidersHorizontal, ChevronDown } from 'lucide-react';
 
 interface CheatsheetViewerProps {
   data: CheatsheetGradeData;
@@ -62,6 +64,26 @@ export default function CheatsheetViewer({
     (sum, ch) => sum + ch.topics.reduce((ts, tp) => ts + tp.quantities.length, 0),
     0
   );
+
+  const displayOptionsItems: DropdownItem[] = [
+    {
+      label: viewMode === 'full' ? '✓ Chế độ chi tiết đầy đủ' : 'Chế độ chi tiết đầy đủ',
+      onClick: () => setViewMode('full'),
+    },
+    {
+      label: viewMode === 'compact' ? '✓ Chế độ thu gọn siêu tốc' : 'Chế độ thu gọn siêu tốc',
+      onClick: () => setViewMode('compact'),
+    },
+    { divider: true, label: '' },
+    {
+      label: showQuantities ? '✓ Hiện bảng đại lượng SI' : '○ Ẩn bảng đại lượng SI',
+      onClick: () => setShowQuantities(!showQuantities),
+    },
+    {
+      label: showDerived ? '✓ Hiện công thức suy rộng' : '○ Ẩn công thức suy rộng',
+      onClick: () => setShowDerived(!showDerived),
+    },
+  ];
 
   const handlePrint = () => {
     window.print();
@@ -155,45 +177,24 @@ export default function CheatsheetViewer({
 
             <span className="text-slate-300">|</span>
 
-            <span className="font-semibold text-slate-700">Chế độ xem:</span>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
-              <button
-                onClick={() => setViewMode('full')}
-                className={`px-2.5 py-0.5 rounded-md text-xs font-medium transition-colors ${
-                  viewMode === 'full' ? 'bg-white shadow-xs text-blue-700 font-semibold' : 'text-slate-600'
-                }`}
-              >
-                Chi tiết
-              </button>
-              <button
-                onClick={() => setViewMode('compact')}
-                className={`px-2.5 py-0.5 rounded-md text-xs font-medium transition-colors ${
-                  viewMode === 'compact' ? 'bg-white shadow-xs text-blue-700 font-semibold' : 'text-slate-600'
-                }`}
-              >
-                Thu gọn
-              </button>
-            </div>
-
-            <label className="inline-flex items-center gap-1.5 cursor-pointer select-none ml-2">
-              <input
-                type="checkbox"
-                checked={showQuantities}
-                onChange={(e) => setShowQuantities(e.target.checked)}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-              />
-              <span>Hiện bảng đại lượng & đơn vị SI</span>
-            </label>
-
-            <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={showDerived}
-                onChange={(e) => setShowDerived(e.target.checked)}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-              />
-              <span>Hiện công thức suy rộng</span>
-            </label>
+            {/* Consolidated Display Options Dropdown */}
+            <DropdownMenu
+              align="left"
+              menuWidth="w-60"
+              trigger={
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition shadow-2xs"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>
+                    Chế độ: {viewMode === 'full' ? 'Chi tiết' : 'Thu gọn'}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+              }
+              items={displayOptionsItems}
+            />
           </div>
 
           <div className="text-slate-500 italic">
