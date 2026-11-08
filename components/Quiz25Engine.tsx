@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QuestionItem } from '@/types/cms';
@@ -16,6 +16,12 @@ import {
   Maximize2,
   Play,
   CheckSquare,
+  Shuffle,
+  Filter,
+  History,
+  Eye,
+  Calendar,
+  Sparkles,
 } from 'lucide-react';
 
 interface Quiz25EngineProps {
@@ -25,12 +31,32 @@ interface Quiz25EngineProps {
   questions: QuestionItem[];
 }
 
+interface AttemptItem {
+  id: number;
+  student_name: string;
+  score: number;
+  total_questions: number;
+  time_spent_sec: number;
+  answers_json: string;
+  created_at: string;
+}
+
 const DIFF_LABELS: Record<string, string> = {
   nhan_biet: 'Nhận biết',
   thong_hieu: 'Thông hiểu',
   van_dung: 'Vận dụng',
   van_dung_cao: 'Vận dụng cao',
 };
+
+// Fisher-Yates shuffle helper
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
 export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25EngineProps) {
   const router = useRouter();
@@ -41,6 +67,49 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
   const [viewMode, setViewMode] = useState<'single' | 'list'>('single');
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
+  // Feature 3: Quiz custom settings
+  const [shuffleQuestionsSetting, setShuffleQuestionsSetting] = useState(false);
+  const [shuffleOptionsSetting, setShuffleOptionsSetting] = useState(false);
+  const [diffFilter, setDiffFilter] = useState<'all' | 'basic' | 'advanced'>('all');
+
+  // Active questions working list (after filter & shuffle)
+  const [activeQuestions, setActiveQuestions] = useState<QuestionItem[]>(questions);
+
+  // Feature 4: Quiz Attempts History
+  const [attempts, setAttempts] = useState<AttemptItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [viewingAttempt, setViewingAttempt] = useState<AttemptItem | null>(null);
+
+  // Counts by difficulty for filter pill badges
+  const basicCount = useMemo(
+    () => questions.filter((q) => q.difficulty === 'nhan_biet' || q.difficulty === 'thong_hieu').length,
+    [questions]
+  );
+  const advancedCount = useMemo(
+    () => questions.filter((q) => q.difficulty === 'van_dung' || q.difficulty === 'van_dung_cao').length,
+    [questions]
+  );
+
+  // Fetch attempt history on mount and when not started
+  const fetchAttempts = async () => {
+    try {
+      setLoadingHistory(true);
+      const res = await fetch(`/api/quiz/attempts?scopeType=${scopeType}&scopeId=${scopeId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAttempts(data.attempts || []);
+      }
+    } catch {
+      // Ignore network error
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAttempts();
+  }, [scopeType, scopeId]);
+
   // Only start counting time after the user clicks "Bắt đầu làm bài"
   useEffect(() => {
     if (!started || submitted) return;
@@ -50,12 +119,12 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
     return () => clearInterval(timer);
   }, [started, submitted]);
 
-  const totalQuestions = questions.length;
+  const totalQuestions = activeQuestions.length;
   const answeredCount = Object.keys(answers).length;
 
   const calculateScore = () => {
     let correct = 0;
-    for (const q of questions) {
+    for (const q of activeQuestions) {
       if (answers[q.id] === q.correct_index) {
         correct++;
       }
@@ -72,6 +141,34 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
   };
 
   const handleStartQuiz = () => {
+    // 1. Filter by difficulty
+    let list = [...questions];
+    if (diffFilter === 'basic') {
+      list = list.filter((q) => q.difficulty === 'nhan_biet' || q.difficulty === 'thong_hieu');
+    } else if (diffFilter === 'advanced') {
+      list = list.filter((q) => q.difficulty === 'van_dung' || q.difficulty === 'van_dung_cao');
+    }
+
+    // 2. Shuffle options inside each question (preserving correct answer mapping)
+    if (shuffleOptionsSetting) {
+      list = list.map((q) => {
+        const correctText = q.options[q.correct_index];
+        const shuffledOpts = shuffleArray(q.options);
+        const newCorrectIdx = shuffledOpts.indexOf(correctText);
+        return {
+          ...q,
+          options: shuffledOpts,
+          correct_index: newCorrectIdx >= 0 ? newCorrectIdx : q.correct_index,
+        };
+      });
+    }
+
+    // 3. Shuffle question order
+    if (shuffleQuestionsSetting) {
+      list = shuffleArray(list);
+    }
+
+    setActiveQuestions(list);
     setAnswers({});
     setSubmitted(false);
     setSecondsElapsed(0);
@@ -97,6 +194,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
           answers,
         }),
       });
+      fetchAttempts();
       router.refresh();
     } catch {
       // Ignore network error
@@ -109,6 +207,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
     setSecondsElapsed(0);
     setCurrentIdx(0);
     setStarted(false);
+    setActiveQuestions(questions);
   };
 
   const formatTime = (sec: number) => {
@@ -117,9 +216,24 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   const score = submitted ? calculateScore() : 0;
 
-  if (totalQuestions === 0) {
+  if (questions.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-sm text-slate-500">
         Chưa có câu hỏi trắc nghiệm nào trong mục này.
@@ -127,42 +241,227 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
     );
   }
 
-  // Screen before starting the quiz: Timer is 00:00 and NOT counting yet!
+  // Screen before starting the quiz: Quiz Settings (Feature 3) & Attempt History (Feature 4)
   if (!started) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-8 text-center max-w-2xl mx-auto space-y-5">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-          <CheckSquare className="w-6 h-6" />
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
-            {scopeType === 'chapter' ? 'Đề kiểm tra tổng hợp Chương' : 'Bài kiểm tra cuối Chủ đề'}
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 sm:p-8 text-center space-y-6">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+            <CheckSquare className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900">{title}</h2>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-            Bài kiểm tra gồm <strong>{totalQuestions} câu hỏi trắc nghiệm</strong> từ cơ bản đến vận dụng cao. Đồng hồ bấm giờ chỉ bắt đầu tính khi bạn nhấn nút bên dưới.
-          </p>
+
+          <div className="space-y-1.5">
+            <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+              {scopeType === 'chapter' ? 'Đề kiểm tra tổng hợp Chương' : 'Bài kiểm tra cuối Chủ đề'}
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{title}</h2>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+              Ngân hàng gồm <strong>{questions.length} câu hỏi trắc nghiệm</strong> từ cơ bản đến vận dụng cao. Đồng hồ bấm giờ chỉ bắt đầu tính khi bạn nhấn nút bên dưới.
+            </p>
+          </div>
+
+          {/* Feature 3: Difficulty Filter Pills */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3 text-left">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <Filter className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Chế độ kiểm tra & Lọc mức độ khó:</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setDiffFilter('all')}
+                className={`p-2.5 rounded-xl border font-semibold text-left transition flex items-center justify-between ${
+                  diffFilter === 'all'
+                    ? 'border-indigo-600 bg-white text-indigo-900 shadow-2xs ring-1 ring-indigo-600'
+                    : 'border-slate-200 bg-white/70 text-slate-600 hover:bg-white'
+                }`}
+              >
+                <span>Toàn bộ đề thi</span>
+                <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[10px] font-bold">
+                  {questions.length} câu
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDiffFilter('basic')}
+                className={`p-2.5 rounded-xl border font-semibold text-left transition flex items-center justify-between ${
+                  diffFilter === 'basic'
+                    ? 'border-indigo-600 bg-white text-indigo-900 shadow-2xs ring-1 ring-indigo-600'
+                    : 'border-slate-200 bg-white/70 text-slate-600 hover:bg-white'
+                }`}
+              >
+                <span>Cơ bản (NB + TH)</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                  {basicCount} câu
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDiffFilter('advanced')}
+                className={`p-2.5 rounded-xl border font-semibold text-left transition flex items-center justify-between ${
+                  diffFilter === 'advanced'
+                    ? 'border-indigo-600 bg-white text-indigo-900 shadow-2xs ring-1 ring-indigo-600'
+                    : 'border-slate-200 bg-white/70 text-slate-600 hover:bg-white'
+                }`}
+              >
+                <span>Nâng cao (VD + VDC)</span>
+                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                  {advancedCount} câu
+                </span>
+              </button>
+            </div>
+
+            {/* Feature 3: Shuffle Options & Questions Toggles */}
+            <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={shuffleQuestionsSetting}
+                  onChange={(e) => setShuffleQuestionsSetting(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 accent-indigo-600"
+                />
+                <span className="flex items-center gap-1 font-medium">
+                  <Shuffle className="w-3.5 h-3.5 text-indigo-500" /> Đảo ngẫu nhiên thứ tự câu hỏi
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={shuffleOptionsSetting}
+                  onChange={(e) => setShuffleOptionsSetting(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 accent-indigo-600"
+                />
+                <span className="flex items-center gap-1 font-medium">
+                  <Shuffle className="w-3.5 h-3.5 text-indigo-500" /> Đảo vị trí đáp án (A-B-C-D)
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={handleStartQuiz}
+              className="px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold inline-flex items-center gap-2 shadow-sm transition hover:scale-[1.01]"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              <span>Bắt đầu làm bài ngay</span>
+            </button>
+          </div>
         </div>
 
-        <div className="inline-flex flex-wrap items-center justify-center gap-4 px-5 py-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600">
-          <span>Số lượng: <strong className="text-slate-900">{totalQuestions} câu</strong></span>
-          <span>•</span>
-          <span>Thời gian: <strong className="text-slate-900">Bắt đầu từ 00:00</strong></span>
-          <span>•</span>
-          <span>Có lời giải chi tiết sau khi nộp</span>
-        </div>
+        {/* Feature 4: Quiz Attempt History Box */}
+        {attempts.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <History className="w-4 h-4 text-indigo-600" />
+                <span>Lịch sử các lần làm bài ({attempts.length} lần gần nhất):</span>
+              </div>
+              <span className="text-xs text-slate-400">
+                Điểm cao nhất: <strong className="text-emerald-700 font-bold">{Math.max(...attempts.map((a) => a.score))}/{questions.length}</strong>
+              </span>
+            </div>
 
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={handleStartQuiz}
-            className="px-7 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold inline-flex items-center gap-2 shadow-sm transition"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            <span>Bắt đầu làm bài</span>
-          </button>
-        </div>
+            <div className="divide-y divide-slate-100">
+              {attempts.map((att, idx) => {
+                const isViewingThis = viewingAttempt?.id === att.id;
+                let parsedAnswers: Record<string, number> = {};
+                try {
+                  parsedAnswers = JSON.parse(att.answers_json || '{}');
+                } catch {}
+
+                return (
+                  <div key={att.id} className="py-3 first:pt-0 last:pb-0 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-6 h-6 rounded-md bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center">
+                          #{attempts.length - idx}
+                        </span>
+                        <span className="font-bold text-sm text-slate-900">
+                          {att.score} / {att.total_questions} câu
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">
+                          {((att.score / att.total_questions) * 10).toFixed(1)} điểm
+                        </span>
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {formatTime(att.time_spent_sec)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="text-slate-400 text-[11px] flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> {formatDate(att.created_at)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setViewingAttempt(isViewingThis ? null : att)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1 transition"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>{isViewingThis ? 'Đóng xem lại' : 'Xem lại bài làm'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Detailed Review of This Attempt */}
+                    {isViewingThis && (
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-4 animate-in fade-in duration-150">
+                        <div className="text-xs font-bold text-slate-800 pb-2 border-b border-slate-200">
+                          Chi tiết các câu trả lời trong lần làm bài #{attempts.length - idx} (Đúng {att.score}/{att.total_questions} câu):
+                        </div>
+                        <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
+                          {questions.map((q, qIdx) => {
+                            const chosenOpt = parsedAnswers[String(q.id)] ?? parsedAnswers[q.id as any];
+                            const isCorrectChoice = chosenOpt === q.correct_index;
+                            const optionLetters = ['A', 'B', 'C', 'D'];
+
+                            return (
+                              <div
+                                key={q.id}
+                                className="p-3 rounded-lg bg-white border border-slate-200/70 text-xs space-y-2"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-bold text-slate-900">
+                                    Câu {qIdx + 1}:
+                                  </span>
+                                  <span
+                                    className={`font-semibold flex items-center gap-1 ${
+                                      isCorrectChoice ? 'text-emerald-600' : 'text-rose-600'
+                                    }`}
+                                  >
+                                    {isCorrectChoice ? (
+                                      <>
+                                        <CheckCircle2 className="w-3.5 h-3.5" /> Đúng
+                                      </>
+                                    ) : (
+                                      <>
+                                        <XCircle className="w-3.5 h-3.5" /> Sai (Đã chọn: {chosenOpt !== undefined && chosenOpt >= 0 ? optionLetters[chosenOpt] : 'Chưa làm'})
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="text-slate-800 font-medium">
+                                  <RichPhysicsText text={q.question_text} />
+                                </div>
+                                <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 flex justify-between">
+                                  <span>Đáp án đúng: <strong className="text-emerald-700">{optionLetters[q.correct_index]}. {q.options[q.correct_index]}</strong></span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -279,7 +578,14 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold text-slate-900">{title}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-900">{title}</h2>
+              {diffFilter !== 'all' && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700">
+                  {diffFilter === 'basic' ? 'Cơ bản (NB + TH)' : 'Nâng cao (VD + VDC)'}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
               <span className="flex items-center gap-1 font-medium text-indigo-600">
                 <Clock className="w-3.5 h-3.5" /> {formatTime(secondsElapsed)}
@@ -299,7 +605,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
             >
               {viewMode === 'single' ? (
                 <>
-                  <List className="w-3.5 h-3.5" /> Xem cả 25 câu
+                  <List className="w-3.5 h-3.5" /> Xem cả {totalQuestions} câu
                 </>
               ) : (
                 <>
@@ -350,9 +656,9 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
           </div>
         )}
 
-        {/* Compact Number Strip 1..25 */}
+        {/* Compact Number Strip 1..N */}
         <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
-          {questions.map((q, idx) => {
+          {activeQuestions.map((q, idx) => {
             const isCurrent = viewMode === 'single' && currentIdx === idx;
             const isAnswered = answers[q.id] !== undefined;
             const isRight = submitted && answers[q.id] === q.correct_index;
@@ -395,7 +701,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
       {/* Question Content: Single Focus Mode vs List Mode */}
       {viewMode === 'single' ? (
         <div className="space-y-4">
-          {renderQuestionCard(questions[currentIdx], currentIdx)}
+          {renderQuestionCard(activeQuestions[currentIdx], currentIdx)}
 
           <div className="flex items-center justify-between">
             <button
@@ -429,7 +735,7 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
         </div>
       ) : (
         <div className="space-y-4">
-          {questions.map((q, idx) => renderQuestionCard(q, idx))}
+          {activeQuestions.map((q, idx) => renderQuestionCard(q, idx))}
         </div>
       )}
     </div>

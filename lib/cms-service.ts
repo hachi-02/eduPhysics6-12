@@ -53,6 +53,7 @@ export function getAllGradesWithStats(): GradeItem[] {
 export function getGradeCurriculumBoard(gradeNumber: number): {
   grade: GradeItem;
   chapters: ChapterItem[];
+  stats: import('@/types/cms').GradeProgressStats;
 } | null {
   ensureDatabaseSeeded(false);
   const db = getDb();
@@ -71,6 +72,12 @@ export function getGradeCurriculumBoard(gradeNumber: number): {
     [grade.id]
   );
 
+  let totalTopics = 0;
+  let completedTopics = 0;
+  let totalScoreSum = 0;
+  let totalScoredItems = 0;
+  let completedChapters = 0;
+
   const chapters: ChapterItem[] = rawChapters.map((ch) => {
     const rawTopics = db.query<any>(
       `SELECT
@@ -87,21 +94,43 @@ export function getGradeCurriculumBoard(gradeNumber: number): {
       [ch.id]
     );
 
-    const topics: TopicSummaryItem[] = rawTopics.map((tp) => ({
-      id: tp.id,
-      chapter_id: tp.chapter_id,
-      order_index: tp.order_index,
-      code: tp.code,
-      title: tp.title,
-      textbook_tags: safeJsonParse<string[]>(tp.textbook_tags_json, []),
-      overview: tp.overview,
-      quantity_count: Number(tp.quantity_count || 0),
-      formula_count: Number(tp.formula_count || 0),
-      example_count: Number(tp.example_count || 0),
-      simulation_count: Number(tp.simulation_count || 0),
-      question_count: Number(tp.question_count || 0),
-      best_quiz_score: tp.best_quiz_score !== null && tp.best_quiz_score !== undefined ? Number(tp.best_quiz_score) : null,
-    }));
+    let chCompletedTopics = 0;
+    let chScoreSum = 0;
+
+    const topics: TopicSummaryItem[] = rawTopics.map((tp) => {
+      const bestScore = tp.best_quiz_score !== null && tp.best_quiz_score !== undefined ? Number(tp.best_quiz_score) : null;
+      if (bestScore !== null) {
+        chCompletedTopics++;
+        chScoreSum += bestScore;
+        completedTopics++;
+        totalScoreSum += bestScore;
+        totalScoredItems++;
+      }
+      totalTopics++;
+
+      return {
+        id: tp.id,
+        chapter_id: tp.chapter_id,
+        order_index: tp.order_index,
+        code: tp.code,
+        title: tp.title,
+        textbook_tags: safeJsonParse<string[]>(tp.textbook_tags_json, []),
+        overview: tp.overview,
+        quantity_count: Number(tp.quantity_count || 0),
+        formula_count: Number(tp.formula_count || 0),
+        example_count: Number(tp.example_count || 0),
+        simulation_count: Number(tp.simulation_count || 0),
+        question_count: Number(tp.question_count || 0),
+        best_quiz_score: bestScore,
+      };
+    });
+
+    const bestExam = ch.best_exam_score !== null && ch.best_exam_score !== undefined ? Number(ch.best_exam_score) : null;
+    if (bestExam !== null) {
+      completedChapters++;
+      totalScoreSum += bestExam;
+      totalScoredItems++;
+    }
 
     return {
       id: ch.id,
@@ -116,11 +145,23 @@ export function getGradeCurriculumBoard(gradeNumber: number): {
       formula_cheatsheet: safeJsonParse(ch.formula_cheatsheet_json, []),
       topics,
       chapter_question_count: Number(ch.chapter_question_count || 0),
-      best_exam_score: ch.best_exam_score !== null && ch.best_exam_score !== undefined ? Number(ch.best_exam_score) : null,
+      best_exam_score: bestExam,
+      completed_topics_count: chCompletedTopics,
+      total_topics_count: topics.length,
+      average_quiz_score: chCompletedTopics > 0 ? Number((chScoreSum / chCompletedTopics).toFixed(1)) : null,
     };
   });
 
-  return { grade, chapters };
+  const stats = {
+    total_topics: totalTopics,
+    completed_topics: completedTopics,
+    average_score: totalScoredItems > 0 ? Number((totalScoreSum / totalScoredItems).toFixed(1)) : null,
+    total_chapters: chapters.length,
+    completed_chapters: completedChapters,
+    completion_rate: totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0,
+  };
+
+  return { grade, chapters, stats };
 }
 
 export function getTopicFullDetail(topicId: number): (TopicDetail & {
@@ -226,10 +267,10 @@ export function getTopicFullDetail(topicId: number): (TopicDetail & {
     currentIdx >= 0 && currentIdx < siblingTopics.length - 1 ? siblingTopics[currentIdx + 1].id : null;
 
   const recentAttempts = db.query<any>(
-    `SELECT id, student_name, score, total_questions, time_spent_sec, created_at
+    `SELECT id, student_name, score, total_questions, time_spent_sec, answers_json, created_at
      FROM quiz_attempts
      WHERE scope_type = 'topic' AND scope_id = ?
-     ORDER BY id DESC LIMIT 5`,
+     ORDER BY id DESC LIMIT 10`,
     [topicId]
   );
 
@@ -364,10 +405,10 @@ export function getChapterFullDetail(chapterId: number): {
   }));
 
   const recentAttempts = db.query<any>(
-    `SELECT id, student_name, score, total_questions, time_spent_sec, created_at
+    `SELECT id, student_name, score, total_questions, time_spent_sec, answers_json, created_at
      FROM quiz_attempts
      WHERE scope_type = 'chapter' AND scope_id = ?
-     ORDER BY id DESC LIMIT 5`,
+     ORDER BY id DESC LIMIT 10`,
     [chapterId]
   );
 

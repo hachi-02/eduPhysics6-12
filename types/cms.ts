@@ -49,6 +49,18 @@ export interface ChapterItem {
   topics?: TopicSummaryItem[];
   chapter_question_count?: number;
   best_exam_score?: number | null;
+  completed_topics_count?: number;
+  total_topics_count?: number;
+  average_quiz_score?: number | null;
+}
+
+export interface GradeProgressStats {
+  total_topics: number;
+  completed_topics: number;
+  average_score: number | null;
+  total_chapters: number;
+  completed_chapters: number;
+  completion_rate: number;
 }
 
 export interface TopicSummaryItem {
