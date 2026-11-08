@@ -259,6 +259,40 @@ export default function CheatsheetViewer({
                 )}
 
                 <div className="p-4 space-y-6 print:p-3 print:space-y-4">
+                  {/* CHAPTER-LEVEL CHEATSHEET FORMULAS (if available) */}
+                  {ch.formula_cheatsheet && ch.formula_cheatsheet.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-[11px] uppercase font-bold text-slate-800 print:text-black tracking-wider block">
+                        📌 Công thức tổng hợp cốt lõi chương:
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {ch.formula_cheatsheet.map((fc, fcIdx) => (
+                          <div
+                            key={fcIdx}
+                            className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/70 print:bg-transparent print:border-slate-300 text-xs"
+                          >
+                            <div className="font-semibold text-slate-900">{fc.name}</div>
+                            <div className="my-1.5 py-1 text-center font-serif text-sm bg-white print:bg-transparent rounded border border-slate-100 print:border-none">
+                              <KatexFormula latex={fc.latex} displayMode={true} />
+                            </div>
+                            {fc.note && (
+                              <div className="text-[10px] text-slate-500 italic">
+                                <RichPhysicsText text={fc.note} />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If no topics and no chapter cheatsheet */}
+                  {!hasFormulas && !hasQuantities && (!ch.formula_cheatsheet || ch.formula_cheatsheet.length === 0) && (
+                    <div className="text-center py-6 text-xs text-slate-400 italic">
+                      Chương này hiện chưa có chủ đề hoặc công thức. Bạn có thể thêm chủ đề và công thức từ trang CMS Quản trị.
+                    </div>
+                  )}
+
                   {/* TOPICS & FORMULAS */}
                   {ch.topics.map((tp) => {
                     if (tp.formulas.length === 0 && tp.quantities.length === 0) return null;
