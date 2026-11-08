@@ -126,6 +126,23 @@ export interface SimulationItem {
   physics_insight: string;
 }
 
+export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
+
+export interface TrueFalseStatement {
+  id: string; // 'a' | 'b' | 'c' | 'd'
+  text: string;
+  is_correct: boolean;
+  explanation?: string;
+}
+
+export interface ShortAnswerConfig {
+  target_value: number | string;
+  tolerance?: number; // relative (e.g. 0.02) or absolute
+  unit?: string;
+  acceptable_answers?: string[];
+  hint?: string;
+}
+
 export interface QuestionItem {
   id: number;
   scope_type: 'topic' | 'chapter';
@@ -133,10 +150,13 @@ export interface QuestionItem {
   chapter_id: number;
   order_index: number;
   difficulty: DifficultyLevel;
+  question_type?: QuestionType;
   question_text: string;
   options: string[];
   correct_index: number;
   explanation: string;
+  tf_statements?: TrueFalseStatement[];
+  short_answer?: ShortAnswerConfig;
 }
 
 export interface TopicDetail extends TopicSummaryItem {

@@ -448,7 +448,7 @@ export function recordQuizAttempt(input: {
   score: number;
   totalQuestions: number;
   timeSpentSec: number;
-  answers: Record<string, number>;
+  answers: Record<string, any>;
 }) {
   const db = getDb();
   const res = db.run(
