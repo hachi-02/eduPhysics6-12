@@ -133,15 +133,15 @@ export function GlobalSearchModal() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="w-full flex items-center justify-between gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 border border-slate-200/90 text-xs text-slate-500 hover:text-slate-800 transition shadow-2xs"
+        className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-slate-100/70 px-3.5 py-2 text-xs text-slate-500 shadow-soft transition duration-150 ease-snap hover:border-slate-300 hover:bg-white hover:text-slate-800"
         title="Tìm kiếm công thức, đại lượng, bài học (Ctrl + K)"
       >
         <div className="flex items-center gap-2">
-          <Search className="w-3.5 h-3.5 text-slate-400" />
+          <Search className="h-3.5 w-3.5 text-slate-400" />
           <span className="hidden sm:inline">Tìm công thức, đại lượng, bài học...</span>
           <span className="sm:hidden">Tìm kiếm</span>
         </div>
-        <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white rounded border border-slate-200 text-slate-400 shadow-2xs">
+        <kbd className="hidden items-center gap-0.5 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400 shadow-soft sm:inline-flex">
           Ctrl K
         </kbd>
       </button>
@@ -149,16 +149,18 @@ export function GlobalSearchModal() {
       {/* Modal Backdrop & Dialog */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-16 px-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex animate-fade-in items-start justify-center bg-slate-900/50 px-4 pt-12 backdrop-blur-sm sm:pt-16"
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
+            className="flex max-h-[85vh] w-full max-w-2xl animate-pop flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-lift"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Input Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-white">
-              <Search className="w-5 h-5 text-indigo-600 shrink-0" />
+            <div className="flex items-center gap-3 border-b border-slate-100 bg-white p-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                <Search className="h-4 w-4" />
+              </span>
               <input
                 ref={inputRef}
                 type="text"
@@ -166,37 +168,37 @@ export function GlobalSearchModal() {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 placeholder="Nhập tên công thức (v, s, F, I, U...), đại lượng, đơn vị hoặc bài học..."
-                className="w-full text-sm sm:text-base bg-transparent text-slate-900 placeholder:text-slate-400 focus:outline-hidden"
+                className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none sm:text-base"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                  className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               )}
               <kbd
                 onClick={() => setIsOpen(false)}
-                className="hidden sm:inline-flex items-center px-2 py-1 text-[11px] font-mono bg-slate-100 hover:bg-slate-200 rounded text-slate-500 cursor-pointer"
+                className="hidden cursor-pointer items-center rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] text-slate-500 transition hover:bg-slate-200 sm:inline-flex"
               >
                 ESC
               </kbd>
             </div>
 
             {/* Grade Filter Bar (Lớp 6 -> 12) */}
-            <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/60 flex items-center gap-1.5 overflow-x-auto text-xs">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-100 bg-slate-50/70 px-4 py-2.5 text-xs">
+              <span className="mr-1 shrink-0 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 Lớp:
               </span>
               <button
                 type="button"
                 onClick={() => setSelectedGrade('all')}
-                className={`px-2.5 py-1 rounded-lg font-semibold transition shrink-0 ${
+                className={`shrink-0 rounded-lg px-2.5 py-1 font-semibold transition ${
                   selectedGrade === 'all'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                    ? 'bg-slate-900 text-white shadow-soft'
+                    : 'border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 Tất cả (6–12)
@@ -206,10 +208,10 @@ export function GlobalSearchModal() {
                   key={g}
                   type="button"
                   onClick={() => setSelectedGrade(g)}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition shrink-0 ${
+                  className={`shrink-0 rounded-lg px-2.5 py-1 font-semibold transition ${
                     selectedGrade === g
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                      ? 'bg-brand-600 text-white shadow-glow'
+                      : 'border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-100'
                   }`}
                 >
                   Lớp {g}
@@ -219,13 +221,13 @@ export function GlobalSearchModal() {
 
             {/* Category Filter Tabs when has query */}
             {query.trim() && (
-              <div className="px-4 py-2 border-b border-slate-100 bg-white flex items-center gap-1.5 overflow-x-auto text-xs">
+              <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-100 bg-white px-4 py-2 text-xs">
                 <button
                   type="button"
                   onClick={() => setActiveTab('all')}
-                  className={`px-3 py-1 rounded-lg font-semibold transition ${
+                  className={`rounded-lg px-3 py-1.5 font-semibold transition ${
                     activeTab === 'all'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-brand-600 text-white shadow-soft'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                   }`}
                 >
@@ -234,44 +236,44 @@ export function GlobalSearchModal() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('formulas')}
-                  className={`px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1 ${
+                  className={`flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold transition ${
                     activeTab === 'formulas'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-brand-600 text-white shadow-soft'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                   }`}
                 >
-                  <Calculator className="w-3.5 h-3.5" />
+                  <Calculator className="h-3.5 w-3.5" />
                   <span>Công thức ({results.formulas.length})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('quantities')}
-                  className={`px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1 ${
+                  className={`flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold transition ${
                     activeTab === 'quantities'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-brand-600 text-white shadow-soft'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                   }`}
                 >
-                  <Scale className="w-3.5 h-3.5" />
+                  <Scale className="h-3.5 w-3.5" />
                   <span>Đại lượng & Đơn vị ({results.quantities.length})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('topics')}
-                  className={`px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1 ${
+                  className={`flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold transition ${
                     activeTab === 'topics'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-brand-600 text-white shadow-soft'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                   }`}
                 >
-                  <BookOpen className="w-3.5 h-3.5" />
+                  <BookOpen className="h-3.5 w-3.5" />
                   <span>Bài học ({results.topics.length})</span>
                 </button>
               </div>
             )}
 
             {/* Results Container */}
-            <div className="overflow-y-auto p-4 space-y-5 flex-1">
+            <div className="flex-1 space-y-5 overflow-y-auto p-4">
               {loading && (
                 <div className="py-8 text-center text-xs text-slate-400">
                   Đang tìm kiếm trong 7 khối lớp (Lớp 6–12)...
@@ -279,12 +281,12 @@ export function GlobalSearchModal() {
               )}
 
               {!loading && !query.trim() && (
-                <div className="py-8 text-center space-y-2">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-                    <Sparkles className="w-5 h-5" />
+                <div className="space-y-2 py-8 text-center">
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+                    <Sparkles className="h-5 w-5" />
                   </div>
-                  <p className="text-xs sm:text-sm font-medium text-slate-700">
-                    Tra cứu tức thì mọi Công thức, Đại lượng và Bài học Vật lý Lớp 6–12
+                  <p className="text-xs font-semibold text-slate-700 sm:text-sm">
+                    Tra cứu tức thì mọi Công thức, Đại lượng và Bài học Vật lí Lớp 6–12
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2 text-xs text-slate-500">
                     <span>Gợi ý:</span>
@@ -294,7 +296,7 @@ export function GlobalSearchModal() {
                           key={k}
                           type="button"
                           onClick={() => setQuery(k)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition"
+                          className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-brand-50 hover:text-brand-700"
                         >
                           {k}
                         </button>
@@ -305,7 +307,7 @@ export function GlobalSearchModal() {
               )}
 
               {!loading && query.trim() && totalResults === 0 && (
-                <div className="py-10 text-center text-xs sm:text-sm text-slate-500 space-y-1">
+                <div className="space-y-1 py-10 text-center text-xs text-slate-500 sm:text-sm">
                   <p>Không tìm thấy kết quả nào khớp với &quot;<strong>{query}</strong>&quot; {selectedGrade !== 'all' ? `ở Lớp ${selectedGrade}` : ''}.</p>
                   <p className="text-xs text-slate-400">
                     Thử đổi sang &quot;Tất cả lớp&quot;, tìm bằng ký hiệu toán học hoặc từ khóa ngắn gọn hơn.
@@ -316,38 +318,36 @@ export function GlobalSearchModal() {
               {/* 1. Group: Formulas */}
               {(activeTab === 'all' || activeTab === 'formulas') && results.formulas.length > 0 && (
                 <div className="space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600">
-                    <Calculator className="w-3.5 h-3.5" />
-                    <span>Công thức Vật lý ({results.formulas.length})</span>
+                  <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-brand-600">
+                    <Calculator className="h-3.5 w-3.5" />
+                    <span>Công thức Vật lí ({results.formulas.length})</span>
                   </div>
                   <div className="space-y-2">
                     {results.formulas.map((f) => (
                       <div
                         key={`f-${f.id}`}
                         onClick={() => handleSelectResult(`/topic/${f.topic_id}`)}
-                        className="p-3.5 rounded-xl border border-slate-200/90 hover:border-indigo-300 hover:bg-indigo-50/40 transition cursor-pointer space-y-2 bg-white"
+                        className="cursor-pointer space-y-2 rounded-2xl border border-slate-200/90 bg-white p-3.5 transition duration-150 ease-snap hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-soft"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs sm:text-sm font-bold text-slate-900">
-                            {f.name}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-semibold shrink-0">
+                          <span className="text-xs font-bold text-slate-900 sm:text-sm">{f.name}</span>
+                          <span className="shrink-0 rounded-md bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
                             Lớp {f.grade_number} • {f.topic_code}
                           </span>
                         </div>
 
-                        <div className="p-2.5 rounded-lg bg-slate-900 text-white overflow-x-auto">
+                        <div className="overflow-x-auto rounded-xl bg-slate-900 p-2.5 text-white">
                           <KatexFormula latex={f.latex_expression} displayMode />
                         </div>
 
                         {f.usage_note && (
-                          <p className="text-xs text-slate-500 line-clamp-1">{f.usage_note}</p>
+                          <p className="line-clamp-1 text-xs text-slate-500">{f.usage_note}</p>
                         )}
 
-                        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-100">
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-1 text-[11px] text-slate-400">
                           <span>Chủ đề: {f.topic_title}</span>
-                          <span className="text-indigo-600 font-semibold flex items-center gap-0.5">
-                            Đi tới bài học <ArrowRight className="w-3 h-3" />
+                          <span className="flex items-center gap-0.5 font-semibold text-brand-600">
+                            Đi tới bài học <ArrowRight className="h-3 w-3" />
                           </span>
                         </div>
                       </div>
@@ -359,8 +359,8 @@ export function GlobalSearchModal() {
               {/* 2. Group: Quantities */}
               {(activeTab === 'all' || activeTab === 'quantities') && results.quantities.length > 0 && (
                 <div className="space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-600">
-                    <Scale className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-600">
+                    <Scale className="h-3.5 w-3.5" />
                     <span>Đại lượng & Đơn vị SI ({results.quantities.length})</span>
                   </div>
                   <div className="space-y-2">
@@ -368,30 +368,28 @@ export function GlobalSearchModal() {
                       <div
                         key={`q-${q.id}`}
                         onClick={() => handleSelectResult(`/topic/${q.topic_id}`)}
-                        className="p-3.5 rounded-xl border border-slate-200/90 hover:border-emerald-300 hover:bg-emerald-50/40 transition cursor-pointer space-y-2 bg-white"
+                        className="cursor-pointer space-y-2 rounded-2xl border border-slate-200/90 bg-white p-3.5 transition duration-150 ease-snap hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-soft"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <span className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-bold font-mono text-sm flex items-center justify-center shrink-0">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 font-mono text-sm font-bold text-emerald-800">
                               {q.symbol}
                             </span>
-                            <span className="text-xs sm:text-sm font-bold text-slate-900">
-                              {q.name}
-                            </span>
+                            <span className="text-xs font-bold text-slate-900 sm:text-sm">{q.name}</span>
                           </div>
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-semibold shrink-0">
+                          <span className="shrink-0 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                             Đơn vị SI: {q.si_unit}
                           </span>
                         </div>
 
-                        <p className="text-xs text-slate-600 leading-relaxed">{q.description}</p>
+                        <p className="text-xs leading-relaxed text-slate-600">{q.description}</p>
 
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1 border-t border-slate-100">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-1 text-[11px] text-slate-400">
                           <span>
                             Dụng cụ đo: <strong className="text-slate-600">{q.measuring_device || 'Thước / Cân / Đồng hồ'}</strong>
                           </span>
-                          <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
-                            Lớp {q.grade_number} • {q.topic_title} <ArrowRight className="w-3 h-3" />
+                          <span className="flex items-center gap-0.5 font-semibold text-emerald-700">
+                            Lớp {q.grade_number} • {q.topic_title} <ArrowRight className="h-3 w-3" />
                           </span>
                         </div>
                       </div>
@@ -403,8 +401,8 @@ export function GlobalSearchModal() {
               {/* 3. Group: Topics */}
               {(activeTab === 'all' || activeTab === 'topics') && results.topics.length > 0 && (
                 <div className="space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
-                    <BookOpen className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-700">
+                    <BookOpen className="h-3.5 w-3.5" />
                     <span>Bài học & Chủ đề ({results.topics.length})</span>
                   </div>
                   <div className="space-y-2">
@@ -412,20 +410,18 @@ export function GlobalSearchModal() {
                       <div
                         key={`t-${t.id}`}
                         onClick={() => handleSelectResult(`/topic/${t.id}`)}
-                        className="p-3.5 rounded-xl border border-slate-200/90 hover:border-indigo-300 hover:bg-indigo-50/40 transition cursor-pointer space-y-1.5 bg-white"
+                        className="cursor-pointer space-y-1.5 rounded-2xl border border-slate-200/90 bg-white p-3.5 transition duration-150 ease-snap hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-soft"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs sm:text-sm font-bold text-slate-900">
+                          <span className="text-xs font-bold text-slate-900 sm:text-sm">
                             {t.code}: {t.title}
                           </span>
-                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold shrink-0">
+                          <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                             Lớp {t.grade_number} • {t.chapter_title}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                          {t.overview}
-                        </p>
-                        <div className="flex justify-end text-[11px] text-indigo-600 font-semibold pt-1">
+                        <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">{t.overview}</p>
+                        <div className="flex justify-end pt-1 text-[11px] font-semibold text-brand-600">
                           Vào học chủ đề này →
                         </div>
                       </div>
@@ -436,19 +432,22 @@ export function GlobalSearchModal() {
             </div>
 
             {/* Footer with Hotkey Tips */}
-            <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/90 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/90 px-4 py-2.5 text-[11px] text-slate-500">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px]">↑↓</kbd> Di chuyển
+                  <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px]">↑↓</kbd> Di chuyển
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px] flex items-center"><CornerDownLeft className="w-2.5 h-2.5" /> Enter</kbd> Mở bài
+                  <kbd className="flex items-center gap-0.5 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px]">
+                    <CornerDownLeft className="h-2.5 w-2.5" /> Enter
+                  </kbd>{' '}
+                  Mở bài
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px]">ESC</kbd> Đóng
+                  <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px]">ESC</kbd> Đóng
                 </span>
               </div>
-              <span className="text-slate-400">Vật Lý 6–12 • Tra cứu toàn diện</span>
+              <span className="text-slate-400">Vật Lí 6–12 • Tra cứu toàn diện</span>
             </div>
           </div>
         </div>

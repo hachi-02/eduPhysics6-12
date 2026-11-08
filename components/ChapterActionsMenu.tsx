@@ -18,18 +18,18 @@ export function ChapterActionsMenu({
   const items: DropdownItem[] = [
     {
       label: 'Kiểm tra tổng hợp chương',
-      icon: <CheckSquare className="w-4 h-4 text-indigo-600" />,
-      href: `/chapter/${chapterId}`,
+      icon: <CheckSquare className="h-4 w-4 text-brand-600" />,
+      href: `/chapter/${chapterId}?tab=exam`,
     },
     {
       label: 'Xem tóm tắt lý thuyết chương',
-      icon: <FileText className="w-4 h-4 text-slate-600" />,
+      icon: <FileText className="h-4 w-4 text-slate-600" />,
       href: `/chapter/${chapterId}`,
     },
     { divider: true, label: '' },
     {
       label: 'In Cẩm nang A4 chương này',
-      icon: <Printer className="w-4 h-4 text-blue-600" />,
+      icon: <Printer className="h-4 w-4 text-accent-600" />,
       href: `/cheatsheet?grade=${gradeNumber}&chapterId=${chapterId}`,
     },
   ];
@@ -42,9 +42,10 @@ export function ChapterActionsMenu({
         <button
           type="button"
           title="Tùy chọn chương"
-          className="p-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 transition"
+          aria-label={`Tùy chọn chương ${chapterTitle}`}
+          className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
         >
-          <MoreVertical className="w-4 h-4" />
+          <MoreVertical className="h-4 w-4" />
         </button>
       }
       items={items}

@@ -17,6 +17,9 @@ import {
   Sparkles,
   FolderOpen,
   FileText,
+  Layers,
+  Target,
+  Trophy,
 } from 'lucide-react';
 
 const DIFF_LABELS: Record<string, string> = {
@@ -212,23 +215,29 @@ export function MistakeNotebookClient({
     const score = submitted
       ? practiceQuestions.filter((m) => answers[m.id] === m.correct_index).length
       : 0;
+    const practicePct = Math.round((answeredCount / total) * 100);
 
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:px-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+      <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
+        <div className="edu-card flex flex-wrap items-center justify-between gap-3 p-4 sm:px-6">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => setPracticeQuestions(null)}
-              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1"
+              className="edu-btn-ghost px-3 py-1.5 text-xs"
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> Thoát luyện tập
+              <ArrowLeft className="h-3.5 w-3.5" /> Thoát luyện tập
             </button>
             <span className="text-xs font-medium text-slate-500">
-              Đã chọn: <strong className="text-slate-900">{answeredCount}/{total}</strong> câu
+              Đã chọn:{' '}
+              <strong className="text-slate-900">
+                {answeredCount}/{total}
+              </strong>{' '}
+              câu
             </span>
             {submitted && (
-              <span className="px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+              <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                <Trophy className="h-3.5 w-3.5" />
                 Khắc phục thành công: {score}/{total} câu
               </span>
             )}
@@ -239,9 +248,9 @@ export function MistakeNotebookClient({
               <button
                 type="button"
                 onClick={handleSubmitPractice}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition"
+                className="edu-btn-primary px-4 py-2 text-xs"
               >
-                Nộp bài & Cập nhật sổ tay
+                Nộp bài &amp; Cập nhật sổ tay
               </button>
             ) : (
               <button
@@ -250,49 +259,55 @@ export function MistakeNotebookClient({
                   setPracticeQuestions(null);
                   router.refresh();
                 }}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-emerald-500"
               >
-                <CheckCircle2 className="w-3.5 h-3.5" /> Xem lại Sổ tay đã cập nhật
+                <CheckCircle2 className="h-3.5 w-3.5" /> Xem lại Sổ tay đã cập nhật
               </button>
             )}
           </div>
         </div>
 
+        {/* Progress */}
+        <div className="edu-progress">
+          <div className="edu-progress-bar" style={{ width: `${practicePct}%` }} />
+        </div>
+
         {/* Question Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 sm:p-8 space-y-6">
+        <div className="edu-card space-y-6 p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1 rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-extrabold text-brand-700">
+                <Target className="h-3.5 w-3.5" />
                 Câu {currentIdx + 1} / {total}
               </span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium">
+              <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                 Lớp {q.grade_number} • {q.chapter_title} ({q.topic_code || q.chapter_code})
               </span>
-              <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-xs font-semibold">
+              <span className="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700">
                 Đã sai {q.wrong_count} lần
               </span>
             </div>
 
             {submitted && (
               <span
-                className={`inline-flex items-center gap-1 text-xs font-bold ${
-                  isCorrect ? 'text-emerald-600' : 'text-rose-600'
+                className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold ${
+                  isCorrect ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
                 }`}
               >
                 {isCorrect ? (
                   <>
-                    <CheckCircle2 className="w-4 h-4" /> Đã nắm vững! (Tự động chuyển sang Đã thuộc)
+                    <CheckCircle2 className="h-4 w-4" /> Đã nắm vững! (Tự động chuyển sang Đã thuộc)
                   </>
                 ) : (
                   <>
-                    <XCircle className="w-4 h-4" /> Vẫn chưa đúng
+                    <XCircle className="h-4 w-4" /> Vẫn chưa đúng
                   </>
                 )}
               </span>
             )}
           </div>
 
-          <div className="text-base sm:text-lg font-medium text-slate-900 leading-relaxed">
+          <div className="text-base font-semibold leading-relaxed text-slate-900 sm:text-lg">
             <RichPhysicsText text={q.question_text} />
           </div>
 
@@ -303,12 +318,13 @@ export function MistakeNotebookClient({
               const isRightAnswer = q.correct_index === optIdx;
 
               let btnStyle =
-                'border-slate-200 bg-white hover:bg-slate-50/80 hover:border-slate-300 text-slate-800';
+                'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-50/40 hover:shadow-soft text-slate-800';
               if (!submitted && isSelected) {
-                btnStyle = 'border-indigo-600 bg-indigo-50/70 text-indigo-950 ring-1 ring-indigo-600';
+                btnStyle =
+                  'border-brand-500 bg-brand-50/70 font-semibold text-brand-950 ring-2 ring-brand-500/25';
               } else if (submitted) {
                 if (isRightAnswer) {
-                  btnStyle = 'border-emerald-500 bg-emerald-50/80 text-emerald-950 font-medium';
+                  btnStyle = 'border-emerald-500 bg-emerald-50/80 font-semibold text-emerald-950';
                 } else if (isSelected && !isRightAnswer) {
                   btnStyle = 'border-rose-400 bg-rose-50/80 text-rose-950';
                 } else {
@@ -326,22 +342,22 @@ export function MistakeNotebookClient({
                       setAnswers((prev) => ({ ...prev, [q.id]: optIdx }));
                     }
                   }}
-                  className={`w-full text-left p-3.5 rounded-xl border transition flex items-start gap-3 text-sm ${btnStyle}`}
+                  className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left text-sm transition duration-150 ease-snap ${btnStyle}`}
                 >
                   <span
-                    className={`w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${
+                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                       !submitted && isSelected
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-brand-600 text-white'
                         : submitted && isRightAnswer
-                        ? 'bg-emerald-600 text-white'
-                        : submitted && isSelected && !isRightAnswer
-                        ? 'bg-rose-600 text-white'
-                        : 'bg-slate-100 text-slate-600'
+                          ? 'bg-emerald-600 text-white'
+                          : submitted && isSelected && !isRightAnswer
+                            ? 'bg-rose-600 text-white'
+                            : 'bg-slate-100 text-slate-600'
                     }`}
                   >
                     {letter}
                   </span>
-                  <span className="leading-relaxed flex-1">
+                  <span className="flex-1 leading-relaxed">
                     <RichPhysicsText text={opt} />
                   </span>
                 </button>
@@ -350,29 +366,29 @@ export function MistakeNotebookClient({
           </div>
 
           {submitted && (
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs sm:text-sm text-slate-700 leading-relaxed">
-              <strong className="text-slate-900">Giải thích: </strong>
+            <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700 sm:text-sm">
+              <strong className="font-bold text-slate-900">Giải thích: </strong>
               <RichPhysicsText text={q.explanation} />
             </div>
           )}
 
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
             <button
               type="button"
               disabled={currentIdx === 0}
               onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5"
+              className="edu-btn-ghost flex items-center gap-1.5 px-3.5 py-2 text-xs disabled:opacity-40"
             >
-              <ArrowLeft className="w-4 h-4" /> Câu trước
+              <ArrowLeft className="h-4 w-4" /> Câu trước
             </button>
 
             <button
               type="button"
               disabled={currentIdx === total - 1}
               onClick={() => setCurrentIdx((i) => Math.min(total - 1, i + 1))}
-              className="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-white shadow-soft transition hover:bg-slate-800 disabled:opacity-40"
             >
-              Câu tiếp <ArrowRight className="w-4 h-4" />
+              Câu tiếp <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -381,20 +397,23 @@ export function MistakeNotebookClient({
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       {/* Header & 3-Tier Filter Bar (Khối Lớp -> Chương -> Chủ đề) */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-sm space-y-4">
+      <div className="edu-card space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 uppercase tracking-wider">
-              <AlertCircle className="w-4 h-4" />
+            <div className="edu-eyebrow text-rose-600">
+              <AlertCircle className="h-4 w-4" />
               <span>Sổ tay Ôn tập Thông minh • Phân cấp Lớp → Chương → Chủ đề</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
               Sổ tay Câu hỏi làm sai
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Được phân loại tự động theo từng <strong>Khối lớp</strong>, <strong>Chương học</strong> và <strong>Chủ đề (Bài học)</strong>. Bạn có thể chọn ôn tập toàn bộ, theo chương hoặc theo từng chủ đề!
+            <p className="max-w-2xl text-xs leading-relaxed text-slate-500 sm:text-sm">
+              Được phân loại tự động theo từng <strong className="text-slate-700">Khối lớp</strong>,{' '}
+              <strong className="text-slate-700">Chương học</strong> và{' '}
+              <strong className="text-slate-700">Chủ đề (Bài học)</strong>. Bạn có thể chọn ôn tập toàn
+              bộ, theo chương hoặc theo từng chủ đề!
             </p>
           </div>
 
@@ -402,16 +421,16 @@ export function MistakeNotebookClient({
             <button
               type="button"
               onClick={() => handleStartPractice(filteredMistakes)}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-sm flex items-center gap-2 transition"
+              className="edu-btn-primary px-5 py-2.5"
             >
-              <Play className="w-4 h-4 fill-current" />
+              <Play className="h-4 w-4 fill-current" />
               <span>Làm lại {filteredMistakes.length} câu đang chọn</span>
             </button>
           )}
         </div>
 
         {/* Tier 1: Status Tabs (Cần ôn lại vs Đã nắm vững) & Grade Filter (Lớp 6 - 12) */}
-        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
           <div className="flex items-center gap-2">
             <Link
               href={`/mistakes?${selectedGrade ? `grade=${selectedGrade}&` : ''}mastered=0`}
@@ -419,14 +438,18 @@ export function MistakeNotebookClient({
                 setSelectedChapterId('all');
                 setSelectedTopicKey('all');
               }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
                 !showMastered
-                  ? 'bg-rose-600 text-white shadow-sm'
+                  ? 'bg-rose-600 text-white shadow-soft'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
               }`}
             >
               <span>Cần ôn lại</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[11px] ${!showMastered ? 'bg-rose-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[11px] ${
+                  !showMastered ? 'bg-rose-700 text-white' : 'bg-slate-200 text-slate-700'
+                }`}
+              >
                 {activeMistakeCount}
               </span>
             </Link>
@@ -437,14 +460,18 @@ export function MistakeNotebookClient({
                 setSelectedChapterId('all');
                 setSelectedTopicKey('all');
               }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
                 showMastered
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-emerald-600 text-white shadow-soft'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
               }`}
             >
               <span>Đã nắm vững</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[11px] ${showMastered ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[11px] ${
+                  showMastered ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
+                }`}
+              >
                 {masteredCount}
               </span>
             </Link>
@@ -458,9 +485,9 @@ export function MistakeNotebookClient({
                 setSelectedChapterId('all');
                 setSelectedTopicKey('all');
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                 !selectedGrade
-                  ? 'bg-slate-900 text-white'
+                  ? 'bg-slate-900 text-white shadow-soft'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -477,15 +504,19 @@ export function MistakeNotebookClient({
                     setSelectedChapterId('all');
                     setSelectedTopicKey('all');
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1 ${
+                  className={`flex items-center gap-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                     isSelected
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-brand-gradient text-white shadow-glow'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   <span>Lớp {g}</span>
                   {count > 0 && (
-                    <span className={`text-[10px] px-1 rounded ${isSelected ? 'bg-indigo-800 text-white' : 'bg-rose-100 text-rose-700 font-bold'}`}>
+                    <span
+                      className={`rounded px-1 text-[10px] ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-rose-100 font-bold text-rose-700'
+                      }`}
+                    >
                       {count}
                     </span>
                   )}
@@ -497,8 +528,8 @@ export function MistakeNotebookClient({
 
         {/* Tier 2: Chapter Selector Pills (Lọc theo Chương) */}
         {chapterGroups.length > 0 && (
-          <div className="pt-3 border-t border-slate-100 space-y-2">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="space-y-2 border-t border-slate-100 pt-3">
+            <div className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
               1. Chọn Chương học ({chapterGroups.length} chương):
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -508,14 +539,19 @@ export function MistakeNotebookClient({
                   setSelectedChapterId('all');
                   setSelectedTopicKey('all');
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                   selectedChapterId === 'all'
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-brand-600 text-white shadow-soft'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                 }`}
               >
+                <Layers className="h-3.5 w-3.5" />
                 <span>Tất cả các chương</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${selectedChapterId === 'all' ? 'bg-indigo-800 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                    selectedChapterId === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
                   {mistakes.length}
                 </span>
               </button>
@@ -530,9 +566,9 @@ export function MistakeNotebookClient({
                       setSelectedChapterId(cg.chapter_id);
                       setSelectedTopicKey('all');
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                       isSelected
-                        ? 'bg-indigo-600 text-white shadow-sm'
+                        ? 'bg-brand-600 text-white shadow-soft'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
                     }`}
                   >
@@ -541,8 +577,8 @@ export function MistakeNotebookClient({
                       {cg.chapter_title}
                     </span>
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                        isSelected ? 'bg-indigo-800 text-white' : 'bg-rose-100 text-rose-700'
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
                       }`}
                     >
                       {cg.items.length}
@@ -556,17 +592,17 @@ export function MistakeNotebookClient({
 
         {/* Tier 3: Topic Selector Pills (Lọc theo Chủ đề / Bài học) */}
         {availableTopicGroups.length > 0 && (
-          <div className="pt-3 border-t border-slate-100 space-y-2">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="space-y-2 border-t border-slate-100 pt-3">
+            <div className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
               2. Chọn Chủ đề / Bài học ({availableTopicGroups.length} chủ đề):
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setSelectedTopicKey('all')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                   selectedTopicKey === 'all'
-                    ? 'bg-slate-900 text-white shadow-sm'
+                    ? 'bg-slate-900 text-white shadow-soft'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                 }`}
               >
@@ -580,16 +616,16 @@ export function MistakeNotebookClient({
                     key={tg.key}
                     type="button"
                     onClick={() => setSelectedTopicKey(tg.key)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                       isSelected
-                        ? 'bg-slate-900 text-white shadow-sm'
+                        ? 'bg-slate-900 text-white shadow-soft'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
                     }`}
                   >
                     <span>{tg.topic_title}</span>
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                        isSelected ? 'bg-slate-700 text-white' : 'bg-rose-100 text-rose-700'
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
                       }`}
                     >
                       {tg.items.length}
@@ -604,26 +640,23 @@ export function MistakeNotebookClient({
 
       {/* Empty State */}
       {visibleGroups.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-12 text-center space-y-3 shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-            <Sparkles className="w-6 h-6" />
+        <div className="edu-card space-y-3 p-12 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 shadow-soft">
+            <Sparkles className="h-7 w-7" />
           </div>
-          <h3 className="text-base font-bold text-slate-900">
+          <h3 className="text-base font-extrabold text-slate-900">
             {showMastered
               ? 'Chưa có câu hỏi nào trong danh sách Đã nắm vững'
               : 'Tuyệt vời! Bạn không có câu hỏi nào đang làm sai'}
           </h3>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+          <p className="mx-auto max-w-md text-xs leading-relaxed text-slate-500 sm:text-sm">
             {showMastered
               ? 'Khi bạn làm lại đúng các câu hỏi trong mục Cần ôn lại, chúng sẽ được chuyển sang đây.'
               : 'Hãy vào học các chủ đề từ Lớp 6 đến Lớp 12 và làm bài kiểm tra 25 câu. Những câu bạn làm sai sẽ tự động phân theo từng Chương và Chủ đề tại đây để bạn ôn tập.'}
           </p>
           <div className="pt-2">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition"
-            >
-              <BookOpen className="w-4 h-4" /> Đi tới Chương trình học
+            <Link href="/" className="edu-btn-primary px-4 py-2 text-xs">
+              <BookOpen className="h-4 w-4" /> Đi tới Chương trình học
             </Link>
           </div>
         </div>
@@ -631,27 +664,24 @@ export function MistakeNotebookClient({
         /* Grouped by Chapter -> Grouped by Topic */
         <div className="space-y-8">
           {visibleGroups.map((group) => (
-            <section
-              key={group.chapter_id}
-              className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden"
-            >
+            <section key={group.chapter_id} className="edu-card overflow-hidden">
               {/* Chapter Header */}
-              <div className="px-6 py-4 bg-slate-100/80 border-b border-slate-200/90 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/90 bg-slate-100/80 px-6 py-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
-                    <FolderOpen className="w-4 h-4" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-glow">
+                    <FolderOpen className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-brand-600">
                       <span>Lớp {group.grade_number}</span>
-                      <span>•</span>
+                      <span className="text-slate-300">•</span>
                       <span>{group.chapter_code}</span>
-                      <span>•</span>
+                      <span className="text-slate-300">•</span>
                       <span className="text-rose-600">
                         {group.topicGroups.length} chủ đề ({group.items.length} câu)
                       </span>
                     </div>
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-0.5">
+                    <h2 className="mt-0.5 text-base font-extrabold tracking-tight text-slate-900 sm:text-lg">
                       {group.chapter_title}
                     </h2>
                   </div>
@@ -660,7 +690,7 @@ export function MistakeNotebookClient({
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/chapter/${group.chapter_id}`}
-                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold transition"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
                   >
                     Tóm tắt chương
                   </Link>
@@ -668,9 +698,9 @@ export function MistakeNotebookClient({
                     <button
                       type="button"
                       onClick={() => handleStartPractice(group.items)}
-                      className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition"
+                      className="edu-btn-primary px-3.5 py-1.5 text-xs"
                     >
-                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <Play className="h-3.5 w-3.5 fill-current" />
                       <span>Ôn cả chương ({group.items.length} câu)</span>
                     </button>
                   )}
@@ -678,36 +708,31 @@ export function MistakeNotebookClient({
               </div>
 
               {/* Topic Sub-sections inside Chapter */}
-              <div className="p-4 sm:p-6 space-y-6 bg-slate-50/30">
+              <div className="space-y-6 bg-slate-50/30 p-4 sm:p-6">
                 {group.topicGroups.map((tGroup) => (
-                  <div
-                    key={tGroup.key}
-                    className="rounded-xl border border-slate-200/90 bg-white overflow-hidden shadow-xs"
-                  >
+                  <div key={tGroup.key} className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-soft">
                     {/* Topic Sub-header */}
-                    <div className="px-5 py-3 bg-indigo-50/50 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 bg-brand-50/50 px-5 py-3">
                       <div className="flex items-center gap-2.5">
-                        <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                        <h3 className="text-sm font-bold text-slate-900">
-                          {tGroup.topic_title}
-                        </h3>
-                        <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[11px] font-bold">
+                        <FileText className="h-4 w-4 shrink-0 text-brand-600" />
+                        <h3 className="text-sm font-extrabold text-slate-900">{tGroup.topic_title}</h3>
+                        <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">
                           {tGroup.items.length} câu
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {tGroup.topic_id ? (
                           <Link
                             href={`/topic/${tGroup.topic_id}`}
-                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200/80 text-xs font-semibold transition"
+                            className="rounded-lg border border-brand-200/80 bg-white px-2.5 py-1 text-xs font-bold text-brand-600 transition hover:bg-brand-50"
                           >
                             Xem lại lý thuyết bài này →
                           </Link>
                         ) : (
                           <Link
                             href={`/chapter/${group.chapter_id}`}
-                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-amber-700 border border-amber-200 text-xs font-semibold transition"
+                            className="rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                           >
                             Mở đề tổng hợp chương →
                           </Link>
@@ -716,9 +741,9 @@ export function MistakeNotebookClient({
                           <button
                             type="button"
                             onClick={() => handleStartPractice(tGroup.items)}
-                            className="px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1 transition"
+                            className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-soft transition hover:bg-slate-800"
                           >
-                            <Play className="w-3 h-3 fill-current" />
+                            <Play className="h-3 w-3 fill-current" />
                             <span>Ôn riêng chủ đề này ({tGroup.items.length})</span>
                           </button>
                         )}
@@ -736,16 +761,16 @@ export function MistakeNotebookClient({
                         const rightLetter = ['A', 'B', 'C', 'D'][q.correct_index] || 'A';
 
                         return (
-                          <div key={q.id} className="p-5 space-y-3.5">
+                          <div key={q.id} className="space-y-3.5 p-5">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-2 text-xs">
-                                <span className="px-2 py-0.5 rounded bg-slate-800 text-white font-bold">
+                                <span className="rounded-md bg-slate-800 px-2 py-0.5 font-bold text-white">
                                   Câu {idx + 1}
                                 </span>
-                                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                                <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
                                   Mức độ: {DIFF_LABELS[q.difficulty] || q.difficulty}
                                 </span>
-                                <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-semibold">
+                                <span className="rounded-md bg-rose-50 px-2 py-0.5 font-bold text-rose-700">
                                   Sai {q.wrong_count} lần (Đã chọn: {wrongLetter})
                                 </span>
                               </div>
@@ -755,28 +780,28 @@ export function MistakeNotebookClient({
                                   <button
                                     type="button"
                                     onClick={() => handleSingleAction(q.id, 'master')}
-                                    className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold flex items-center gap-1 transition"
+                                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
                                     title="Đánh dấu đã thuộc câu này"
                                   >
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> Đã thuộc
+                                    <CheckCircle2 className="h-3.5 w-3.5" /> Đã thuộc
                                   </button>
                                 )}
                                 <button
                                   type="button"
                                   onClick={() => handleSingleAction(q.id, 'delete')}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
                                   title="Xóa khỏi sổ tay"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
                             </div>
 
-                            <div className="text-sm sm:text-base font-medium text-slate-900 leading-relaxed">
+                            <div className="text-sm font-semibold leading-relaxed text-slate-900 sm:text-base">
                               <RichPhysicsText text={q.question_text} />
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                               {q.options.map((opt, oIdx) => {
                                 const letter = ['A', 'B', 'C', 'D'][oIdx];
                                 const isWrongChoice = oIdx === q.last_wrong_option;
@@ -785,21 +810,21 @@ export function MistakeNotebookClient({
                                 return (
                                   <div
                                     key={oIdx}
-                                    className={`p-3 rounded-xl border text-xs sm:text-sm flex items-start gap-2.5 ${
+                                    className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs sm:text-sm ${
                                       isExpanded && isCorrectChoice
-                                        ? 'border-emerald-400 bg-emerald-50/70 text-emerald-950 font-medium'
+                                        ? 'border-emerald-400 bg-emerald-50/70 font-semibold text-emerald-950'
                                         : isWrongChoice
-                                        ? 'border-rose-300 bg-rose-50/60 text-rose-900'
-                                        : 'border-slate-200/80 bg-slate-50/40 text-slate-700'
+                                          ? 'border-rose-300 bg-rose-50/60 text-rose-900'
+                                          : 'border-slate-200/80 bg-slate-50/40 text-slate-700'
                                     }`}
                                   >
                                     <span
-                                      className={`w-5 h-5 rounded text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5 ${
+                                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold ${
                                         isExpanded && isCorrectChoice
                                           ? 'bg-emerald-600 text-white'
                                           : isWrongChoice
-                                          ? 'bg-rose-500 text-white'
-                                          : 'bg-slate-200 text-slate-700'
+                                            ? 'bg-rose-500 text-white'
+                                            : 'bg-slate-200 text-slate-700'
                                       }`}
                                     >
                                       {letter}
@@ -816,13 +841,15 @@ export function MistakeNotebookClient({
                               <button
                                 type="button"
                                 onClick={() => handleToggleExplanation(q.id)}
-                                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                                className="text-xs font-bold text-brand-600 transition hover:text-brand-800"
                               >
-                                {isExpanded ? '▲ Ẩn đáp án đúng & lời giải' : '▼ Xem đáp án đúng & lời giải chi tiết'}
+                                {isExpanded
+                                  ? '▲ Ẩn đáp án đúng & lời giải'
+                                  : '▼ Xem đáp án đúng & lời giải chi tiết'}
                               </button>
 
                               {isExpanded && (
-                                <div className="mt-2.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs sm:text-sm text-slate-700 space-y-1">
+                                <div className="animate-fade-in mt-2.5 space-y-1 rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 text-xs text-slate-700 sm:text-sm">
                                   <div>
                                     <strong className="text-emerald-700">Đáp án đúng: {rightLetter}</strong>
                                   </div>

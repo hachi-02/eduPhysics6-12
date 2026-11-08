@@ -7,8 +7,10 @@ export const dynamic = 'force-dynamic';
 
 export default function ChapterSummaryAndExamPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams?: { tab?: string };
 }) {
   const chapterId = Number(params.id);
   if (!chapterId || Number.isNaN(chapterId)) {
@@ -20,6 +22,9 @@ export default function ChapterSummaryAndExamPage({
     notFound();
   }
 
+  const initialTab =
+    searchParams?.tab === 'exam' ? 'exam' : searchParams?.tab === 'summary' ? 'summary' : undefined;
+
   return (
     <ChapterWorkspaceClient
       chapter={detail.chapter}
@@ -27,6 +32,7 @@ export default function ChapterSummaryAndExamPage({
       topics={detail.topics}
       allQuantities={detail.allQuantities}
       examQuestions={detail.examQuestions}
+      initialTab={initialTab}
     />
   );
 }

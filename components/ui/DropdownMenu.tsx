@@ -67,7 +67,7 @@ export function DropdownMenu({
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
-        className="focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-xl"
+        className="rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
         {trigger}
       </button>
@@ -79,9 +79,9 @@ export function DropdownMenu({
 
       {isOpen && (
         <div
-          className={`absolute z-50 mt-2 ${menuWidth} ${
+          className={`absolute z-50 mt-2 origin-top animate-pop ${menuWidth} ${
             align === 'right' ? 'right-0' : 'left-0'
-          } rounded-xl bg-white shadow-xl border border-slate-200/90 py-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 animate-in fade-in zoom-in-95 duration-100 origin-top`}
+          } rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-card backdrop-blur-xl focus:outline-none`}
         >
           {items.map((item, idx) => {
             if (item.divider) {
@@ -95,7 +95,7 @@ export function DropdownMenu({
                   <span className="truncate">{item.label}</span>
                 </div>
                 {item.badge !== undefined && (
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
+                  <span className="rounded-md bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">
                     {item.badge}
                   </span>
                 )}
@@ -108,10 +108,10 @@ export function DropdownMenu({
                   key={idx}
                   href={item.href}
                   onClick={() => setIsOpen(false)}
-                  className={`block px-3.5 py-2 text-xs font-medium cursor-pointer transition-colors no-underline ${
+                  className={`block cursor-pointer rounded-xl px-3.5 py-2.5 text-xs font-semibold no-underline transition duration-150 ease-snap ${
                     item.danger
                       ? 'text-rose-600 hover:bg-rose-50'
-                      : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                      : 'text-slate-700 hover:bg-brand-50 hover:text-brand-800'
                   }`}
                 >
                   {inner}
@@ -123,10 +123,10 @@ export function DropdownMenu({
               <button
                 key={idx}
                 type="button"
-                className={`w-full text-left px-3.5 py-2 text-xs font-medium cursor-pointer transition-colors focus:outline-none focus-visible:bg-slate-100 ${
+                className={`w-full rounded-xl px-3.5 py-2.5 text-left text-xs font-semibold transition duration-150 ease-snap focus:outline-none ${
                   item.danger
                     ? 'text-rose-600 hover:bg-rose-50'
-                    : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                    : 'text-slate-700 hover:bg-brand-50 hover:text-brand-800'
                 }`}
                 onClick={() => {
                   setIsOpen(false);

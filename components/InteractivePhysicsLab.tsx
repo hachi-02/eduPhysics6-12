@@ -8,38 +8,41 @@ export function InteractivePhysicsLab({ simulation }: { simulation: SimulationIt
   const { sim_key, title, description, guide_steps, physics_insight, parameters } = simulation;
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
-      {/* Calm Light Header */}
-      <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+    <div className="edu-card overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 bg-slate-50/80 px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <Sliders className="w-4 h-4" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-glow">
+            <Sliders className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">{title}</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+            <h3 className="text-base font-extrabold tracking-tight text-slate-900">{title}</h3>
+            <p className="mt-0.5 text-xs text-slate-500">{description}</p>
           </div>
         </div>
+        <span className="rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-brand-700">
+          Phòng thí nghiệm ảo
+        </span>
       </div>
 
-      <div className="p-6 space-y-5">
+      <div className="space-y-5 p-6">
         {/* Interactive Canvas Area by sim_key */}
-        <div className="rounded-xl bg-slate-900 text-white p-5">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-lift">
           {renderSimByKey(sim_key, parameters)}
         </div>
 
         {/* Guide Steps & Physics Insight */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {guide_steps && guide_steps.length > 0 && (
-            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-4">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                <Compass className="w-4 h-4 text-indigo-600" />
+            <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
+              <div className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-600">
+                <Compass className="h-4 w-4 text-brand-600" />
                 Gợi ý thao tác
               </div>
               <ul className="space-y-1.5 text-xs text-slate-600">
                 {guide_steps.map((step, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
                     <span>{step}</span>
                   </li>
                 ))}
@@ -48,12 +51,12 @@ export function InteractivePhysicsLab({ simulation }: { simulation: SimulationIt
           )}
 
           {physics_insight && (
-            <div className="rounded-xl bg-indigo-50/60 border border-indigo-100 p-4">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-800 mb-1.5">
-                <Sparkles className="w-4 h-4 text-indigo-600" />
+            <div className="rounded-2xl border border-brand-100 bg-brand-50/60 p-4">
+              <div className="mb-1.5 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-brand-800">
+                <Sparkles className="h-4 w-4 text-brand-600" />
                 Bản chất Vật lý
               </div>
-              <p className="text-xs text-indigo-950 leading-relaxed">{physics_insight}</p>
+              <p className="text-xs leading-relaxed text-brand-950">{physics_insight}</p>
             </div>
           )}
         </div>

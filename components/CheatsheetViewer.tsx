@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { CheatsheetGradeData, GradeItem } from '@/types/cms';
 import { KatexFormula, RichPhysicsText } from './KatexRenderer';
 import { DropdownMenu, DropdownItem } from './ui/DropdownMenu';
-import { SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { SlidersHorizontal, ChevronDown, Printer, ArrowLeft, BookMarked, Sigma } from 'lucide-react';
 
 interface CheatsheetViewerProps {
   data: CheatsheetGradeData;
@@ -94,27 +94,30 @@ export default function CheatsheetViewer({
       {/* ============================================================ */}
       {/* SCREEN TOOLBAR (Hidden when printed)                         */}
       {/* ============================================================ */}
-      <header className="no-print sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm px-4 py-3">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      <header className="no-print sticky top-0 z-40 border-b border-slate-200 bg-white/90 px-4 py-3 shadow-soft backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 md:flex-row">
           {/* Back & Title */}
-          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+          <div className="flex w-full items-center justify-between gap-3 md:w-auto md:justify-start">
             <Link
               href={`/?grade=${selectedGrade}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors"
+              className="edu-btn-ghost px-3 py-1.5 text-sm"
             >
-              <span>←</span>
+              <ArrowLeft className="h-4 w-4" />
               <span>Dashboard</span>
             </Link>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
-              <h1 className="text-base font-bold text-slate-900">
-                Cẩm nang Công thức A4 (Lớp {selectedGrade})
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-gradient text-white shadow-glow">
+                <Sigma className="h-4 w-4" />
+              </span>
+              <h1 className="text-base font-extrabold tracking-tight text-slate-900">
+                Cẩm nang Công thức A4{' '}
+                <span className="text-brand-600">(Lớp {selectedGrade})</span>
               </h1>
             </div>
           </div>
 
           {/* Grade Selector Pills */}
-          <div className="flex items-center gap-1 overflow-x-auto max-w-full py-1">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto py-1">
             {allGrades.map((g) => {
               const active = g.grade_number === selectedGrade;
               return (
@@ -124,9 +127,9 @@ export default function CheatsheetViewer({
                     setSelectedChapterId('all');
                     router.push(`/cheatsheet?grade=${g.grade_number}`);
                   }}
-                  className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap transition-colors duration-150 ${
+                  className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold transition duration-150 ${
                     active
-                      ? 'bg-blue-600 text-white shadow-sm'
+                      ? 'bg-brand-gradient text-white shadow-glow'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -137,35 +140,25 @@ export default function CheatsheetViewer({
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-            <button
-              onClick={handlePrint}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-lg shadow-md hover:shadow-lg transition-colors duration-150 active:scale-[0.98]"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                />
-              </svg>
+          <div className="flex w-full items-center justify-end gap-2 md:w-auto">
+            <button onClick={handlePrint} className="edu-btn-primary px-4 py-2 text-sm">
+              <Printer className="h-4 w-4" />
               <span>In / Lưu PDF A4</span>
             </button>
           </div>
         </div>
 
         {/* Filters & Options bar */}
-        <div className="max-w-6xl mx-auto mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-slate-700">Lọc chương:</span>
+        <div className="mx-auto mt-2 flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-2 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-slate-700">Lọc chương:</span>
             <select
               value={activeChapterId}
               onChange={(e) => {
                 const val = e.target.value;
                 setSelectedChapterId(val === 'all' ? 'all' : Number(val));
               }}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="edu-select px-2.5 py-1 text-xs"
             >
               <option value="all">Tất cả {data.chapters.length} chương</option>
               {data.chapters.map((ch) => (
@@ -182,22 +175,17 @@ export default function CheatsheetViewer({
               align="left"
               menuWidth="w-60"
               trigger={
-                <button
-                  type="button"
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition shadow-2xs"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>
-                    Chế độ: {viewMode === 'full' ? 'Chi tiết' : 'Thu gọn'}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                <button type="button" className="edu-btn-ghost px-2.5 py-1 text-xs">
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600" />
+                  <span>Chế độ: {viewMode === 'full' ? 'Chi tiết' : 'Thu gọn'}</span>
+                  <ChevronDown className="h-3 w-3 text-slate-400" />
                 </button>
               }
               items={displayOptionsItems}
             />
           </div>
 
-          <div className="text-slate-500 italic">
+          <div className="italic text-slate-500">
             Hiển thị: <strong className="text-slate-800">{totalFormulasDisplayed}</strong> công thức •{' '}
             <strong className="text-slate-800">{totalQuantitiesDisplayed}</strong> đại lượng
           </div>
@@ -207,39 +195,42 @@ export default function CheatsheetViewer({
       {/* ============================================================ */}
       {/* PRINTABLE A4 DOCUMENT WRAPPER                                */}
       {/* ============================================================ */}
-      <main className="max-w-5xl mx-auto my-6 p-6 sm:p-10 bg-white shadow-xl rounded-2xl border border-slate-200 print:shadow-none print:border-none print:my-0 print:p-0 print:max-w-none">
+      <main className="my-6 mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-10 print:my-0 print:max-w-none print:rounded-none print:border-none print:p-0 print:shadow-none">
         {/* DOCUMENT HEADER */}
-        <div className="border-b-2 border-slate-900 pb-5 mb-6">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-2">
+        <div className="mb-6 border-b-2 border-slate-900 pb-5">
+          <div className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
             <span>BỘ GIÁO DỤC VÀ ĐÀO TẠO • GDPT 2018</span>
             <span>HỆ THỐNG TRA CỨU VẬT LÍ K12</span>
           </div>
 
-          <div className="text-center my-3">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 uppercase tracking-tight">
+          <div className="my-3 text-center">
+            <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-brand-700 print:hidden">
+              <BookMarked className="h-3.5 w-3.5" /> Tài liệu in A4 chuẩn
+            </div>
+            <h1 className="text-2xl font-extrabold uppercase tracking-tight text-slate-950 sm:text-3xl">
               CẨM NANG ÔN TẬP CÔNG THỨC & ĐẠI LƯỢNG VẬT LÍ {data.grade.grade_number}
             </h1>
-            <p className="text-sm font-medium text-slate-700 mt-1">
+            <p className="mt-1 text-sm font-bold text-slate-700">
               {data.grade.title} — {data.grade.subtitle}
             </p>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="mt-0.5 text-xs text-slate-500">
               Chuẩn 3 bộ sách giáo khoa: Kết nối tri thức • Cánh Diều • Chân trời sáng tạo
             </p>
           </div>
 
           {/* Student Info Box for Writing / Submitting */}
-          <div className="mt-4 pt-3 border-t border-dashed border-slate-300 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-700">
+          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-dashed border-slate-300 pt-3 text-xs text-slate-700 sm:grid-cols-3">
             <div>
-              <span className="font-semibold">Họ và tên:</span>{' '}
-              <span className="border-b border-dotted border-slate-400 inline-block w-40"></span>
+              <span className="font-bold">Họ và tên:</span>{' '}
+              <span className="inline-block w-40 border-b border-dotted border-slate-400"></span>
             </div>
             <div>
-              <span className="font-semibold">Lớp:</span>{' '}
-              <span className="border-b border-dotted border-slate-400 inline-block w-20"></span>
+              <span className="font-bold">Lớp:</span>{' '}
+              <span className="inline-block w-20 border-b border-dotted border-slate-400"></span>
             </div>
             <div>
-              <span className="font-semibold">Trường:</span>{' '}
-              <span className="border-b border-dotted border-slate-400 inline-block w-44"></span>
+              <span className="font-bold">Trường:</span>{' '}
+              <span className="inline-block w-44 border-b border-dotted border-slate-400"></span>
             </div>
           </div>
         </div>
@@ -253,28 +244,28 @@ export default function CheatsheetViewer({
             return (
               <section
                 key={ch.id}
-                className="print-break-inside-avoid border border-slate-200 rounded-xl overflow-hidden print:border-slate-400 print:rounded-none"
+                className="print-break-inside-avoid overflow-hidden rounded-xl border border-slate-200 print:rounded-none print:border-slate-400"
               >
                 {/* Chapter Banner */}
-                <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between print:bg-slate-800">
+                <div className="flex items-center justify-between bg-slate-900 px-4 py-2.5 text-white print:bg-slate-800">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 bg-blue-500 text-white font-mono font-bold text-xs rounded">
+                    <span className="rounded bg-brand-500 px-2 py-0.5 font-mono text-xs font-bold text-white print:bg-slate-700">
                       Chương {ch.order_index}
                     </span>
-                    <h2 className="text-sm sm:text-base font-bold tracking-tight">{ch.title}</h2>
+                    <h2 className="text-sm font-bold tracking-tight sm:text-base">{ch.title}</h2>
                   </div>
-                  <span className="text-xs text-slate-300 font-mono hidden sm:inline">
+                  <span className="hidden font-mono text-xs text-slate-300 sm:inline">
                     {ch.topics.length} chủ đề
                   </span>
                 </div>
 
                 {/* Chapter Summary / Key Takeaways */}
                 {ch.key_takeaways && ch.key_takeaways.length > 0 && (
-                  <div className="bg-blue-50/60 border-b border-blue-100 px-4 py-2.5 print:bg-slate-50 print:border-slate-300 text-xs text-slate-800">
-                    <span className="font-bold text-blue-900 print:text-black uppercase tracking-wider text-[11px] block mb-1">
+                  <div className="border-b border-brand-100 bg-brand-50/60 px-4 py-2.5 text-xs text-slate-800 print:border-slate-300 print:bg-slate-50">
+                    <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-brand-900 print:text-black">
                       💡 Trọng tâm cốt lõi chương:
                     </span>
-                    <ul className="list-disc list-inside space-y-0.5 text-slate-700 print:text-black">
+                    <ul className="list-inside list-disc space-y-0.5 text-slate-700 print:text-black">
                       {ch.key_takeaways.map((point, pIdx) => (
                         <li key={pIdx}>
                           <RichPhysicsText text={point} />
@@ -284,25 +275,25 @@ export default function CheatsheetViewer({
                   </div>
                 )}
 
-                <div className="p-4 space-y-6 print:p-3 print:space-y-4">
+                <div className="space-y-6 p-4 print:space-y-4 print:p-3">
                   {/* CHAPTER-LEVEL CHEATSHEET FORMULAS (if available) */}
                   {ch.formula_cheatsheet && ch.formula_cheatsheet.length > 0 && (
                     <div className="space-y-2">
-                      <span className="text-[11px] uppercase font-bold text-slate-800 print:text-black tracking-wider block">
+                      <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-800 print:text-black">
                         📌 Công thức tổng hợp cốt lõi chương:
                       </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {ch.formula_cheatsheet.map((fc, fcIdx) => (
                           <div
                             key={fcIdx}
-                            className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/70 print:bg-transparent print:border-slate-300 text-xs"
+                            className="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-xs print:border-slate-300 print:bg-transparent"
                           >
-                            <div className="font-semibold text-slate-900">{fc.name}</div>
-                            <div className="my-1.5 py-1 text-center font-serif text-sm bg-white print:bg-transparent rounded border border-slate-100 print:border-none">
+                            <div className="font-bold text-slate-900">{fc.name}</div>
+                            <div className="my-1.5 rounded border border-slate-100 bg-white py-1 text-center font-serif text-sm print:border-none print:bg-transparent">
                               <KatexFormula latex={fc.latex} displayMode={true} />
                             </div>
                             {fc.note && (
-                              <div className="text-[10px] text-slate-500 italic">
+                              <div className="text-[10px] italic text-slate-500">
                                 <RichPhysicsText text={fc.note} />
                               </div>
                             )}
@@ -314,7 +305,7 @@ export default function CheatsheetViewer({
 
                   {/* If no topics and no chapter cheatsheet */}
                   {!hasFormulas && !hasQuantities && (!ch.formula_cheatsheet || ch.formula_cheatsheet.length === 0) && (
-                    <div className="text-center py-6 text-xs text-slate-400 italic">
+                    <div className="py-6 text-center text-xs italic text-slate-400">
                       Chương này hiện chưa có chủ đề hoặc công thức. Bạn có thể thêm chủ đề và công thức từ trang CMS Quản trị.
                     </div>
                   )}
@@ -325,22 +316,22 @@ export default function CheatsheetViewer({
 
                     return (
                       <div key={tp.id} className="space-y-3">
-                        <div className="flex items-center gap-2 pb-1 border-b border-slate-200">
-                          <span className="text-xs font-bold text-blue-700 print:text-black font-mono">
+                        <div className="flex items-center gap-2 border-b border-slate-200 pb-1">
+                          <span className="font-mono text-xs font-bold text-brand-700 print:text-black">
                             {tp.code}
                           </span>
-                          <h3 className="text-xs sm:text-sm font-bold text-slate-900">{tp.title}</h3>
+                          <h3 className="text-xs font-extrabold text-slate-900 sm:text-sm">{tp.title}</h3>
                         </div>
 
                         {/* FORMULAS TABLE / CARDS */}
                         {tp.formulas.length > 0 && (
                           <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs border border-slate-200 print:border-slate-300">
-                              <thead className="bg-slate-100 text-slate-700 print:bg-slate-200 print:text-black font-semibold border-b border-slate-200">
+                            <table className="w-full border border-slate-200 text-left text-xs print:border-slate-300">
+                              <thead className="border-b border-slate-200 bg-slate-100 font-bold text-slate-700 print:bg-slate-200 print:text-black">
                                 <tr>
-                                  <th className="py-1.5 px-2.5 w-1/4">Tên công thức</th>
-                                  <th className="py-1.5 px-2.5 w-1/3">Biểu thức chuẩn (KaTeX)</th>
-                                  <th className="py-1.5 px-2.5">
+                                  <th className="w-1/4 px-2.5 py-1.5">Tên công thức</th>
+                                  <th className="w-1/3 px-2.5 py-1.5">Biểu thức chuẩn (KaTeX)</th>
+                                  <th className="px-2.5 py-1.5">
                                     {viewMode === 'full' ? 'Đại lượng & Đơn vị SI' : 'Ghi chú'}
                                   </th>
                                 </tr>
@@ -349,28 +340,28 @@ export default function CheatsheetViewer({
                                 {tp.formulas.map((fm) => (
                                   <tr
                                     key={fm.id}
-                                    className="hover:bg-slate-50/50 print:hover:bg-transparent align-top"
+                                    className="align-top hover:bg-slate-50/50 print:hover:bg-transparent"
                                   >
                                     {/* Name & Derived */}
-                                    <td className="py-2 px-2.5 font-medium text-slate-900 print:text-black">
-                                      <div className="font-semibold text-slate-900">{fm.name}</div>
+                                    <td className="px-2.5 py-2 font-medium text-slate-900 print:text-black">
+                                      <div className="font-bold text-slate-900">{fm.name}</div>
                                       {showDerived &&
                                         fm.derived_formulas &&
                                         fm.derived_formulas.length > 0 && (
                                           <div className="mt-1.5 space-y-1">
-                                            <span className="text-[10px] uppercase font-bold text-violet-700 print:text-black block">
+                                            <span className="block text-[10px] font-bold uppercase text-violet-700 print:text-black">
                                               Công thức suy rộng:
                                             </span>
                                             {fm.derived_formulas.map((df, dfIdx) => (
                                               <div
                                                 key={dfIdx}
-                                                className="bg-violet-50/60 print:bg-transparent p-1 rounded border border-violet-100 print:border-none text-[11px]"
+                                                className="rounded border border-violet-100 bg-violet-50/60 p-1 text-[11px] print:border-none print:bg-transparent"
                                               >
                                                 <div className="font-mono text-violet-900 print:text-black">
                                                   <KatexFormula latex={df.expression} />
                                                 </div>
                                                 {df.description && (
-                                                  <div className="text-[10px] text-slate-500 italic mt-0.5">
+                                                  <div className="mt-0.5 text-[10px] italic text-slate-500">
                                                     {df.description}
                                                   </div>
                                                 )}
@@ -381,31 +372,31 @@ export default function CheatsheetViewer({
                                     </td>
 
                                     {/* KaTeX expression */}
-                                    <td className="py-2 px-2.5 text-center font-serif text-sm bg-slate-50/50 print:bg-transparent">
-                                      <div className="py-1 px-2 inline-block bg-white print:bg-transparent rounded border border-slate-100 print:border-none shadow-xs print:shadow-none">
+                                    <td className="bg-slate-50/50 px-2.5 py-2 text-center font-serif text-sm print:bg-transparent">
+                                      <div className="inline-block rounded border border-slate-100 bg-white px-2 py-1 shadow-soft print:border-none print:bg-transparent print:shadow-none">
                                         <KatexFormula latex={fm.latex_expression} displayMode={true} />
                                       </div>
                                       {fm.usage_note && (
-                                        <div className="text-[11px] text-amber-800 print:text-black italic mt-1 text-left">
+                                        <div className="mt-1 text-left text-[11px] italic text-amber-800 print:text-black">
                                           ⚠️ <RichPhysicsText text={fm.usage_note} />
                                         </div>
                                       )}
                                     </td>
 
                                     {/* Variables or Note */}
-                                    <td className="py-2 px-2.5 text-slate-600 print:text-black">
+                                    <td className="px-2.5 py-2 text-slate-600 print:text-black">
                                       {viewMode === 'full' &&
                                       fm.variables &&
                                       fm.variables.length > 0 ? (
                                         <ul className="space-y-1 text-[11px]">
                                           {fm.variables.map((v, vIdx) => (
                                             <li key={vIdx} className="flex items-baseline gap-1">
-                                              <span className="font-mono font-bold text-blue-700 print:text-black">
+                                              <span className="font-mono font-bold text-brand-700 print:text-black">
                                                 <KatexFormula latex={v.symbol} />:
                                               </span>
                                               <span>{v.name}</span>
                                               {v.unit && (
-                                                <span className="text-slate-500 font-mono text-[10px]">
+                                                <span className="font-mono text-[10px] text-slate-500">
                                                   [{v.unit}]
                                                 </span>
                                               )}
@@ -428,43 +419,43 @@ export default function CheatsheetViewer({
                         {/* QUANTITIES TABLE */}
                         {showQuantities && tp.quantities.length > 0 && (
                           <div className="mt-2">
-                            <span className="text-[10px] uppercase font-bold text-emerald-800 print:text-black tracking-wider block mb-1">
+                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-emerald-800 print:text-black">
                               Tra cứu Đại lượng & Đơn vị SI:
                             </span>
                             <div className="overflow-x-auto">
-                              <table className="w-full text-left text-[11px] border border-slate-200 print:border-slate-300">
-                                <thead className="bg-emerald-50/80 text-emerald-950 print:bg-slate-100 print:text-black font-semibold border-b border-slate-200">
+                              <table className="w-full border border-slate-200 text-left text-[11px] print:border-slate-300">
+                                <thead className="border-b border-slate-200 bg-emerald-50/80 font-bold text-emerald-950 print:bg-slate-100 print:text-black">
                                   <tr>
-                                    <th className="py-1 px-2 w-1/4">Đại lượng</th>
-                                    <th className="py-1 px-2 w-16 text-center">Kí hiệu</th>
-                                    <th className="py-1 px-2 w-28">Đơn vị SI</th>
-                                    <th className="py-1 px-2 w-28">Đơn vị khác</th>
-                                    <th className="py-1 px-2">Dụng cụ đo / Định nghĩa</th>
+                                    <th className="w-1/4 px-2 py-1">Đại lượng</th>
+                                    <th className="w-16 px-2 py-1 text-center">Kí hiệu</th>
+                                    <th className="w-28 px-2 py-1">Đơn vị SI</th>
+                                    <th className="w-28 px-2 py-1">Đơn vị khác</th>
+                                    <th className="px-2 py-1">Dụng cụ đo / Định nghĩa</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 print:divide-slate-300">
                                   {tp.quantities.map((q) => (
-                                    <tr key={q.id} className="hover:bg-slate-50/40 align-top">
-                                      <td className="py-1.5 px-2 font-medium text-slate-900 print:text-black">
+                                    <tr key={q.id} className="align-top hover:bg-slate-50/40">
+                                      <td className="px-2 py-1.5 font-medium text-slate-900 print:text-black">
                                         {q.name}
                                       </td>
-                                      <td className="py-1.5 px-2 text-center font-mono font-bold text-blue-700 print:text-black">
+                                      <td className="px-2 py-1.5 text-center font-mono font-bold text-brand-700 print:text-black">
                                         <KatexFormula latex={q.symbol} />
                                       </td>
-                                      <td className="py-1.5 px-2 font-semibold text-emerald-700 print:text-black font-mono">
+                                      <td className="px-2 py-1.5 font-mono font-bold text-emerald-700 print:text-black">
                                         {q.si_unit}
                                       </td>
-                                      <td className="py-1.5 px-2 text-slate-500 print:text-black font-mono text-[10px]">
+                                      <td className="px-2 py-1.5 font-mono text-[10px] text-slate-500 print:text-black">
                                         {q.other_units || '—'}
                                       </td>
-                                      <td className="py-1.5 px-2 text-slate-600 print:text-black">
+                                      <td className="px-2 py-1.5 text-slate-600 print:text-black">
                                         {q.measuring_device && (
                                           <div className="font-medium text-slate-800 print:text-black">
                                             🔧 {q.measuring_device}
                                           </div>
                                         )}
                                         {q.description && (
-                                          <div className="text-[10px] text-slate-500 print:text-black italic">
+                                          <div className="text-[10px] italic text-slate-500 print:text-black">
                                             {q.description}
                                           </div>
                                         )}
@@ -486,11 +477,12 @@ export default function CheatsheetViewer({
         </div>
 
         {/* DOCUMENT FOOTER */}
-        <div className="mt-8 pt-4 border-t-2 border-slate-900 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 print:text-slate-700 gap-2">
+        <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t-2 border-slate-900 pt-4 text-xs text-slate-500 print:text-slate-700 sm:flex-row">
           <div>
-            <strong>eduPhysics 6–12</strong> • Tổng hợp chương trình GDPT 2018
+            <strong className="text-slate-700 print:text-slate-700">eduPhysics 6–12</strong> • Tổng hợp
+            chương trình GDPT 2018
           </div>
-          <div className="italic text-center sm:text-right">
+          <div className="text-center italic sm:text-right">
             Nắm chắc bản chất vật lí và đơn vị chuẩn SI là chìa khóa giải nhanh mọi bài toán!
           </div>
         </div>
