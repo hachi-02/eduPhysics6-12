@@ -6,6 +6,7 @@ out
 *.db-wal
 .env*.local
 .agents
+.21st
 tsconfig.tsbuildinfo
 
 deverr.txt
