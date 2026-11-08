@@ -109,31 +109,28 @@ export function ChapterWorkspaceClient({
 
       {activeTab === 'summary' ? (
         <div className="animate-fade-in space-y-6">
-          {/* Core Summary & Key Takeaways */}
-          <div className="edu-card space-y-6 p-6 sm:p-8">
-            <div className="text-sm text-slate-700 sm:text-base">
-              <PhysicsMarkdown text={chapter.summary_markdown} />
-            </div>
+          {/* Structured Chapter Summary & Formulas */}
+          <PhysicsMarkdown text={chapter.summary_markdown} />
 
-            {chapter.key_takeaways && chapter.key_takeaways.length > 0 && (
-              <div className="space-y-3 border-t border-slate-100 pt-5">
-                <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-slate-900">
-                  <ListChecks className="h-4 w-4 text-brand-600" />
-                  Điểm cốt lõi cần nhớ
-                </h3>
-                <ul className="space-y-2.5 rounded-2xl border border-brand-100 bg-brand-50/40 p-4">
-                  {chapter.key_takeaways.map((kt, idx) => (
-                    <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
-                      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-brand-600" />
-                      <span>
-                        <RichPhysicsText text={kt} />
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+          {/* Key Takeaways */}
+          {chapter.key_takeaways && chapter.key_takeaways.length > 0 && (
+            <div className="edu-card space-y-3 p-5 sm:p-6">
+              <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-slate-900">
+                <ListChecks className="h-4 w-4 text-brand-600" />
+                Điểm cốt lõi cần nhớ
+              </h3>
+              <ul className="space-y-2.5 rounded-2xl border border-brand-100 bg-brand-50/40 p-4">
+                {chapter.key_takeaways.map((kt, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
+                    <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-brand-600" />
+                    <span>
+                      <RichPhysicsText text={kt} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Formula Cheatsheet */}
           {chapter.formula_cheatsheet && chapter.formula_cheatsheet.length > 0 && (

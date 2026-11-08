@@ -68,7 +68,9 @@ Trong Vật lý và Khoa học tự nhiên, **đo lường** là việc so sánh
 
 1. **Giới hạn đo (GHĐ) và Độ chia nhỏ nhất (ĐCNN):**
    - **GHĐ:** Giá trị lớn nhất ghi trên dụng cụ đo.
-   - **ĐCNN:** Hiệu giá trị giữa hai vạch chia liên tiếp trên dụng cụ đo. Công thức tính nhanh: $\\text{ĐCNN} = \\frac{\\text{Hiệu hai số ghi liên tiếp}}{\\text{Số khoảng chia giữa chúng}}$.
+   - **ĐCNN:** Hiệu giá trị giữa hai vạch chia liên tiếp trên dụng cụ đo.
+   - **Công thức tính nhanh:** $\\text{ĐCNN} = \\frac{A_2 - A_1}{n} = \\frac{\\text{Hiệu hai số ghi liên tiếp}}{\\text{Số khoảng chia giữa chúng}}$
+   - *(Trong đó: $A_2, A_1$ là hai số ghi liên tiếp lớn và bé trên thước/bình; $n$ là số khoảng chia giữa hai vạch đó)*
 2. **Quy tắc 5 bước khi thực hiện phép đo:**
    - Bước 1: Ước lượng đại lượng cần đo.
    - Bước 2: Chọn dụng cụ đo có GHĐ và ĐCNN phù hợp.
