@@ -2,10 +2,29 @@
 
 import React, { useState } from 'react';
 import { SimulationItem } from '@/types/cms';
-import { Sliders, Sparkles, Compass, RotateCcw, CheckCircle2, Play, Pause, Zap, Flame, Eye, Activity, Gauge, Atom } from 'lucide-react';
+import {
+  Sliders,
+  Sparkles,
+  Compass,
+  RotateCcw,
+  CheckCircle2,
+  Play,
+  Pause,
+  Zap,
+  Flame,
+  Eye,
+  Activity,
+  Gauge,
+  Atom,
+  TrendingUp,
+  FlaskConical,
+  Columns,
+} from 'lucide-react';
+import { PhysicsGraphEngine } from './PhysicsGraphEngine';
 
 export function InteractivePhysicsLab({ simulation }: { simulation: SimulationItem }) {
   const { sim_key, title, description, guide_steps, physics_insight, parameters } = simulation;
+  const [labMode, setLabMode] = useState<'dual' | 'sim' | 'graph'>('dual');
 
   return (
     <div className="edu-card overflow-hidden">
@@ -20,16 +39,54 @@ export function InteractivePhysicsLab({ simulation }: { simulation: SimulationIt
             <p className="mt-0.5 text-xs text-slate-500">{description}</p>
           </div>
         </div>
-        <span className="rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-brand-700">
-          Phòng thí nghiệm ảo
-        </span>
+
+        {/* Lab Mode Segmented Switcher */}
+        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 text-xs shadow-soft">
+          <button
+            type="button"
+            onClick={() => setLabMode('dual')}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-semibold transition ${
+              labMode === 'dual' ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Columns className="h-3.5 w-3.5" />
+            <span>Mô phỏng & Đồ thị</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLabMode('sim')}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-semibold transition ${
+              labMode === 'sim' ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <FlaskConical className="h-3.5 w-3.5" />
+            <span>Chỉ Mô phỏng</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLabMode('graph')}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-semibold transition ${
+              labMode === 'graph' ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <TrendingUp className="h-3.5 w-3.5" />
+            <span>Đồ thị & Số liệu</span>
+          </button>
+        </div>
       </div>
 
       <div className="space-y-5 p-6">
         {/* Interactive Canvas Area by sim_key */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-lift">
-          {renderSimByKey(sim_key, parameters)}
-        </div>
+        {(labMode === 'sim' || labMode === 'dual') && (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-lift">
+            {renderSimByKey(sim_key, parameters)}
+          </div>
+        )}
+
+        {/* Live Real-time Graph & Experimental Data Hub */}
+        {(labMode === 'graph' || labMode === 'dual') && (
+          <PhysicsGraphEngine simKey={sim_key} parameters={parameters} />
+        )}
 
         {/* Guide Steps & Physics Insight */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
