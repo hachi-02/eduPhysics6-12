@@ -9,144 +9,224 @@ interface KatexBlockProps {
   className?: string;
 }
 
-const VIETNAMESE_CHARS =
-  /[àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴĐ]/;
+const VIETNAMESE_WORDS_REGEX =
+  /[àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ]/i;
 
-function extractVietnameseFraction(latex: string): {
-  left: string;
-  num: string;
-  den: string;
-  right: string;
-} | null {
-  const fracIdx = latex.indexOf('\\frac');
-  if (fracIdx === -1) return null;
-  const left = latex.slice(0, fracIdx);
-  let rest = latex.slice(fracIdx + 5).trim();
-  if (!rest.startsWith('{')) return null;
+type LatexSegment =
+  | { type: 'katex'; latex: string }
+  | { type: 'vn_frac'; num: string; den: string };
 
-  let depth = 0;
-  let numEnd = -1;
-  for (let i = 0; i < rest.length; i++) {
-    if (rest[i] === '{') depth++;
-    else if (rest[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        numEnd = i;
-        break;
+function splitByVnFractions(latex: string): LatexSegment[] {
+  if (!VIETNAMESE_WORDS_REGEX.test(latex) || !latex.includes('\\frac')) {
+    return [{ type: 'katex', latex }];
+  }
+
+  const parts: LatexSegment[] = [];
+  let rest = latex;
+
+  while (rest.length > 0) {
+    const fracIdx = rest.indexOf('\\frac');
+    if (fracIdx === -1) {
+      if (rest.trim()) {
+        const prev =
+          parts.length > 0 && parts[parts.length - 1].type === 'katex' ? parts.pop()! : null;
+        if (prev && prev.type === 'katex') {
+          parts.push({ type: 'katex', latex: prev.latex + rest });
+        } else {
+          parts.push({ type: 'katex', latex: rest });
+        }
+      }
+      break;
+    }
+
+    const before = rest.slice(0, fracIdx);
+    const afterFrac = rest.slice(fracIdx + 5).trim();
+
+    if (!afterFrac.startsWith('{')) {
+      const prev =
+        parts.length > 0 && parts[parts.length - 1].type === 'katex' ? parts.pop()! : null;
+      const combined = (prev && prev.type === 'katex' ? prev.latex : '') + before + '\\frac';
+      parts.push({ type: 'katex', latex: combined });
+      rest = rest.slice(fracIdx + 5);
+      continue;
+    }
+
+    // Parse numerator
+    let depth = 0;
+    let numEnd = -1;
+    for (let i = 0; i < afterFrac.length; i++) {
+      if (afterFrac[i] === '{') depth++;
+      else if (afterFrac[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          numEnd = i;
+          break;
+        }
       }
     }
-  }
-  if (numEnd === -1) return null;
-  const num = rest.slice(1, numEnd);
-  rest = rest.slice(numEnd + 1).trim();
-  if (!rest.startsWith('{')) return null;
+    if (numEnd === -1) {
+      parts.push({ type: 'katex', latex: rest });
+      break;
+    }
 
-  depth = 0;
-  let denEnd = -1;
-  for (let i = 0; i < rest.length; i++) {
-    if (rest[i] === '{') depth++;
-    else if (rest[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        denEnd = i;
-        break;
+    const num = afterFrac.slice(1, numEnd);
+    const afterNum = afterFrac.slice(numEnd + 1).trim();
+    if (!afterNum.startsWith('{')) {
+      parts.push({ type: 'katex', latex: rest });
+      break;
+    }
+
+    // Parse denominator
+    depth = 0;
+    let denEnd = -1;
+    for (let i = 0; i < afterNum.length; i++) {
+      if (afterNum[i] === '{') depth++;
+      else if (afterNum[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          denEnd = i;
+          break;
+        }
       }
     }
+    if (denEnd === -1) {
+      parts.push({ type: 'katex', latex: rest });
+      break;
+    }
+
+    const den = afterNum.slice(1, denEnd);
+    const afterDen = afterNum.slice(denEnd + 1);
+
+    if (VIETNAMESE_WORDS_REGEX.test(num) || VIETNAMESE_WORDS_REGEX.test(den)) {
+      if (before) {
+        const prev =
+          parts.length > 0 && parts[parts.length - 1].type === 'katex' ? parts.pop()! : null;
+        const combined = (prev && prev.type === 'katex' ? prev.latex : '') + before;
+        if (combined.trim()) {
+          parts.push({ type: 'katex', latex: combined });
+        }
+      }
+      parts.push({
+        type: 'vn_frac',
+        num: num.replace(/^\\text\{/, '').replace(/\}$/, '').replace(/[\$\\]/g, '').trim(),
+        den: den.replace(/^\\text\{/, '').replace(/\}$/, '').replace(/[\$\\]/g, '').trim(),
+      });
+      rest = afterDen;
+    } else {
+      // Math fraction: keep it together with before
+      const fullFrac = '\\frac{' + num + '}{' + den + '}';
+      const prev =
+        parts.length > 0 && parts[parts.length - 1].type === 'katex' ? parts.pop()! : null;
+      const combined = (prev && prev.type === 'katex' ? prev.latex : '') + before + fullFrac;
+      parts.push({ type: 'katex', latex: combined });
+      rest = afterDen;
+    }
   }
-  if (denEnd === -1) return null;
-  const den = rest.slice(1, denEnd);
-  const right = rest.slice(denEnd + 1).trim();
 
-  const strip = (s: string) =>
-    s
-      .replace(/\\text\{([^}]*)\}/g, '$1')
-      .replace(/[\$\\]/g, '')
-      .trim();
-
-  return {
-    left: strip(left),
-    num: strip(num),
-    den: strip(den),
-    right: strip(right),
-  };
+  return parts;
 }
 
 export function KatexFormula({ latex, displayMode = false, className = '' }: KatexBlockProps) {
-  // If the LaTeX string has Vietnamese text in a fraction, KaTeX breaks characters into accents (e.g. s o ^ ').
-  // Render cleanly as HTML fraction instead:
-  if (VIETNAMESE_CHARS.test(latex)) {
-    const vf = extractVietnameseFraction(latex);
-    if (vf) {
-      return (
-        <span
-          className={`inline-flex items-center align-middle mx-1.5 my-1 text-slate-900 font-sans ${className}`}
-        >
-          {vf.left && (
-            <span className="font-bold mr-2 text-sm sm:text-base text-slate-900">{vf.left}</span>
-          )}
-          <span className="inline-flex flex-col items-center align-middle px-1">
-            <span className="border-b-2 border-indigo-900 pb-0.5 px-2.5 text-xs sm:text-sm font-bold text-indigo-900 text-center">
-              {vf.num}
-            </span>
-            <span className="pt-0.5 px-2.5 text-xs sm:text-sm font-semibold text-slate-700 text-center">
-              {vf.den}
-            </span>
-          </span>
-          {vf.right && <span className="ml-2 text-sm text-slate-800">{vf.right}</span>}
-        </span>
-      );
+  const segments = splitByVnFractions(latex);
+
+  if (segments.length === 1 && segments[0].type === 'katex') {
+    let html = '';
+    try {
+      html = katex.renderToString(segments[0].latex, {
+        displayMode,
+        throwOnError: false,
+        strict: false,
+        output: 'html',
+      });
+    } catch {
+      html = `<code>${segments[0].latex}</code>`;
     }
+    return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
   }
 
-  let html = '';
-  try {
-    html = katex.renderToString(latex, {
-      displayMode,
-      throwOnError: false,
-      strict: false,
-      output: 'html',
-    });
-  } catch {
-    html = `<code>${latex}</code>`;
-  }
+  return (
+    <span
+      className={`inline-flex items-center align-middle flex-wrap gap-1 text-current ${className}`}
+    >
+      {segments.map((seg, sIdx) => {
+        if (seg.type === 'vn_frac') {
+          return (
+            <span
+              key={sIdx}
+              className="inline-flex flex-col items-center align-middle px-1 font-sans"
+            >
+              <span className="border-b-2 border-current pb-0.5 px-2 text-xs sm:text-sm font-bold text-center">
+                {seg.num}
+              </span>
+              <span className="pt-0.5 px-2 text-xs sm:text-sm font-semibold opacity-90 text-center">
+                {seg.den}
+              </span>
+            </span>
+          );
+        }
 
-  return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+        let html = '';
+        try {
+          html = katex.renderToString(seg.latex, {
+            displayMode: false,
+            throwOnError: false,
+            strict: false,
+            output: 'html',
+          });
+        } catch {
+          html = `<code>${seg.latex}</code>`;
+        }
+
+        return <span key={sIdx} dangerouslySetInnerHTML={{ __html: html }} />;
+      })}
+    </span>
+  );
 }
 
 /**
- * Renders text that may contain inline $...$ LaTeX segments and **bold** markdown
+ * Renders text that may contain inline $...$ LaTeX segments and **bold** markdown.
+ * Parses bold blocks first to properly preserve math expressions embedded inside bold tags.
  */
 export function RichPhysicsText({ text, className = '' }: { text: string; className?: string }) {
   if (!text) return null;
 
-  const segments = text.split(/(\$[^$]+\$)/g);
+  // Split by bold (**...**) first so that math inside bold like **Chiều dài ($l, d, s, h$):** is preserved!
+  const boldParts = text.split(/(\*\*[\s\S]+?\*\*)/g);
 
   return (
     <span className={className}>
-      {segments.map((seg, idx) => {
-        if (seg.startsWith('$') && seg.endsWith('$') && seg.length > 2) {
-          const innerLatex = seg.slice(1, -1);
+      {boldParts.map((bp, bIdx) => {
+        const isBold = bp.startsWith('**') && bp.endsWith('**') && bp.length >= 4;
+        const innerContent = isBold ? bp.slice(2, -2) : bp;
+        if (!innerContent) return null;
+
+        // Inside each bold or normal part, parse $...$ math
+        const mathSegments = innerContent.split(/(\$[^$]+\$)/g);
+
+        const renderedSegments = mathSegments.map((seg, sIdx) => {
+          if (seg.startsWith('$') && seg.endsWith('$') && seg.length > 2) {
+            const innerLatex = seg.slice(1, -1);
+            return (
+              <KatexFormula
+                key={sIdx}
+                latex={innerLatex}
+                displayMode={false}
+                className="mx-0.5"
+              />
+            );
+          }
+          return <React.Fragment key={sIdx}>{seg}</React.Fragment>;
+        });
+
+        if (isBold) {
           return (
-            <KatexFormula key={idx} latex={innerLatex} displayMode={false} className="mx-0.5" />
+            <strong key={bIdx} className="font-bold text-slate-900">
+              {renderedSegments}
+            </strong>
           );
         }
 
-        // Parse **bold** segments
-        const boldParts = seg.split(/(\*\*[^*]+\*\*)/g);
-        return (
-          <React.Fragment key={idx}>
-            {boldParts.map((bp, bIdx) => {
-              if (bp.startsWith('**') && bp.endsWith('**') && bp.length > 4) {
-                return (
-                  <strong key={bIdx} className="font-bold text-slate-900">
-                    {bp.slice(2, -2)}
-                  </strong>
-                );
-              }
-              return <React.Fragment key={bIdx}>{bp}</React.Fragment>;
-            })}
-          </React.Fragment>
-        );
+        return <React.Fragment key={bIdx}>{renderedSegments}</React.Fragment>;
       })}
     </span>
   );
@@ -255,37 +335,6 @@ export function PhysicsMarkdown({ text, className = '' }: { text: string; classN
             {items.map((it, idx) => {
               const cleaned = it.replace(/^[-*]\s*/, '');
 
-              // Check if item contains a fraction formula
-              if (it.includes('\\frac')) {
-                const vf = extractVietnameseFraction(it);
-                if (vf) {
-                  return (
-                    <div
-                      key={idx}
-                      className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-200/90 text-center space-y-2 my-2 shadow-2xs"
-                    >
-                      <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                        Công thức tính nhanh
-                      </div>
-                      <div className="inline-flex items-center justify-center gap-2">
-                        {vf.left && (
-                          <span className="font-extrabold text-base text-slate-900">{vf.left}</span>
-                        )}
-                        <span className="inline-flex flex-col items-center">
-                          <span className="border-b-2 border-indigo-900 pb-1 px-3 text-sm font-bold text-indigo-950">
-                            {vf.num}
-                          </span>
-                          <span className="pt-1 px-3 text-xs sm:text-sm font-semibold text-slate-700">
-                            {vf.den}
-                          </span>
-                        </span>
-                        {vf.right && <span className="text-sm text-slate-800">{vf.right}</span>}
-                      </div>
-                    </div>
-                  );
-                }
-              }
-
               return (
                 <div key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 shrink-0" />
@@ -341,18 +390,6 @@ export function PhysicsMarkdown({ text, className = '' }: { text: string; classN
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Chapter Overview Banner */}
-      {headerTitle && (
-        <div className="rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-7 shadow-xs space-y-2">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md bg-white/10 text-indigo-200 text-xs font-bold uppercase tracking-wider backdrop-blur-xs">
-            📖 HỆ THỐNG HÓA KIẾN THỨC CHƯƠNG
-          </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
-            <RichPhysicsText text={headerTitle.replace(/^Hệ thống hóa kiến thức\s*/i, '')} />
-          </h2>
-        </div>
-      )}
-
       {/* Intro Concept Callout */}
       {currentIntro.length > 0 && (
         <div className="rounded-2xl border-l-4 border-indigo-600 bg-indigo-50/50 p-4 sm:p-5 text-slate-800 text-sm sm:text-base leading-relaxed font-medium">

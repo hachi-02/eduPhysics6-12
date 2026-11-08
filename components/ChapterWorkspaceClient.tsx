@@ -146,8 +146,8 @@ export function ChapterWorkspaceClient({
                     className="space-y-2 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 transition duration-200 ease-snap hover:border-brand-200 hover:bg-white hover:shadow-soft"
                   >
                     <div className="text-sm font-bold text-slate-900">{fc.name}</div>
-                    <div className="overflow-x-auto rounded-xl border border-slate-800/10 bg-slate-900 p-3 text-center font-bold text-white">
-                      <KatexFormula latex={fc.latex} />
+                    <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white p-3.5 text-center font-bold text-slate-900 shadow-2xs">
+                      <KatexFormula latex={fc.latex} displayMode={true} />
                     </div>
                     <div className="text-xs text-slate-500">{fc.note}</div>
                   </div>
