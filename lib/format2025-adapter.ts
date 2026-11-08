@@ -251,6 +251,80 @@ export function adaptToFormat2025(questions: QuestionItem[]): QuestionItem[] {
 }
 
 /**
+ * Phân loại định dạng của câu hỏi theo chuẩn format 2025:
+ * - 'short_answer': Bài toán tính toán có số liệu (thường là Vận dụng / Vận dụng cao)
+ * - 'true_false': Câu hỏi nhận định, bản chất hiện tượng (Thông hiểu / Vận dụng)
+ * - 'multiple_choice': Câu hỏi nhận biết, khái niệm đơn thuần
+ */
+export function classifyQuestionFormat(q: QuestionItem): QuestionType {
+  if (q.question_type) return q.question_type;
+  const correctOpt = q.options[q.correct_index] || '';
+  const parsed = extractNumberAndUnit(correctOpt);
+  if (parsed && (q.difficulty === 'van_dung' || q.difficulty === 'van_dung_cao')) {
+    return 'short_answer';
+  }
+  if (q.difficulty === 'thong_hieu' || q.difficulty === 'van_dung') {
+    return 'true_false';
+  }
+  return 'multiple_choice';
+}
+
+/**
+ * Chuẩn bị đầy đủ cấu hình Format 2025 (tf_statements hoặc short_answer) cho 1 câu hỏi
+ */
+export function prepareQuestionFor2025(q: QuestionItem): QuestionItem {
+  const type = classifyQuestionFormat(q);
+  const correctOpt = q.options[q.correct_index] || '';
+
+  if (type === 'true_false') {
+    const distractors = q.options.filter((_, idx) => idx !== q.correct_index);
+    const rawStatements = [
+      { text: correctOpt, is_correct: true, explanation: 'Nhận định chính xác.' },
+      ...distractors.map((d) => ({ text: d, is_correct: false, explanation: 'Nhận định chưa chính xác.' })),
+    ];
+    const letterIds = ['a', 'b', 'c', 'd'];
+    const tf_statements: TrueFalseStatement[] = rawStatements.map((st, idx) => ({
+      id: letterIds[idx] || `item_${idx}`,
+      text: st.text,
+      is_correct: st.is_correct,
+      explanation: st.explanation,
+    }));
+    return {
+      ...q,
+      question_type: 'true_false',
+      tf_statements,
+    };
+  }
+
+  if (type === 'short_answer') {
+    const parsed = extractNumberAndUnit(correctOpt);
+    const short_answer: ShortAnswerConfig = parsed
+      ? {
+          target_value: parsed.num,
+          tolerance: Math.max(0.02 * Math.abs(parsed.num), 0.05),
+          unit: parsed.unit,
+          acceptable_answers: [String(parsed.num), String(parsed.num).replace('.', ','), correctOpt.trim()],
+          hint: parsed.unit ? `Đơn vị: ${parsed.unit}` : undefined,
+        }
+      : {
+          target_value: correctOpt.trim(),
+          acceptable_answers: [correctOpt.trim(), correctOpt.trim().toLowerCase()],
+        };
+
+    return {
+      ...q,
+      question_type: 'short_answer',
+      short_answer,
+    };
+  }
+
+  return {
+    ...q,
+    question_type: 'multiple_choice',
+  };
+}
+
+/**
  * Tính toán toàn bộ điểm số của đề thi theo cấu trúc Bộ GD&ĐT 2025
  */
 export function calculateExamScore(

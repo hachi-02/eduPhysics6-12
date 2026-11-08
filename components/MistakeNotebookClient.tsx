@@ -3,9 +3,15 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MistakeQuestionItem } from '@/types/cms';
+import { MistakeQuestionItem, QuestionType } from '@/types/cms';
 import { RichPhysicsText } from './KatexRenderer';
 import { DropdownMenu, DropdownItem } from './ui/DropdownMenu';
+import {
+  classifyQuestionFormat,
+  prepareQuestionFor2025,
+  calculateTrueFalseScore,
+  checkShortAnswer,
+} from '@/lib/format2025-adapter';
 import {
   AlertCircle,
   CheckCircle2,
@@ -25,6 +31,8 @@ import {
   ChevronDown,
   RotateCcw,
   X,
+  CheckSquare,
+  Award,
 } from 'lucide-react';
 
 const DIFF_LABELS: Record<string, string> = {
@@ -35,7 +43,7 @@ const DIFF_LABELS: Record<string, string> = {
 };
 
 interface TopicSubGroup {
-  key: string; // e.g. 'topic-12' or 'chapter-exam-3'
+  key: string;
   topic_id: number | null;
   topic_code: string | null;
   topic_title: string;
@@ -69,17 +77,44 @@ export function MistakeNotebookClient({
   const router = useRouter();
   const [selectedChapterId, setSelectedChapterId] = useState<number | 'all'>('all');
   const [selectedTopicKey, setSelectedTopicKey] = useState<string>('all');
+  const [formatFilter, setFormatFilter] = useState<'all' | QuestionType>('all');
+
+  // Practice state
   const [practiceQuestions, setPracticeQuestions] = useState<MistakeQuestionItem[] | null>(null);
+  const [practiceMode, setPracticeMode] = useState<'format2025' | 'standard'>('format2025');
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<number, any>>({});
   const [submitted, setSubmitted] = useState(false);
   const [expandedExplanations, setExpandedExplanations] = useState<Record<number, boolean>>({});
 
-  // Build 3-level hierarchy: Grade -> Chapter -> Topic (or Chapter Synthesis Exam)
+  // Format statistics
+  const formatStats = useMemo(() => {
+    let mc = 0;
+    let tf = 0;
+    let sa = 0;
+    for (const m of mistakes) {
+      const type = classifyQuestionFormat(m);
+      if (type === 'multiple_choice') mc++;
+      else if (type === 'true_false') tf++;
+      else if (type === 'short_answer') sa++;
+    }
+    return {
+      all: mistakes.length,
+      multiple_choice: mc,
+      true_false: tf,
+      short_answer: sa,
+    };
+  }, [mistakes]);
+
+  // Build 3-level hierarchy: Grade -> Chapter -> Topic (with format filter applied)
   const chapterGroups: ChapterGroup[] = useMemo(() => {
     const map = new Map<number, ChapterGroup>();
 
-    for (const m of mistakes) {
+    const filteredByFormat = formatFilter === 'all'
+      ? mistakes
+      : mistakes.filter((m) => classifyQuestionFormat(m) === formatFilter);
+
+    for (const m of filteredByFormat) {
       if (!map.has(m.chapter_id)) {
         map.set(m.chapter_id, {
           chapter_id: m.chapter_id,
@@ -124,7 +159,7 @@ export function MistakeNotebookClient({
     }
 
     return result;
-  }, [mistakes]);
+  }, [mistakes, formatFilter]);
 
   // Available Topic pills for the currently selected Chapter (or all chapters)
   const availableTopicGroups = useMemo(() => {
@@ -178,9 +213,10 @@ export function MistakeNotebookClient({
   }, [availableTopicGroups, selectedTopicKey]);
 
   const hasActiveFilters = Boolean(
-    selectedGrade || selectedChapterId !== 'all' || selectedTopicKey !== 'all'
+    selectedGrade || selectedChapterId !== 'all' || selectedTopicKey !== 'all' || formatFilter !== 'all'
   );
 
+  // Dropdown Items for Grade
   const gradeDropdownItems = useMemo<DropdownItem[]>(() => {
     const items: DropdownItem[] = [
       {
@@ -213,12 +249,13 @@ export function MistakeNotebookClient({
     return items;
   }, [showMastered, selectedGrade, mistakes.length, countsByGrade]);
 
+  // Dropdown Items for Chapter
   const chapterDropdownItems = useMemo<DropdownItem[]>(() => {
     const items: DropdownItem[] = [
       {
         label: 'Tất cả các chương',
         active: selectedChapterId === 'all',
-        badge: mistakes.length,
+        badge: filteredMistakes.length,
         onClick: () => {
           setSelectedChapterId('all');
           setSelectedTopicKey('all');
@@ -242,8 +279,9 @@ export function MistakeNotebookClient({
     }
 
     return items;
-  }, [selectedChapterId, mistakes.length, chapterGroups, selectedGrade]);
+  }, [selectedChapterId, filteredMistakes.length, chapterGroups, selectedGrade]);
 
+  // Dropdown Items for Topic
   const topicDropdownItems = useMemo<DropdownItem[]>(() => {
     const totalTopicMistakes = availableTopicGroups.reduce((acc, tg) => acc + tg.items.length, 0);
     const items: DropdownItem[] = [
@@ -270,6 +308,37 @@ export function MistakeNotebookClient({
     return items;
   }, [availableTopicGroups, selectedTopicKey]);
 
+  // Dropdown Items for Format Filter
+  const formatDropdownItems = useMemo<DropdownItem[]>(() => {
+    return [
+      {
+        label: 'Tất cả định dạng',
+        active: formatFilter === 'all',
+        badge: formatStats.all,
+        onClick: () => setFormatFilter('all'),
+      },
+      { label: '', divider: true },
+      {
+        label: 'Phần I: 4 Lựa chọn (A-B-C-D)',
+        active: formatFilter === 'multiple_choice',
+        badge: formatStats.multiple_choice,
+        onClick: () => setFormatFilter('multiple_choice'),
+      },
+      {
+        label: 'Phần II: Đúng / Sai (Format 2025)',
+        active: formatFilter === 'true_false',
+        badge: formatStats.true_false,
+        onClick: () => setFormatFilter('true_false'),
+      },
+      {
+        label: 'Phần III: Điền số ngắn (Format 2025)',
+        active: formatFilter === 'short_answer',
+        badge: formatStats.short_answer,
+        onClick: () => setFormatFilter('short_answer'),
+      },
+    ];
+  }, [formatFilter, formatStats]);
+
   const handleToggleExplanation = (qId: number) => {
     setExpandedExplanations((prev) => ({ ...prev, [qId]: !prev[qId] }));
   };
@@ -283,25 +352,50 @@ export function MistakeNotebookClient({
     router.refresh();
   };
 
+  // Start Practice
   const handleStartPractice = (subset?: MistakeQuestionItem[]) => {
-    const list = subset && subset.length > 0 ? subset : filteredMistakes;
+    let list = subset && subset.length > 0 ? subset : filteredMistakes;
     if (list.length === 0) return;
+
+    if (practiceMode === 'format2025') {
+      list = list.map((q) => prepareQuestionFor2025(q) as MistakeQuestionItem);
+    }
+
     setAnswers({});
     setSubmitted(false);
     setCurrentIdx(0);
     setPracticeQuestions(list);
   };
 
+  // Check correctness of a question in practice mode
+  const evaluatePracticeQuestion = (q: MistakeQuestionItem, ans: any): boolean => {
+    const type = q.question_type || 'multiple_choice';
+    if (type === 'multiple_choice') {
+      return Number(ans) === q.correct_index;
+    }
+    if (type === 'true_false') {
+      if (!q.tf_statements || !ans) return false;
+      const { correctCount } = calculateTrueFalseScore(q.tf_statements, ans);
+      return correctCount >= 3; // Đúng 3 hoặc 4 ý coi như đạt
+    }
+    if (type === 'short_answer') {
+      return checkShortAnswer(ans, q.short_answer).isCorrect;
+    }
+    return false;
+  };
+
+  // Submit Practice
   const handleSubmitPractice = async () => {
     if (submitted || !practiceQuestions) return;
     setSubmitted(true);
+
     const results = practiceQuestions.map((q) => {
-      const selected = answers[q.id];
-      const isCorrect = selected === q.correct_index;
+      const userAns = answers[q.id];
+      const isCorrect = evaluatePracticeQuestion(q, userAns);
       return {
         questionId: q.id,
         correct: isCorrect,
-        selectedOption: selected ?? -1,
+        selectedOption: typeof userAns === 'number' ? userAns : -1,
       };
     });
 
@@ -313,17 +407,20 @@ export function MistakeNotebookClient({
     router.refresh();
   };
 
-  // Interactive Practice Mode for Wrong Questions
+  // ----------------------------------------------------
+  // INTERACTIVE PRACTICE VIEW FOR WRONG QUESTIONS
+  // ----------------------------------------------------
   if (practiceQuestions && practiceQuestions.length > 0) {
     const q = practiceQuestions[currentIdx] || practiceQuestions[0];
     const total = practiceQuestions.length;
     const answeredCount = Object.keys(answers).length;
-    const selectedOpt = answers[q.id];
-    const isCorrect = submitted && selectedOpt === q.correct_index;
+    const userChoice = answers[q.id];
+    const isCorrect = submitted && evaluatePracticeQuestion(q, userChoice);
     const score = submitted
-      ? practiceQuestions.filter((m) => answers[m.id] === m.correct_index).length
+      ? practiceQuestions.filter((m) => evaluatePracticeQuestion(m, answers[m.id])).length
       : 0;
     const practicePct = Math.round((answeredCount / total) * 100);
+    const qType = q.question_type || 'multiple_choice';
 
     return (
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
@@ -337,7 +434,7 @@ export function MistakeNotebookClient({
               <ArrowLeft className="h-3.5 w-3.5" /> Thoát luyện tập
             </button>
             <span className="text-xs font-medium text-slate-500">
-              Đã chọn:{' '}
+              Đã làm:{' '}
               <strong className="text-slate-900">
                 {answeredCount}/{total}
               </strong>{' '}
@@ -375,7 +472,7 @@ export function MistakeNotebookClient({
           </div>
         </div>
 
-        {/* Progress */}
+        {/* Progress Bar */}
         <div className="edu-progress">
           <div className="edu-progress-bar" style={{ width: `${practicePct}%` }} />
         </div>
@@ -383,16 +480,33 @@ export function MistakeNotebookClient({
         {/* Question Card */}
         <div className="edu-card space-y-6 p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1 rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-extrabold text-brand-700">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="flex items-center gap-1 rounded-lg bg-brand-50 px-2.5 py-1 font-extrabold text-brand-700">
                 <Target className="h-3.5 w-3.5" />
                 Câu {currentIdx + 1} / {total}
               </span>
-              <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+              <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
                 Lớp {q.grade_number} • {q.chapter_title} ({q.topic_code || q.chapter_code})
               </span>
-              <span className="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700">
+              <span className="rounded-lg bg-rose-50 px-2.5 py-1 font-bold text-rose-700">
                 Đã sai {q.wrong_count} lần
+              </span>
+
+              {/* Format Badge */}
+              <span
+                className={`rounded-md border px-2 py-0.5 font-bold ${
+                  qType === 'multiple_choice'
+                    ? 'border-brand-200 bg-brand-50 text-brand-700'
+                    : qType === 'true_false'
+                      ? 'border-purple-200 bg-purple-50 text-purple-700'
+                      : 'border-amber-200 bg-amber-50 text-amber-800'
+                }`}
+              >
+                {qType === 'multiple_choice'
+                  ? 'Phần I: 4 Lựa chọn'
+                  : qType === 'true_false'
+                    ? 'Phần II: Đúng / Sai'
+                    : 'Phần III: Điền số ngắn'}
               </span>
             </div>
 
@@ -419,59 +533,212 @@ export function MistakeNotebookClient({
             <RichPhysicsText text={q.question_text} />
           </div>
 
-          <div className="grid grid-cols-1 gap-2.5">
-            {q.options.map((opt, optIdx) => {
-              const letter = ['A', 'B', 'C', 'D'][optIdx] || 'A';
-              const isSelected = selectedOpt === optIdx;
-              const isRightAnswer = q.correct_index === optIdx;
+          {/* DẠNG 1: TRẮC NGHIỆM 4 LỰA CHỌN */}
+          {qType === 'multiple_choice' && (
+            <div className="grid grid-cols-1 gap-2.5">
+              {q.options.map((opt, optIdx) => {
+                const letter = ['A', 'B', 'C', 'D'][optIdx] || 'A';
+                const isSelected = userChoice === optIdx;
+                const isRightAnswer = q.correct_index === optIdx;
 
-              let btnStyle =
-                'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-50/40 hover:shadow-soft text-slate-800';
-              if (!submitted && isSelected) {
-                btnStyle =
-                  'border-brand-500 bg-brand-50/70 font-semibold text-brand-950 ring-2 ring-brand-500/25';
-              } else if (submitted) {
-                if (isRightAnswer) {
-                  btnStyle = 'border-emerald-500 bg-emerald-50/80 font-semibold text-emerald-950';
-                } else if (isSelected && !isRightAnswer) {
-                  btnStyle = 'border-rose-400 bg-rose-50/80 text-rose-950';
-                } else {
-                  btnStyle = 'border-slate-200 bg-slate-50/50 text-slate-400';
+                let btnStyle =
+                  'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-50/40 hover:shadow-soft text-slate-800';
+                if (!submitted && isSelected) {
+                  btnStyle =
+                    'border-brand-500 bg-brand-50/70 font-semibold text-brand-950 ring-2 ring-brand-500/25';
+                } else if (submitted) {
+                  if (isRightAnswer) {
+                    btnStyle = 'border-emerald-500 bg-emerald-50/80 font-semibold text-emerald-950';
+                  } else if (isSelected && !isRightAnswer) {
+                    btnStyle = 'border-rose-400 bg-rose-50/80 text-rose-950';
+                  } else {
+                    btnStyle = 'border-slate-200 bg-slate-50/50 text-slate-400';
+                  }
                 }
-              }
 
-              return (
-                <button
-                  key={optIdx}
-                  type="button"
-                  disabled={submitted}
-                  onClick={() => {
-                    if (!submitted) {
-                      setAnswers((prev) => ({ ...prev, [q.id]: optIdx }));
-                    }
-                  }}
-                  className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left text-sm transition duration-150 ease-snap ${btnStyle}`}
-                >
-                  <span
-                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                      !submitted && isSelected
-                        ? 'bg-brand-600 text-white'
-                        : submitted && isRightAnswer
-                          ? 'bg-emerald-600 text-white'
-                          : submitted && isSelected && !isRightAnswer
-                            ? 'bg-rose-600 text-white'
-                            : 'bg-slate-100 text-slate-600'
-                    }`}
+                return (
+                  <button
+                    key={optIdx}
+                    type="button"
+                    disabled={submitted}
+                    onClick={() => {
+                      if (!submitted) {
+                        setAnswers((prev) => ({ ...prev, [q.id]: optIdx }));
+                      }
+                    }}
+                    className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left text-sm transition duration-150 ease-snap ${btnStyle}`}
                   >
-                    {letter}
-                  </span>
-                  <span className="flex-1 leading-relaxed">
-                    <RichPhysicsText text={opt} />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    <span
+                      className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                        !submitted && isSelected
+                          ? 'bg-brand-600 text-white'
+                          : submitted && isRightAnswer
+                            ? 'bg-emerald-600 text-white'
+                            : submitted && isSelected && !isRightAnswer
+                              ? 'bg-rose-600 text-white'
+                              : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {letter}
+                    </span>
+                    <span className="flex-1 leading-relaxed">
+                      <RichPhysicsText text={opt} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* DẠNG 2: ĐÚNG / SAI (4 Ý) */}
+          {qType === 'true_false' && q.tf_statements && (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-purple-100 bg-purple-50/40 px-3.5 py-2 text-xs text-purple-900">
+                💡 <strong>Format 2025:</strong> Đọc từng ý và chọn [Đúng] hoặc [Sai].
+              </div>
+
+              <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+                {q.tf_statements.map((st) => {
+                  const userTf = (userChoice as Record<string, boolean>) || {};
+                  const selectedVal = userTf[st.id];
+                  const isMatch = submitted && selectedVal === st.is_correct;
+
+                  return (
+                    <div
+                      key={st.id}
+                      className={`flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between ${
+                        submitted
+                          ? isMatch
+                            ? 'bg-emerald-50/30'
+                            : 'bg-rose-50/20'
+                          : ''
+                      }`}
+                    >
+                      <div className="space-y-1 sm:max-w-[70%]">
+                        <div className="flex items-start gap-2 text-sm text-slate-800">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-purple-100 text-xs font-extrabold text-purple-800">
+                            {st.id})
+                          </span>
+                          <div className="leading-relaxed">
+                            <RichPhysicsText text={st.text} />
+                          </div>
+                        </div>
+                        {submitted && (
+                          <div className="ml-7 text-[11px] font-medium text-slate-500">
+                            Đáp án:{' '}
+                            <strong className={st.is_correct ? 'text-emerald-700' : 'text-rose-700'}>
+                              {st.is_correct ? 'ĐÚNG' : 'SAI'}
+                            </strong>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={submitted}
+                          onClick={() => {
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [q.id]: { ...(prev[q.id] || {}), [st.id]: true },
+                            }));
+                          }}
+                          className={`rounded-xl px-4 py-1.5 text-xs font-bold transition ${
+                            selectedVal === true
+                              ? 'bg-blue-600 text-white shadow-soft'
+                              : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          Đúng
+                        </button>
+                        <button
+                          type="button"
+                          disabled={submitted}
+                          onClick={() => {
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [q.id]: { ...(prev[q.id] || {}), [st.id]: false },
+                            }));
+                          }}
+                          className={`rounded-xl px-4 py-1.5 text-xs font-bold transition ${
+                            selectedVal === false
+                              ? 'bg-purple-600 text-white shadow-soft'
+                              : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          Sai
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* DẠNG 3: TRẢ LỜI NGẮN (ĐIỀN SỐ) */}
+          {qType === 'short_answer' && (
+            <div className="space-y-3.5">
+              <div className="rounded-xl border border-amber-100 bg-amber-50/40 px-3.5 py-2 text-xs text-amber-900">
+                ✍️ <strong>Format 2025:</strong> Tự tính toán và điền đáp số vào ô bên dưới.
+                {q.short_answer?.unit && <span> Đơn vị đo: <strong className="text-amber-950">{q.short_answer.unit}</strong>.</span>}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    disabled={submitted}
+                    value={userChoice !== undefined ? String(userChoice) : ''}
+                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                    placeholder="Nhập kết quả tính toán"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-bold text-slate-900 shadow-soft placeholder:font-normal focus:border-brand-500 focus:outline-none"
+                  />
+                  {q.short_answer?.unit && (
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                      {q.short_answer.unit}
+                    </span>
+                  )}
+                </div>
+
+                {!submitted && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {['-', '.', '0', '1', '2', '5'].map((sym) => (
+                      <button
+                        key={sym}
+                        type="button"
+                        onClick={() => {
+                          const cur = userChoice !== undefined ? String(userChoice) : '';
+                          setAnswers((prev) => ({ ...prev, [q.id]: cur + sym }));
+                        }}
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                      >
+                        {sym}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: '' }))}
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {submitted && q.short_answer && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-800">Đáp án chuẩn:</span>
+                    <strong className="text-emerald-700 text-sm">
+                      {q.short_answer.target_value} {q.short_answer.unit || ''}
+                    </strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {submitted && (
             <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700 sm:text-sm">
@@ -504,36 +771,55 @@ export function MistakeNotebookClient({
     );
   }
 
+  // ----------------------------------------------------
+  // MAIN NOTEBOOK LIST VIEW
+  // ----------------------------------------------------
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-      {/* Header & 3-Tier Filter Bar (Khối Lớp -> Chương -> Chủ đề) */}
+      {/* Header & Filter Bar */}
       <div className="edu-card space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="edu-eyebrow text-rose-600">
               <AlertCircle className="h-4 w-4" />
-              <span>Sổ tay Ôn tập Thông minh • Phân cấp Lớp → Chương → Chủ đề</span>
+              <span>Sổ tay Ôn tập Thông minh • Lọc theo Định dạng 2025 & Khối lớp</span>
             </div>
             <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
               Sổ tay Câu hỏi làm sai
             </h1>
             <p className="max-w-2xl text-xs leading-relaxed text-slate-500 sm:text-sm">
-              Được phân loại tự động theo từng <strong className="text-slate-700">Khối lớp</strong>,{' '}
-              <strong className="text-slate-700">Chương học</strong> và{' '}
-              <strong className="text-slate-700">Chủ đề (Bài học)</strong>. Bạn có thể chọn ôn tập toàn
-              bộ, theo chương hoặc theo từng chủ đề!
+              Tự động phân loại theo <strong className="text-slate-700">Định dạng thi mới 2025</strong> (4 lựa chọn, Đúng/Sai, Điền số),{' '}
+              <strong className="text-slate-700">Khối lớp</strong>,{' '}
+              <strong className="text-slate-700">Chương</strong> và{' '}
+              <strong className="text-slate-700">Chủ đề</strong>.
             </p>
           </div>
 
           {!showMastered && filteredMistakes.length > 0 && (
-            <button
-              type="button"
-              onClick={() => handleStartPractice(filteredMistakes)}
-              className="edu-btn-primary px-5 py-2.5"
-            >
-              <Play className="h-4 w-4 fill-current" />
-              <span>Làm lại {filteredMistakes.length} câu đang chọn</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPracticeMode('format2025');
+                  handleStartPractice(filteredMistakes);
+                }}
+                className="edu-btn-primary px-4 py-2.5 text-xs shadow-soft"
+              >
+                <Sparkles className="h-4 w-4 fill-current text-amber-300" />
+                <span>Luyện Format 2025 ({filteredMistakes.length} câu)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPracticeMode('standard');
+                  handleStartPractice(filteredMistakes);
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                Luyện 4 lựa chọn
+              </button>
+            </div>
           )}
         </div>
 
@@ -588,6 +874,37 @@ export function MistakeNotebookClient({
 
           {/* Smart Dropdown Filter Controls */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Filter: Format 2025 / Traditional */}
+            <DropdownMenu
+              menuWidth="w-64"
+              align="left"
+              trigger={
+                <button
+                  type="button"
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
+                    formatFilter !== 'all'
+                      ? 'border-purple-500 bg-purple-50 text-purple-900 shadow-2xs'
+                      : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 shadow-2xs'
+                  }`}
+                >
+                  <CheckSquare
+                    className={`h-4 w-4 shrink-0 ${formatFilter !== 'all' ? 'text-purple-600' : 'text-slate-400'}`}
+                  />
+                  <span>
+                    {formatFilter === 'all'
+                      ? 'Tất cả định dạng'
+                      : formatFilter === 'multiple_choice'
+                        ? 'Phần I: 4 Lựa chọn'
+                        : formatFilter === 'true_false'
+                          ? 'Phần II: Đúng / Sai'
+                          : 'Phần III: Điền số'}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-0.5" />
+                </button>
+              }
+              items={formatDropdownItems}
+            />
+
             {/* Filter: Grade */}
             <DropdownMenu
               menuWidth="w-52"
@@ -674,6 +991,7 @@ export function MistakeNotebookClient({
                 onClick={() => {
                   setSelectedChapterId('all');
                   setSelectedTopicKey('all');
+                  setFormatFilter('all');
                   if (selectedGrade) router.push(`/mistakes?mastered=${showMastered ? 1 : 0}`);
                 }}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-rose-300 bg-rose-50/70 px-2.5 py-2 text-xs font-bold text-rose-700 shadow-2xs transition hover:bg-rose-100"
@@ -690,6 +1008,24 @@ export function MistakeNotebookClient({
         {hasActiveFilters && (
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-xs">
             <span className="font-semibold text-slate-500">Đang lọc:</span>
+            {formatFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-purple-50 px-2.5 py-1 font-bold text-purple-800">
+                <span>
+                  {formatFilter === 'multiple_choice'
+                    ? '4 Lựa chọn'
+                    : formatFilter === 'true_false'
+                      ? 'Đúng / Sai'
+                      : 'Điền số'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFormatFilter('all')}
+                  className="rounded hover:bg-purple-100 text-purple-500 hover:text-purple-900"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
             {selectedGrade && (
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1 font-bold text-brand-800">
                 <span>Khối {selectedGrade}</span>
@@ -751,12 +1087,12 @@ export function MistakeNotebookClient({
           <h3 className="text-base font-extrabold text-slate-900">
             {showMastered
               ? 'Chưa có câu hỏi nào trong danh sách Đã nắm vững'
-              : 'Tuyệt vời! Bạn không có câu hỏi nào đang làm sai'}
+              : 'Tuyệt vời! Không có câu hỏi nào đang làm sai'}
           </h3>
           <p className="mx-auto max-w-md text-xs leading-relaxed text-slate-500 sm:text-sm">
             {showMastered
               ? 'Khi bạn làm lại đúng các câu hỏi trong mục Cần ôn lại, chúng sẽ được chuyển sang đây.'
-              : 'Hãy vào học các chủ đề từ Lớp 6 đến Lớp 12 và làm bài kiểm tra 25 câu. Những câu bạn làm sai sẽ tự động phân theo từng Chương và Chủ đề tại đây để bạn ôn tập.'}
+              : 'Hãy vào học các chủ đề từ Lớp 6 đến Lớp 12 và làm bài kiểm tra. Những câu bạn làm sai sẽ tự động phân loại theo định dạng và chủ đề tại đây.'}
           </p>
           <div className="pt-2">
             <Link href="/" className="edu-btn-primary px-4 py-2 text-xs">
@@ -848,7 +1184,7 @@ export function MistakeNotebookClient({
                             className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-soft transition hover:bg-slate-800"
                           >
                             <Play className="h-3 w-3 fill-current" />
-                            <span>Ôn riêng chủ đề này ({tGroup.items.length})</span>
+                            <span>Ôn chủ đề này ({tGroup.items.length})</span>
                           </button>
                         )}
                       </div>
@@ -858,6 +1194,7 @@ export function MistakeNotebookClient({
                     <div className="divide-y divide-slate-100">
                       {tGroup.items.map((q, idx) => {
                         const isExpanded = !!expandedExplanations[q.id];
+                        const qFormat = classifyQuestionFormat(q);
                         const wrongLetter =
                           q.last_wrong_option >= 0 && q.last_wrong_option <= 3
                             ? ['A', 'B', 'C', 'D'][q.last_wrong_option]
@@ -871,9 +1208,28 @@ export function MistakeNotebookClient({
                                 <span className="rounded-md bg-slate-800 px-2 py-0.5 font-bold text-white">
                                   Câu {idx + 1}
                                 </span>
+
+                                {/* Format Badge */}
+                                <span
+                                  className={`rounded-md border px-2 py-0.5 font-bold ${
+                                    qFormat === 'multiple_choice'
+                                      ? 'border-brand-200 bg-brand-50 text-brand-700'
+                                      : qFormat === 'true_false'
+                                        ? 'border-purple-200 bg-purple-50 text-purple-700'
+                                        : 'border-amber-200 bg-amber-50 text-amber-800'
+                                  }`}
+                                >
+                                  {qFormat === 'multiple_choice'
+                                    ? 'Phần I: 4 Lựa chọn'
+                                    : qFormat === 'true_false'
+                                      ? 'Phần II: Đúng / Sai'
+                                      : 'Phần III: Điền số'}
+                                </span>
+
                                 <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
                                   Mức độ: {DIFF_LABELS[q.difficulty] || q.difficulty}
                                 </span>
+
                                 <span className="rounded-md bg-rose-50 px-2 py-0.5 font-bold text-rose-700">
                                   Sai {q.wrong_count} lần (Đã chọn: {wrongLetter})
                                 </span>
