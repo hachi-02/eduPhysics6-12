@@ -23,7 +23,6 @@ export interface ExamScoreResult {
  */
 export function extractNumberAndUnit(text: string): { num: number; unit: string } | null {
   if (!text) return null;
-  // Bỏ bớt ký hiệu đáp án đầu dòng như A., B., C., D.
   const cleaned = text.replace(/^[A-D][.:)]\s*/i, '').trim();
   const match = cleaned.match(/([-+]?\d+(?:[.,]\d+)?)\s*([a-zA-Z\u00C0-\u024F\u1E00-\u1EFF\/°Ωμ²³%]+)?/);
   if (!match) return null;
@@ -31,6 +30,23 @@ export function extractNumberAndUnit(text: string): { num: number; unit: string 
   if (isNaN(num)) return null;
   const unit = match[2]?.trim() || '';
   return { num, unit };
+}
+
+/**
+ * Kiểm tra xem các phương án có phải là các giá trị số học thuần túy hay không
+ * (Ví dụ: "20 cm³", "15 m/s", "2,5 N" -> true; còn "Quấn chặt 20 vòng quanh thân bút..." -> false)
+ */
+export function isPureNumericOptions(options: string[]): boolean {
+  if (!options || options.length === 0) return false;
+  let numericCount = 0;
+  for (const opt of options) {
+    const cleaned = opt.replace(/^[A-D][.:)]\s*/i, '').trim();
+    // Khớp nếu chỉ là số kèm đơn vị tùy chọn: e.g. "20", "20 cm³", "1.5 m/s", "-10 J"
+    if (/^[-+]?\d+(?:[.,]\d+)?(?:\s*[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF\/°Ωμ²³%]+)?$/.test(cleaned)) {
+      numericCount++;
+    }
+  }
+  return numericCount >= 3;
 }
 
 /**
@@ -71,7 +87,7 @@ export function checkShortAnswer(
     const diff = Math.abs(userNum - targetNum);
     const tolerance = config.tolerance !== undefined
       ? config.tolerance
-      : Math.max(0.02 * Math.abs(targetNum), 0.05); // Dung sai 2% hoặc 0.05
+      : Math.max(0.02 * Math.abs(targetNum), 0.05);
 
     return {
       isCorrect: diff <= tolerance,
@@ -79,7 +95,7 @@ export function checkShortAnswer(
     };
   }
 
-  // 3. So sánh chuỗi ký tự chính xác (cho câu trả lời lý thuyết ngắn)
+  // 3. So sánh chuỗi ký tự chính xác
   const targetStr = String(config.target_value).trim().toLowerCase();
   return {
     isCorrect: rawInput === targetStr,
@@ -115,157 +131,123 @@ export function calculateTrueFalseScore(
 }
 
 /**
- * Fisher-Yates shuffle
+ * Tạo 4 mệnh đề Đúng / Sai ĐỘC LẬP thực sự (có cả ý Đúng và ý Sai tự nhiên)
+ * Tránh việc chỉ có 1 ý Đúng và 3 ý Sai gây suy luận đoán mò.
  */
-function shuffle<T>(array: T[]): T[] {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-/**
- * Chuyển đổi bộ câu hỏi truyền thống thành bộ đề chuẩn cấu trúc Bộ GD&ĐT 2025:
- * - Phần I: Trắc nghiệm 4 lựa chọn (câu 1..15)
- * - Phần II: Trắc nghiệm Đúng / Sai (câu 16..19, 4 câu × 4 ý a,b,c,d)
- * - Phần III: Trắc nghiệm Trả lời ngắn / Điền số (câu 20..25, 6 câu)
- */
-export function adaptToFormat2025(questions: QuestionItem[]): QuestionItem[] {
-  if (!questions || questions.length === 0) return [];
-
-  // Nếu câu hỏi đã có sẵn question_type thì giữ nguyên
-  const hasPredefinedTypes = questions.some((q) => q.question_type && q.question_type !== 'multiple_choice');
-  if (hasPredefinedTypes) {
-    return questions;
-  }
-
-  const total = questions.length;
-  // Xác định số lượng cho từng phần tùy theo tổng số câu
-  let part2Count = 4;
-  let part3Count = 6;
-  if (total <= 10) {
-    part2Count = 2;
-    part3Count = 2;
-  } else if (total <= 15) {
-    part2Count = 3;
-    part3Count = 3;
-  }
-
-  const part1Count = Math.max(1, total - part2Count - part3Count);
-
-  // Phân bổ câu hỏi:
-  // Phần 1: Ưu tiên câu Nhận biết & Thông hiểu
-  // Phần 2: Ưu tiên câu Thông hiểu & Vận dụng
-  // Phần 3: Ưu tiên câu Vận dụng & Vận dụng cao (bài toán tính toán)
-  const sorted = [...questions].sort((a, b) => {
-    const order: Record<string, number> = {
-      nhan_biet: 1,
-      thong_hieu: 2,
-      van_dung: 3,
-      van_dung_cao: 4,
-    };
-    return (order[a.difficulty] || 1) - (order[b.difficulty] || 1);
-  });
-
-  const part1Raw = sorted.slice(0, part1Count);
-  const part2Raw = sorted.slice(part1Count, part1Count + part2Count);
-  const part3Raw = sorted.slice(part1Count + part2Count);
-
-  // 1. Xử lý Phần I: Multiple choice
-  const part1: QuestionItem[] = part1Raw.map((q, idx) => ({
-    ...q,
-    order_index: idx + 1,
-    question_type: 'multiple_choice' as QuestionType,
-  }));
-
-  // 2. Xử lý Phần II: True / False (4 ý a, b, c, d)
+export function generateIndependentTrueFalseStatements(q: QuestionItem): TrueFalseStatement[] {
+  const correctOpt = q.options[q.correct_index] || '';
+  const distractors = q.options.filter((_, idx) => idx !== q.correct_index);
   const letterIds = ['a', 'b', 'c', 'd'];
-  const part2: QuestionItem[] = part2Raw.map((q, idx) => {
-    const correctOpt = q.options[q.correct_index] || '';
-    const distractors = q.options.filter((_, oIdx) => oIdx !== q.correct_index);
 
-    // Tạo 4 nhận định: 1 nhận định đúng và 3 nhận định sai (dựa vào options)
-    const rawStatements: { text: string; is_correct: boolean; explanation?: string }[] = [
-      { text: correctOpt, is_correct: true, explanation: 'Nhận định chính xác theo lý thuyết/công thức.' },
-      ...distractors.map((dist) => ({
-        text: dist,
-        is_correct: false,
-        explanation: 'Nhận định sai hoặc chưa đầy đủ.',
-      })),
-    ];
+  // Seed từ id để đảm bảo kết quả cố định cho từng câu hỏi
+  const seed = ((q.id || 1) * 17 + (q.order_index || 1) * 31) % 4;
 
-    // Xáo trộn 4 ý để 'Đúng' không luôn ở ý a
-    const shuffledSts = shuffle(rawStatements);
-    const tf_statements: TrueFalseStatement[] = shuffledSts.map((st, sIdx) => ({
-      id: letterIds[sIdx] || `item_${sIdx}`,
-      text: st.text,
-      is_correct: st.is_correct,
-      explanation: st.explanation,
-    }));
+  const raw: { text: string; is_correct: boolean; explanation: string }[] = [];
 
-    return {
-      ...q,
-      order_index: part1Count + idx + 1,
-      question_type: 'true_false' as QuestionType,
-      tf_statements,
-    };
-  });
-
-  // 3. Xử lý Phần III: Short answer (Điền số)
-  const part3: QuestionItem[] = part3Raw.map((q, idx) => {
-    const correctOpt = q.options[q.correct_index] || '';
+  if (isPureNumericOptions(q.options)) {
     const parsed = extractNumberAndUnit(correctOpt);
+    const targetNum = parsed ? parsed.num : 20;
+    const unit = parsed ? parsed.unit : '';
 
-    let short_answer: ShortAnswerConfig;
-    if (parsed) {
-      short_answer = {
-        target_value: parsed.num,
-        tolerance: Math.max(0.02 * Math.abs(parsed.num), 0.05),
-        unit: parsed.unit,
-        acceptable_answers: [
-          String(parsed.num),
-          String(parsed.num).replace('.', ','),
-          correctOpt.trim(),
-        ],
-        hint: parsed.unit ? `Đơn vị: ${parsed.unit}` : undefined,
-      };
-    } else {
-      // Trường hợp không trích được số, dùng từ khóa đáp án đúng
-      short_answer = {
-        target_value: correctOpt.trim(),
-        acceptable_answers: [correctOpt.trim(), correctOpt.trim().toLowerCase()],
-      };
-    }
+    // Ý a: Khẳng định về giá trị tìm được
+    const aIsCorrect = seed % 2 === 0;
+    const aVal = aIsCorrect ? targetNum : Math.round((targetNum * 1.5) * 10) / 10;
+    raw.push({
+      text: `Kết quả tính toán đại lượng trong bài cho giá trị là ${aVal} ${unit}.`,
+      is_correct: aIsCorrect,
+      explanation: aIsCorrect
+        ? `Đúng, kết quả tính chính xác là ${aVal} ${unit}.`
+        : `Sai, kết quả tính đúng phải là ${targetNum} ${unit}.`,
+    });
 
-    return {
-      ...q,
-      order_index: part1Count + part2Count + idx + 1,
-      question_type: 'short_answer' as QuestionType,
-      short_answer,
-    };
-  });
+    // Ý b: Khẳng định về đơn vị đo lường hoặc thứ nguyên
+    raw.push({
+      text: unit
+        ? `Đơn vị đo chuẩn của đại lượng tìm được trong bài là ${unit}.`
+        : 'Đại lượng trong bài có thể đo bằng dụng cụ đo tiêu chuẩn.',
+      is_correct: true,
+      explanation: 'Đúng theo quy chuẩn thứ nguyên và đơn vị đo Vật lý.',
+    });
 
-  return [...part1, ...part2, ...part3];
+    // Ý c: Khẳng định về một phương án nhiễu
+    const distractorText = distractors[0] || '10';
+    raw.push({
+      text: `Nếu thực hiện phép tính với giá trị ${distractorText} thì sẽ thỏa mãn đề bài.`,
+      is_correct: false,
+      explanation: `Sai, đây là phương án nhiễu (kết quả chính xác là ${correctOpt}).`,
+    });
+
+    // Ý d: Khẳng định về quy luật vật lý hoặc biến thiên
+    const dIsCorrect = seed === 0 || seed === 2;
+    raw.push({
+      text: dIsCorrect
+        ? 'Hiện tượng được mô tả trong bài tuân theo định luật bảo toàn và nguyên lý cộng đại lượng.'
+        : 'Nếu tăng gấp đôi các thông số ban đầu thì kết quả tìm được sẽ không thay đổi.',
+      is_correct: dIsCorrect,
+      explanation: dIsCorrect
+        ? 'Đúng theo nguyên lý Vật lý.'
+        : 'Sai, khi thông số ban đầu thay đổi thì kết quả tính toán sẽ biến thiên tương ứng.',
+    });
+  } else {
+    // Với câu hỏi định tính / phương pháp:
+    // Ý a: Khẳng định chính xác theo SGK (ĐÚNG)
+    raw.push({
+      text: `${correctOpt.replace(/\.$/, '')}.`,
+      is_correct: true,
+      explanation: 'Khẳng định chính xác theo SGK và bản chất Vật lý.',
+    });
+
+    // Ý b: Phương án nhiễu thứ nhất (SAI)
+    const dist1 = distractors[0] || 'Hiện tượng diễn ra ngược lại với quy luật tự nhiên';
+    raw.push({
+      text: `${dist1.replace(/\.$/, '')}.`,
+      is_correct: false,
+      explanation: 'Khẳng định chưa chính xác hoặc không tối ưu.',
+    });
+
+    // Ý c: Khẳng định về ứng dụng / nguyên lý thực tế (ĐÚNG)
+    raw.push({
+      text: 'Phương pháp hoặc quy tắc nêu trên có thể áp dụng tương tự trong các phép đo lường và thực nghiệm đời sống.',
+      is_correct: true,
+      explanation: 'Đúng, đây là nguyên tắc khoa học được áp dụng rộng rãi.',
+    });
+
+    // Ý d: Phương án nhiễu thứ hai (SAI)
+    const dist2 = distractors[1] || 'Kết quả của phép đo không phụ thuộc vào độ chính xác của dụng cụ';
+    raw.push({
+      text: `${dist2.replace(/\.$/, '')}.`,
+      is_correct: false,
+      explanation: 'Khẳng định sai hoặc không phù hợp với quy tắc thực nghiệm.',
+    });
+  }
+
+  // Luôn có sự đan xen giữa Đúng và Sai (thường là 2 Đúng, 2 Sai)
+  return raw.map((st, i) => ({
+    id: letterIds[i] || `item_${i}`,
+    text: st.text,
+    is_correct: st.is_correct,
+    explanation: st.explanation,
+  }));
 }
 
 /**
  * Phân loại định dạng của câu hỏi theo chuẩn format 2025:
- * - 'short_answer': Bài toán tính toán có số liệu (thường là Vận dụng / Vận dụng cao)
+ * - 'short_answer': Chỉ dành cho BÀI TOÁN TÍNH TOÁN CÓ SỐ LIỆU THUẦN TÚY (VD: 20 cm³, 15 m/s)
  * - 'true_false': Câu hỏi nhận định, bản chất hiện tượng (Thông hiểu / Vận dụng)
  * - 'multiple_choice': Câu hỏi nhận biết, khái niệm đơn thuần
  */
 export function classifyQuestionFormat(q: QuestionItem): QuestionType {
   if (q.question_type) return q.question_type;
-  const correctOpt = q.options[q.correct_index] || '';
-  const parsed = extractNumberAndUnit(correctOpt);
-  if (parsed && (q.difficulty === 'van_dung' || q.difficulty === 'van_dung_cao')) {
+
+  // CHỈ phân loại là Điền số nếu các phương án là SỐ HỌC THUẦN TÚY (tránh nhầm các câu phương pháp đo có số)
+  if (isPureNumericOptions(q.options) && (q.difficulty === 'van_dung' || q.difficulty === 'van_dung_cao')) {
     return 'short_answer';
   }
+
   if (q.difficulty === 'thong_hieu' || q.difficulty === 'van_dung') {
     return 'true_false';
   }
+
   return 'multiple_choice';
 }
 
@@ -277,18 +259,7 @@ export function prepareQuestionFor2025(q: QuestionItem): QuestionItem {
   const correctOpt = q.options[q.correct_index] || '';
 
   if (type === 'true_false') {
-    const distractors = q.options.filter((_, idx) => idx !== q.correct_index);
-    const rawStatements = [
-      { text: correctOpt, is_correct: true, explanation: 'Nhận định chính xác.' },
-      ...distractors.map((d) => ({ text: d, is_correct: false, explanation: 'Nhận định chưa chính xác.' })),
-    ];
-    const letterIds = ['a', 'b', 'c', 'd'];
-    const tf_statements: TrueFalseStatement[] = rawStatements.map((st, idx) => ({
-      id: letterIds[idx] || `item_${idx}`,
-      text: st.text,
-      is_correct: st.is_correct,
-      explanation: st.explanation,
-    }));
+    const tf_statements = generateIndependentTrueFalseStatements(q);
     return {
       ...q,
       question_type: 'true_false',
@@ -322,6 +293,95 @@ export function prepareQuestionFor2025(q: QuestionItem): QuestionItem {
     ...q,
     question_type: 'multiple_choice',
   };
+}
+
+/**
+ * Chuyển đổi bộ câu hỏi truyền thống thành bộ đề chuẩn cấu trúc Bộ GD&ĐT 2025
+ */
+export function adaptToFormat2025(questions: QuestionItem[]): QuestionItem[] {
+  if (!questions || questions.length === 0) return [];
+
+  const hasPredefinedTypes = questions.some((q) => q.question_type && q.question_type !== 'multiple_choice');
+  if (hasPredefinedTypes) {
+    return questions;
+  }
+
+  const total = questions.length;
+  let part2Count = 4;
+  let part3Count = 6;
+  if (total <= 10) {
+    part2Count = 2;
+    part3Count = 2;
+  } else if (total <= 15) {
+    part2Count = 3;
+    part3Count = 3;
+  }
+
+  const part1Count = Math.max(1, total - part2Count - part3Count);
+
+  const sorted = [...questions].sort((a, b) => {
+    const order: Record<string, number> = {
+      nhan_biet: 1,
+      thong_hieu: 2,
+      van_dung: 3,
+      van_dung_cao: 4,
+    };
+    return (order[a.difficulty] || 1) - (order[b.difficulty] || 1);
+  });
+
+  const part1Raw = sorted.slice(0, part1Count);
+  const part2Raw = sorted.slice(part1Count, part1Count + part2Count);
+  const part3Raw = sorted.slice(part1Count + part2Count);
+
+  // 1. Phần I: Multiple choice
+  const part1: QuestionItem[] = part1Raw.map((q, idx) => ({
+    ...q,
+    order_index: idx + 1,
+    question_type: 'multiple_choice' as QuestionType,
+  }));
+
+  // 2. Phần II: True / False với các mệnh đề độc lập
+  const part2: QuestionItem[] = part2Raw.map((q, idx) => ({
+    ...q,
+    order_index: part1Count + idx + 1,
+    question_type: 'true_false' as QuestionType,
+    tf_statements: generateIndependentTrueFalseStatements(q),
+  }));
+
+  // 3. Phần III: Short answer (Điền số)
+  const part3: QuestionItem[] = part3Raw.map((q, idx) => {
+    const correctOpt = q.options[q.correct_index] || '';
+    const parsed = extractNumberAndUnit(correctOpt);
+
+    let short_answer: ShortAnswerConfig;
+    if (parsed) {
+      short_answer = {
+        target_value: parsed.num,
+        tolerance: Math.max(0.02 * Math.abs(parsed.num), 0.05),
+        unit: parsed.unit,
+        acceptable_answers: [
+          String(parsed.num),
+          String(parsed.num).replace('.', ','),
+          correctOpt.trim(),
+        ],
+        hint: parsed.unit ? `Đơn vị: ${parsed.unit}` : undefined,
+      };
+    } else {
+      short_answer = {
+        target_value: correctOpt.trim(),
+        acceptable_answers: [correctOpt.trim(), correctOpt.trim().toLowerCase()],
+      };
+    }
+
+    return {
+      ...q,
+      order_index: part1Count + part2Count + idx + 1,
+      question_type: 'short_answer' as QuestionType,
+      short_answer,
+    };
+  });
+
+  return [...part1, ...part2, ...part3];
 }
 
 /**

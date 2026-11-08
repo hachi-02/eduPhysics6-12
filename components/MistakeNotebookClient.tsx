@@ -11,6 +11,7 @@ import {
   prepareQuestionFor2025,
   calculateTrueFalseScore,
   checkShortAnswer,
+  generateIndependentTrueFalseStatements,
 } from '@/lib/format2025-adapter';
 import {
   AlertCircle,
@@ -1373,41 +1374,108 @@ export function MistakeNotebookClient({
                               <RichPhysicsText text={q.question_text} />
                             </div>
 
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                              {q.options.map((opt, oIdx) => {
-                                const letter = ['A', 'B', 'C', 'D'][oIdx];
-                                const isWrongChoice = oIdx === q.last_wrong_option;
-                                const isCorrectChoice = oIdx === q.correct_index;
+                            {/* Dynamic rendering based on question format */}
+                            {qFormat === 'multiple_choice' && (
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                {q.options.map((opt, oIdx) => {
+                                  const letter = ['A', 'B', 'C', 'D'][oIdx];
+                                  const isWrongChoice = oIdx === q.last_wrong_option;
+                                  const isCorrectChoice = oIdx === q.correct_index;
 
-                                return (
-                                  <div
-                                    key={oIdx}
-                                    className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs sm:text-sm ${
-                                      isExpanded && isCorrectChoice
-                                        ? 'border-emerald-400 bg-emerald-50/70 font-semibold text-emerald-950'
-                                        : isWrongChoice
-                                          ? 'border-rose-300 bg-rose-50/60 text-rose-900'
-                                          : 'border-slate-200/80 bg-slate-50/40 text-slate-700'
-                                    }`}
-                                  >
-                                    <span
-                                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold ${
+                                  return (
+                                    <div
+                                      key={oIdx}
+                                      className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs sm:text-sm ${
                                         isExpanded && isCorrectChoice
-                                          ? 'bg-emerald-600 text-white'
+                                          ? 'border-emerald-400 bg-emerald-50/70 font-semibold text-emerald-950'
                                           : isWrongChoice
-                                            ? 'bg-rose-500 text-white'
-                                            : 'bg-slate-200 text-slate-700'
+                                            ? 'border-rose-300 bg-rose-50/60 text-rose-900'
+                                            : 'border-slate-200/80 bg-slate-50/40 text-slate-700'
                                       }`}
                                     >
-                                      {letter}
-                                    </span>
-                                    <span className="flex-1">
-                                      <RichPhysicsText text={opt} />
-                                    </span>
+                                      <span
+                                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold ${
+                                          isExpanded && isCorrectChoice
+                                            ? 'bg-emerald-600 text-white'
+                                            : isWrongChoice
+                                              ? 'bg-rose-500 text-white'
+                                              : 'bg-slate-200 text-slate-700'
+                                        }`}
+                                      >
+                                        {letter}
+                                      </span>
+                                      <span className="flex-1">
+                                        <RichPhysicsText text={opt} />
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {qFormat === 'true_false' && (() => {
+                              const tfStatements = q.tf_statements || generateIndependentTrueFalseStatements(q);
+                              return (
+                                <div className="space-y-2 rounded-2xl border border-purple-100 bg-purple-50/30 p-3.5">
+                                  <div className="flex items-center justify-between text-xs font-bold text-purple-900">
+                                    <span>4 Mệnh đề độc lập (Mỗi ý đánh giá Đúng hoặc Sai):</span>
                                   </div>
-                                );
-                              })}
-                            </div>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    {tfStatements.map((st) => (
+                                      <div
+                                        key={st.id}
+                                        className={`flex flex-col gap-1.5 rounded-xl border p-3 text-xs sm:text-sm transition ${
+                                          isExpanded
+                                            ? st.is_correct
+                                              ? 'border-emerald-200 bg-emerald-50/60'
+                                              : 'border-rose-200 bg-rose-50/50'
+                                            : 'border-slate-200/80 bg-white'
+                                        }`}
+                                      >
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-2.5">
+                                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-purple-100 text-xs font-extrabold text-purple-800">
+                                              {st.id})
+                                            </span>
+                                            <div className="text-slate-800 leading-relaxed">
+                                              <RichPhysicsText text={st.text} />
+                                            </div>
+                                          </div>
+                                          {isExpanded && (
+                                            <span
+                                              className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-extrabold ${
+                                                st.is_correct
+                                                  ? 'bg-emerald-600 text-white shadow-2xs'
+                                                  : 'bg-rose-600 text-white shadow-2xs'
+                                              }`}
+                                            >
+                                              {st.is_correct ? 'ĐÚNG' : 'SAI'}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {isExpanded && st.explanation && (
+                                          <div className="ml-7 text-[11px] font-medium text-slate-600">
+                                            💡 {st.explanation}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {qFormat === 'short_answer' && (
+                              <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40 p-4 text-xs sm:text-sm">
+                                <div className="flex items-center gap-2 font-bold text-amber-900">
+                                  <Target className="h-4 w-4 text-amber-600" />
+                                  <span>Bài toán Điền số tự luận (Không có phương án lựa chọn A, B, C, D)</span>
+                                </div>
+                                <p className="mt-1 text-xs text-amber-800/80 leading-relaxed">
+                                  Theo định dạng Phần III Đề thi chuẩn 2025: Thí sinh tự tính toán từ dữ kiện đề bài và điền kết quả số kèm đơn vị tương ứng.
+                                </p>
+                              </div>
+                            )}
 
                             <div>
                               <button
@@ -1421,12 +1489,22 @@ export function MistakeNotebookClient({
                               </button>
 
                               {isExpanded && (
-                                <div className="animate-fade-in mt-2.5 space-y-1 rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 text-xs text-slate-700 sm:text-sm">
+                                <div className="animate-fade-in mt-2.5 space-y-1.5 rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 text-xs text-slate-700 sm:text-sm">
+                                  {qFormat === 'multiple_choice' && (
+                                    <div>
+                                      <strong className="text-emerald-700">Đáp án đúng: {rightLetter}</strong> ({q.options[q.correct_index]})
+                                    </div>
+                                  )}
+                                  {qFormat === 'short_answer' && (
+                                    <div>
+                                      <strong className="text-emerald-700">Đáp số chính xác: </strong>
+                                      <span className="font-extrabold text-emerald-950 bg-emerald-100 px-2.5 py-0.5 rounded-md">
+                                        {q.options[q.correct_index]}
+                                      </span>
+                                    </div>
+                                  )}
                                   <div>
-                                    <strong className="text-emerald-700">Đáp án đúng: {rightLetter}</strong>
-                                  </div>
-                                  <div>
-                                    <strong className="text-slate-900">Giải thích: </strong>
+                                    <strong className="text-slate-900">Giải thích / Lời giải chi tiết: </strong>
                                     <RichPhysicsText text={q.explanation} />
                                   </div>
                                 </div>

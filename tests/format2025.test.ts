@@ -5,6 +5,9 @@ import {
   calculateTrueFalseScore,
   adaptToFormat2025,
   calculateExamScore,
+  isPureNumericOptions,
+  generateIndependentTrueFalseStatements,
+  classifyQuestionFormat,
 } from '../lib/format2025-adapter';
 import { QuestionItem } from '../types/cms';
 
@@ -164,5 +167,67 @@ describe('Format 2025 Adapter & Scoring Engine', () => {
     expect(res.part3Score).toBe(1);
     expect(res.totalScore).toBe(2.5);
     expect(res.maxScore).toBe(3);
+  });
+
+  it('differentiates pure numeric options from qualitative questions with numbers', () => {
+    // Pure numeric options -> true
+    expect(isPureNumericOptions(['60 cm³', '20 cm³', '30 cm³', '15 cm³'])).toBe(true);
+    expect(isPureNumericOptions(['10 m/s', '20 m/s', '30 m/s', '40 m/s'])).toBe(true);
+
+    // Qualitative options containing numbers in text -> false
+    const qualitativeOpts = [
+      'Đặt trực tiếp sợi dây lên vạch thước để ước lượng bằng mắt',
+      'Gập đôi sợi dây lại để đo',
+      'Quấn chặt 20 vòng dây đồng sát nhau quanh thân bút chì rồi đo',
+      'Đo chiều dài sợi dây rồi chia cho 100',
+    ];
+    expect(isPureNumericOptions(qualitativeOpts)).toBe(false);
+
+    // Ensure qualitative question is not classified as short_answer
+    const qualitativeQ: QuestionItem = {
+      id: 2,
+      scope_type: 'topic',
+      topic_id: 1,
+      chapter_id: 1,
+      order_index: 2,
+      difficulty: 'van_dung',
+      question_text: 'Muốn đo đường kính của một sợi dây đồng...',
+      options: qualitativeOpts,
+      correct_index: 2,
+      explanation: 'Giải thích',
+    };
+    expect(classifyQuestionFormat(qualitativeQ)).not.toBe('short_answer');
+  });
+
+  it('generates independent True/False statements with natural True/False distribution', () => {
+    const q: QuestionItem = {
+      id: 10,
+      scope_type: 'topic',
+      topic_id: 1,
+      chapter_id: 1,
+      order_index: 1,
+      difficulty: 'thong_hieu',
+      question_text: 'Một vật chuyển động thẳng đều...',
+      options: [
+        'Vận tốc không đổi theo thời gian',
+        'Gia tốc luôn khác 0',
+        'Quãng đường tỉ lệ nghịch với thời gian',
+        'Vận tốc tăng dần đều',
+      ],
+      correct_index: 0,
+      explanation: 'Trong chuyển động thẳng đều thì v không đổi',
+    };
+
+    const statements = generateIndependentTrueFalseStatements(q);
+    expect(statements.length).toBe(4);
+    expect(statements.map((s) => s.id)).toEqual(['a', 'b', 'c', 'd']);
+
+    const trueCount = statements.filter((s) => s.is_correct).length;
+    const falseCount = statements.filter((s) => !s.is_correct).length;
+
+    // Must NOT be trivially 1 True and 3 False
+    // It should have independent propositions with an authentic mix (e.g. 2 True, 2 False)
+    expect(trueCount).toBeGreaterThan(1);
+    expect(falseCount).toBeGreaterThan(0);
   });
 });
