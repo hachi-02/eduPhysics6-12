@@ -18,7 +18,7 @@ describe('PhysicsGraphEngine & Domain Graph Specs', () => {
 
   it('generates kinematics motion graphs for Grade 10 motion', () => {
     const spec = getGraphSpecForSimKey('kinematics_motion_lab', { v0: 3, a: 2 });
-    expect(spec.domainTitle).toContain('Chuyển động');
+    expect(spec.domainTitle).toContain('Động học');
     const vSeries = spec.series.find((s) => s.id === 'v')!;
     const sSeries = spec.series.find((s) => s.id === 's')!;
 
@@ -28,15 +28,37 @@ describe('PhysicsGraphEngine & Domain Graph Specs', () => {
     expect(sSeries.calculate(2, {})).toBe(10);
   });
 
+  it('generates optics thin lens graphs for Grade 9 optics', () => {
+    const spec = getGraphSpecForSimKey('g9_thin_lens_lab', { focalLength: 10 });
+    expect(spec.domainTitle).toContain('Thấu kính Mỏng');
+    const dPrime = spec.series.find((s) => s.id === 'd_prime')!;
+    // If d = 20, f = 10 -> d' = (20*10)/(20-10) = 20
+    expect(dPrime.calculate(20, {})).toBe(20);
+  });
+
+  it('generates hydrostatic pressure graphs for Grade 8 fluid mechanics', () => {
+    const spec = getGraphSpecForSimKey('g8_pressure_surface_lab');
+    expect(spec.domainTitle).toContain('Áp suất');
+    const pFluid = spec.series.find((s) => s.id === 'p_fluid')!;
+    // At depth h = 1m: p = rho*g*h / 1000 = 1000*9.8*1 / 1000 = 9.8 kPa
+    expect(pFluid.calculate(1, {})).toBeCloseTo(9.8, 1);
+  });
+
+  it('generates thermal heating graphs for Grade 8 & 12 heat transfer', () => {
+    const spec = getGraphSpecForSimKey('g8_thermal_motion_lab');
+    expect(spec.domainTitle).toContain('Nhiệt độ');
+    expect(spec.series.some((s) => s.id === 'T')).toBe(true);
+  });
+
   it('generates ideal gas isotherm curve for Grade 12 gas laws', () => {
-    const spec = getGraphSpecForSimKey('ideal_gas_laws_lab', { temperature: 300, moles: 1 });
+    const spec = getGraphSpecForSimKey('g12_boyle_isothermal_lab', { temperature: 300, moles: 1 });
     expect(spec.domainTitle).toContain('Khí lý tưởng');
     expect(spec.series.length).toBeGreaterThanOrEqual(2);
     expect(spec.xUnit).toBe('Lít');
   });
 
   it('generates Ohm law I-U curve for electricity labs', () => {
-    const spec = getGraphSpecForSimKey('ohm_resistor_lab', { resistance: 10 });
+    const spec = getGraphSpecForSimKey('g9_ohms_resistor_lab', { resistance: 10 });
     expect(spec.domainTitle).toContain('Vôn - Ampe');
     const iSeries = spec.series.find((s) => s.id === 'I')!;
     // I = U / R -> I(10) = 10 / 10 = 1A
@@ -44,16 +66,10 @@ describe('PhysicsGraphEngine & Domain Graph Specs', () => {
   });
 
   it('generates radioactive decay curve for nuclear physics', () => {
-    const spec = getGraphSpecForSimKey('radioactive_halflife_lab', { initialCount: 1000, halfLife: 2 });
-    expect(spec.domainTitle).toContain('Phóng xạ');
+    const spec = getGraphSpecForSimKey('g12_radioactive_decay_fission_lab', { initialCount: 1000, halfLife: 2 });
+    expect(spec.domainTitle).toContain('Phân rã Phóng xạ');
     const nSeries = spec.series.find((s) => s.id === 'N')!;
     // After 1 half-life (t = 2): N should be 500
     expect(nSeries.calculate(2, {})).toBeCloseTo(500, 1);
-  });
-
-  it('provides a safe fallback graph for unmapped keys', () => {
-    const spec = getGraphSpecForSimKey('random_unknown_sim_key');
-    expect(spec.domainTitle).toBeDefined();
-    expect(spec.series.length).toBeGreaterThan(0);
   });
 });

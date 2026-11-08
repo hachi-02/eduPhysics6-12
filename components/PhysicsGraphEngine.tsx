@@ -22,7 +22,7 @@ export interface GraphSeriesConfig {
   unit: string;
   color: string;
   formulaLabel: string;
-  calculate: (t: number, params: Record<string, any>) => number;
+  calculate: (x: number, params: Record<string, any>) => number;
 }
 
 export interface PhysicsDomainGraphSpec {
@@ -37,32 +37,35 @@ export interface PhysicsDomainGraphSpec {
 }
 
 /**
- * Suy ra đặc tả đồ thị (Graph Specification) dựa trên sim_key
+ * Phân tích và tạo đặc tả đồ thị (Graph Specification) chuẩn xác cho từng nhóm bài học
+ * dựa trên toàn bộ danh mục sim_key thực tế từ Lớp 6 đến Lớp 12.
  */
 export function getGraphSpecForSimKey(simKey: string, params: Record<string, any> = {}): PhysicsDomainGraphSpec {
-  const key = simKey.toLowerCase();
+  const k = simKey.toLowerCase();
 
-  // 1. Dao động điều hòa & Sóng (Grades 11, 12)
+  // 1. Dao động điều hòa, Con lắc, Sóng cơ & Sóng âm (Grades 7, 11)
   if (
-    key.includes('shm') ||
-    key.includes('harmonic') ||
-    key.includes('oscillator') ||
-    key.includes('wave') ||
-    key.includes('pendulum') ||
-    key.includes('resonance')
+    k.includes('shm') ||
+    k.includes('harmonic') ||
+    k.includes('oscillator') ||
+    k.includes('pendulum') ||
+    k.includes('resonance') ||
+    k.includes('mechanical_waves') ||
+    k.includes('interference_standing_wave') ||
+    k.includes('sound_wave_echo')
   ) {
     const A = Number(params.amplitude || 5); // biên độ (cm)
     const T = Number(params.period || 2); // chu kỳ (s)
     const omega = (2 * Math.PI) / T;
     const m = Number(params.mass || 0.2); // kg
-    const k = m * omega * omega;
+    const k_spring = m * omega * omega;
 
     return {
-      domainTitle: 'Đồ thị Dao động Điều hòa & Năng lượng',
-      description: 'Khảo sát biến thiên li độ x(t), vận tốc v(t), gia tốc a(t) và chuyển hóa Động năng - Thế năng theo thời gian.',
+      domainTitle: 'Đồ thị Dao động Điều hòa & Sóng cơ',
+      description: 'Khảo sát biến thiên li độ x(t), vận tốc v(t), gia tốc a(t) và chu trình chuyển hóa Động năng - Thế năng theo thời gian.',
       xLabel: 'Thời gian t',
       xUnit: 's',
-      tMax: Number(params.tMax || 6),
+      tMax: 6,
       dt: 0.04,
       series: [
         {
@@ -96,7 +99,7 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
           color: '#8b5cf6', // Purple
           formulaLabel: 'Wđ = ½mv²',
           calculate: (t) => {
-            const v = (-omega * A * Math.sin(omega * t)) / 100; // m/s
+            const v = (-omega * A * Math.sin(omega * t)) / 100;
             return 0.5 * m * v * v * 1000;
           },
         },
@@ -107,8 +110,8 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
           color: '#ec4899', // Pink
           formulaLabel: 'Wt = ½kx²',
           calculate: (t) => {
-            const x = (A * Math.cos(omega * t)) / 100; // m
-            return 0.5 * k * x * x * 1000;
+            const x = (A * Math.cos(omega * t)) / 100;
+            return 0.5 * k_spring * x * x * 1000;
           },
         },
       ],
@@ -116,23 +119,23 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
     };
   }
 
-  // 2. Chuyển động biến đổi đều, Rơi tự do, Động lực học (Grades 7, 10)
+  // 2. Chuyển động biến đổi đều, Rơi tự do, Ném ngang, Động học (Grades 7, 10)
   if (
-    key.includes('kinematic') ||
-    key.includes('accelerat') ||
-    key.includes('speed') ||
-    key.includes('motion') ||
-    key.includes('gravity') ||
-    key.includes('projectile') ||
-    key.includes('newton') ||
-    key.includes('friction')
+    k.includes('displacement_velocity') ||
+    k.includes('accelerated_motion') ||
+    k.includes('projectile_motion') ||
+    k.includes('speed_graph') ||
+    k.includes('kinematic') ||
+    k.includes('gravity_weight') ||
+    k.includes('circular_motion') ||
+    k.includes('centripetal')
   ) {
-    const v0 = Number(params.v0 ?? params.initialSpeed ?? 2); // m/s
-    const a = Number(params.acceleration ?? params.a ?? 1.5); // m/s²
+    const v0 = Number(params.v0 ?? params.initialSpeed ?? 2);
+    const a = Number(params.acceleration ?? params.a ?? 1.5);
 
     return {
-      domainTitle: 'Đồ thị Chuyển động & Động học',
-      description: 'Quan sát đồ thị vận tốc v(t), độ dịch chuyển d(t) và gia tốc a(t) trong chuyển động thẳng biến đổi đều.',
+      domainTitle: 'Đồ thị Động học Chuyển động v(t), d(t) & a(t)',
+      description: 'Mối quan hệ giữa vận tốc, quãng đường dịch chuyển và gia tốc trong chuyển động biến đổi đều.',
       xLabel: 'Thời gian t',
       xUnit: 's',
       tMax: 8,
@@ -142,7 +145,7 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
           id: 'v',
           name: 'Vận tốc v',
           unit: 'm/s',
-          color: '#0ea5e9', // Sky blue
+          color: '#0ea5e9',
           formulaLabel: 'v = v₀ + at',
           calculate: (t) => v0 + a * t,
         },
@@ -150,7 +153,7 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
           id: 's',
           name: 'Độ dịch chuyển d',
           unit: 'm',
-          color: '#10b981', // Emerald
+          color: '#10b981',
           formulaLabel: 'd = v₀t + ½at²',
           calculate: (t) => v0 * t + 0.5 * a * t * t,
         },
@@ -158,7 +161,7 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
           id: 'a',
           name: 'Gia tốc a',
           unit: 'm/s²',
-          color: '#f97316', // Orange
+          color: '#f97316',
           formulaLabel: 'a = const',
           calculate: () => a,
         },
@@ -167,32 +170,272 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
     };
   }
 
-  // 3. Khí lý tưởng & Nhiệt động lực học (Grade 12)
+  // 3. Động lực học Newton, Lực ma sát, Va chạm, Động lượng (Grades 6, 8, 10)
   if (
-    key.includes('gas') ||
-    key.includes('boyle') ||
-    key.includes('isotherm') ||
-    key.includes('thermodynamic') ||
-    key.includes('pv_cycle')
+    k.includes('newton') ||
+    k.includes('vector_forces') ||
+    k.includes('friction') ||
+    k.includes('force_effects') ||
+    k.includes('force_vector') ||
+    k.includes('impulse_momentum') ||
+    k.includes('collision') ||
+    k.includes('rocket')
+  ) {
+    const m = Number(params.mass || 2); // kg
+    const mu = Number(params.mu || 0.15); // hệ số ma sát
+    const g = 9.8;
+    const F_ms = mu * m * g;
+
+    return {
+      domainTitle: 'Đồ thị Động lực học & Định luật II Newton (a - F kéo)',
+      description: 'Mối quan hệ giữa lực kéo tác dụng F, lực ma sát cản và gia tốc của vật a = (F - Fms) / m.',
+      xLabel: 'Lực kéo F',
+      xUnit: 'N',
+      tMax: 20,
+      dt: 0.2,
+      series: [
+        {
+          id: 'a',
+          name: 'Gia tốc a',
+          unit: 'm/s²',
+          color: '#3b82f6',
+          formulaLabel: 'a = (F - Fms) / m',
+          calculate: (F) => (F > F_ms ? (F - F_ms) / m : 0),
+        },
+        {
+          id: 'Fms',
+          name: 'Lực ma sát Fms',
+          unit: 'N',
+          color: '#ef4444',
+          formulaLabel: 'Fms = μ·m·g',
+          calculate: (F) => (F > F_ms ? F_ms : F),
+        },
+        {
+          id: 'Fhl',
+          name: 'Hợp lực tác dụng Fhl',
+          unit: 'N',
+          color: '#10b981',
+          formulaLabel: 'Fhl = m·a',
+          calculate: (F) => (F > F_ms ? F - F_ms : 0),
+        },
+      ],
+      defaultActiveSeries: ['a', 'Fhl'],
+    };
+  }
+
+  // 4. Công, Công suất & Cơ năng (Grades 6, 9, 10)
+  if (
+    k.includes('work') ||
+    k.includes('power') ||
+    k.includes('energy_forms_skate') ||
+    k.includes('energy_efficiency') ||
+    k.includes('renewable_energy') ||
+    k.includes('kinetic_potential') ||
+    k.includes('conservation_energy') ||
+    k.includes('rollercoaster')
+  ) {
+    const F = Number(params.force || 50); // N
+    const v_const = Number(params.speed || 10); // m/s
+
+    return {
+      domainTitle: 'Đồ thị Công cơ học A(s) & Công suất P(v)',
+      description: 'Khảo sát công cơ học thực hiện theo quãng đường A = F·s và công suất tức thời P = F·v.',
+      xLabel: 'Quãng đường s',
+      xUnit: 'm',
+      tMax: 25,
+      dt: 0.25,
+      series: [
+        {
+          id: 'A',
+          name: 'Công cơ học A',
+          unit: 'J',
+          color: '#06b6d4', // Cyan
+          formulaLabel: 'A = F · s',
+          calculate: (s) => F * s,
+        },
+        {
+          id: 'P',
+          name: 'Công suất P',
+          unit: 'W',
+          color: '#f59e0b', // Amber
+          formulaLabel: 'P = A / t = F · v',
+          calculate: (s) => F * v_const,
+        },
+      ],
+      defaultActiveSeries: ['A', 'P'],
+    };
+  }
+
+  // 5. Thủy tĩnh học, Khối lượng riêng, Áp suất & Đòn bẩy (Grades 6, 8)
+  if (
+    k.includes('pressure') ||
+    k.includes('density') ||
+    k.includes('buoyancy') ||
+    k.includes('archimedes') ||
+    k.includes('torque') ||
+    k.includes('lever') ||
+    k.includes('crane') ||
+    k.includes('length_volume') ||
+    k.includes('mass_time')
+  ) {
+    const rho = 1000; // kg/m^3 (nước)
+    const g = 9.8;
+    const d = rho * g; // Trọng lượng riêng 9800 N/m^3
+    const p0 = 101.3; // áp suất khí quyển (kPa)
+
+    return {
+      domainTitle: 'Đồ thị Áp suất Thủy tĩnh p theo Độ sâu h',
+      description: 'Quy luật tăng áp suất theo độ sâu dưới chất lỏng: p = p₀ + ρgh và lực đẩy Ác-si-mét.',
+      xLabel: 'Độ sâu h',
+      xUnit: 'm',
+      tMax: 10,
+      dt: 0.1,
+      series: [
+        {
+          id: 'p_total',
+          name: 'Áp suất toàn phần p',
+          unit: 'kPa',
+          color: '#0284c7', // Sky
+          formulaLabel: 'p = p₀ + ρgh',
+          calculate: (h) => p0 + (d * h) / 1000,
+        },
+        {
+          id: 'p_fluid',
+          name: 'Áp suất chất lỏng ρgh',
+          unit: 'kPa',
+          color: '#10b981',
+          formulaLabel: 'p_cl = ρgh',
+          calculate: (h) => (d * h) / 1000,
+        },
+      ],
+      defaultActiveSeries: ['p_total', 'p_fluid'],
+    };
+  }
+
+  // 6. Quang hình học, Khúc xạ, Phản xạ & Thấu kính (Grades 7, 9, 11)
+  if (
+    k.includes('lens') ||
+    k.includes('refraction') ||
+    k.includes('tir') ||
+    k.includes('magnifier') ||
+    k.includes('mirror') ||
+    k.includes('reflection') ||
+    k.includes('optics') ||
+    k.includes('em_spectrum')
+  ) {
+    const f = Number(params.focalLength || 10); // tiêu cự (cm)
+
+    return {
+      domainTitle: 'Đồ thị Thấu kính Mỏng: Vị trí ảnh d\' theo Vị trí vật d',
+      description: 'Công thức thấu kính mỏng 1/f = 1/d + 1/d\' suy ra d\' = (d·f) / (d - f) và độ phóng đại k(d).',
+      xLabel: 'Khoảng cách vật d',
+      xUnit: 'cm',
+      tMax: 40,
+      dt: 0.2,
+      series: [
+        {
+          id: 'd_prime',
+          name: 'Vị trí ảnh d\'',
+          unit: 'cm',
+          color: '#8b5cf6',
+          formulaLabel: 'd\' = (d · f) / (d - f)',
+          calculate: (d) => {
+            if (Math.abs(d - f) < 0.3) return 0;
+            return (d * f) / (d - f);
+          },
+        },
+        {
+          id: 'k_mag',
+          name: 'Độ phóng đại ảnh |k|',
+          unit: 'lần',
+          color: '#ec4899',
+          formulaLabel: '|k| = |d\' / d| = |f / (d - f)|',
+          calculate: (d) => {
+            if (Math.abs(d - f) < 0.3) return 0;
+            return Math.abs(f / (d - f));
+          },
+        },
+      ],
+      defaultActiveSeries: ['d_prime', 'k_mag'],
+    };
+  }
+
+  // 7. Nhiệt học, Thang nhiệt độ, Chuyển thể & Nhiệt động lực học (Grades 6, 8, 12)
+  if (
+    !k.includes('isotherm') &&
+    (k.includes('thermal') ||
+      k.includes('heat') ||
+      k.includes('temperature') ||
+      k.includes('bimetallic') ||
+      k.includes('molecular_states') ||
+      k.includes('thermodynamics_first_law') ||
+      k.includes('calorimetry'))
+  ) {
+    const m = Number(params.mass || 1); // 1 kg nước
+    const c = 4186; // J/(kg.K)
+    const P_heater = Number(params.power || 1000); // 1000W heater
+    const T0 = 20; // Nhiệt độ ban đầu 20 độ C
+
+    return {
+      domainTitle: 'Đồ thị Nhiệt độ Đun nóng T(t) & Nhiệt lượng Q(t)',
+      description: 'Nhiệt lượng hấp thụ Q = mcΔT = P·t và đường biến thiên nhiệt độ của khối chất theo thời gian gia nhiệt.',
+      xLabel: 'Thời gian đun t',
+      xUnit: 'phút',
+      tMax: 15,
+      dt: 0.1,
+      series: [
+        {
+          id: 'T',
+          name: 'Nhiệt độ T',
+          unit: '°C',
+          color: '#ef4444',
+          formulaLabel: 'T(t) = T₀ + (P·t)/(mc)',
+          calculate: (t_min) => {
+            const t_sec = t_min * 60;
+            const temp = T0 + (P_heater * t_sec) / (m * c);
+            return Math.min(100, temp); // dừng ở sôi 100 độ C
+          },
+        },
+        {
+          id: 'Q',
+          name: 'Nhiệt lượng hấp thụ Q',
+          unit: 'kJ',
+          color: '#f97316',
+          formulaLabel: 'Q = P · t',
+          calculate: (t_min) => (P_heater * t_min * 60) / 1000,
+        },
+      ],
+      defaultActiveSeries: ['T', 'Q'],
+    };
+  }
+
+  // 8. Khí lý tưởng & Các đẳng quá trình (Grade 12)
+  if (
+    k.includes('gas') ||
+    k.includes('boyle') ||
+    k.includes('ideal_gas') ||
+    k.includes('isotherm') ||
+    k.includes('kinetic_gas') ||
+    k.includes('pv_cycle')
   ) {
     const T = Number(params.temperature || 300); // K
-    const n = Number(params.moles || 1); // mol
+    const n = Number(params.moles || 1);
     const R = 8.314;
 
     return {
-      domainTitle: 'Đồ thị Đẳng nhiệt Khí lý tưởng p - V',
-      description: 'Đường đẳng nhiệt p theo V theo định luật Boyle - Mariotte (p = nRT / V).',
+      domainTitle: 'Đồ thị Đẳng nhiệt Khí lý tưởng p - V (Boyle - Mariotte)',
+      description: 'Đường hyperbol đẳng nhiệt mô tả áp suất p nghịch đảo theo thể tích V theo phương trình p·V = const.',
       xLabel: 'Thể tích V',
       xUnit: 'Lít',
-      tMax: 10,
+      tMax: 12,
       dt: 0.1,
       series: [
         {
           id: 'p_T1',
           name: `Áp suất p (T = ${T} K)`,
           unit: 'kPa',
-          color: '#ef4444', // Red
-          formulaLabel: 'p = nRT / V',
+          color: '#ef4444',
+          formulaLabel: 'p₁ = nRT / V',
           calculate: (V) => {
             const vM3 = Math.max(0.5, V) * 0.001;
             return (n * R * T) / vM3 / 1000;
@@ -202,7 +445,7 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
           id: 'p_T2',
           name: `Áp suất p (T = ${T + 150} K)`,
           unit: 'kPa',
-          color: '#f59e0b', // Amber
+          color: '#f59e0b',
           formulaLabel: 'p₂ = nR(T+150) / V',
           calculate: (V) => {
             const vM3 = Math.max(0.5, V) * 0.001;
@@ -214,37 +457,43 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
     };
   }
 
-  // 4. Điện học & Định luật Ôm (Grades 9, 11)
+  // 9. Điện học, Định luật Ôm, Mạch điện & Tụ điện (Grades 8, 9, 11)
   if (
-    key.includes('circuit') ||
-    key.includes('ohm') ||
-    key.includes('resistor') ||
-    key.includes('capacitor') ||
-    key.includes('electric')
+    k.includes('circuit') ||
+    k.includes('ohm') ||
+    k.includes('resistor') ||
+    k.includes('current_voltage') ||
+    k.includes('joule_heating') ||
+    k.includes('drift_velocity') ||
+    k.includes('sensor_power') ||
+    k.includes('capacitor') ||
+    k.includes('potential_equipotential') ||
+    k.includes('coulomb_efield') ||
+    k.includes('electrostatics')
   ) {
-    const R = Number(params.resistance || 10); // Ohm
+    const R = Number(params.resistance || 12); // Ohm
 
     return {
-      domainTitle: 'Đặc tuyến Vôn - Ampe (I - U) & Công suất',
-      description: 'Khảo sát sự phụ thuộc của cường độ dòng điện I và công suất tỏa nhiệt P theo hiệu điện thế U.',
+      domainTitle: 'Đặc tuyến Vôn - Ampe (I - U) & Công suất Tỏa nhiệt P',
+      description: 'Sự phụ thuộc tuyến tính của dòng điện I theo hiệu điện thế U và công suất tỏa nhiệt P = U²/R.',
       xLabel: 'Hiệu điện thế U',
       xUnit: 'V',
-      tMax: 12,
-      dt: 0.1,
+      tMax: 24,
+      dt: 0.2,
       series: [
         {
           id: 'I',
           name: 'Cường độ I',
           unit: 'A',
-          color: '#2563eb', // Blue
+          color: '#2563eb',
           formulaLabel: 'I = U / R',
           calculate: (U) => U / R,
         },
         {
           id: 'P',
-          name: 'Công suất P',
+          name: 'Công suất tỏa nhiệt P',
           unit: 'W',
-          color: '#dc2626', // Red
+          color: '#dc2626',
           formulaLabel: 'P = U² / R',
           calculate: (U) => (U * U) / R,
         },
@@ -253,19 +502,62 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
     };
   }
 
-  // 5. Chu kỳ Bán rã & Vật lý Hạt nhân (Grade 12)
+  // 10. Từ trường, Cảm ứng điện từ & Máy phát điện xoay chiều (Grades 7, 9, 11, 12)
   if (
-    key.includes('nuclear') ||
-    key.includes('decay') ||
-    key.includes('halflife') ||
-    key.includes('radioactive')
+    k.includes('induction') ||
+    k.includes('faraday') ||
+    k.includes('generator') ||
+    k.includes('transformer') ||
+    k.includes('magnet') ||
+    k.includes('ampere')
   ) {
-    const N0 = Number(params.initialCount || 1000);
-    const T_half = Number(params.halfLife || 2.5); // s or years
+    const f_grid = 50; // Hz
+    const omega = 2 * Math.PI * f_grid;
+    const Phi0 = 0.02; // Wb
+    const E0 = omega * Phi0; // ~6.28 V
 
     return {
-      domainTitle: 'Đường cong Phóng xạ & Số hạt nhân còn lại',
-      description: 'Quy luật phân rã phóng xạ theo thời gian N(t) = N₀ · 2^(-t / T).',
+      domainTitle: 'Đồ thị Từ thông Φ(t) & Suất điện động Cảm ứng e(t)',
+      description: 'Hiện tượng cảm ứng điện từ: Suất điện động e = -dΦ/dt vuông pha với từ thông biến thiên theo thời gian.',
+      xLabel: 'Thời gian t',
+      xUnit: 'ms',
+      tMax: 40,
+      dt: 0.2,
+      series: [
+        {
+          id: 'Phi',
+          name: 'Từ thông Φ(t)',
+          unit: 'mWb',
+          color: '#06b6d4',
+          formulaLabel: 'Φ = Φ₀ cos(ωt)',
+          calculate: (t_ms) => Phi0 * Math.cos(omega * (t_ms / 1000)) * 1000,
+        },
+        {
+          id: 'e_ind',
+          name: 'Suất điện động e(t)',
+          unit: 'V',
+          color: '#f43f5e',
+          formulaLabel: 'e = E₀ sin(ωt)',
+          calculate: (t_ms) => E0 * Math.sin(omega * (t_ms / 1000)),
+        },
+      ],
+      defaultActiveSeries: ['Phi', 'e_ind'],
+    };
+  }
+
+  // 11. Vật lý Hạt nhân, Phóng xạ, Phân rã & Năng lượng liên kết (Grade 12)
+  if (
+    k.includes('nuclear') ||
+    k.includes('radioactive') ||
+    k.includes('decay') ||
+    k.includes('halflife')
+  ) {
+    const N0 = Number(params.initialCount || 1000);
+    const T_half = Number(params.halfLife || 2); // chu kỳ bán rã (năm/ngày/phút)
+
+    return {
+      domainTitle: 'Đường cong Phân rã Phóng xạ N(t) theo Chu kỳ Bán rã T',
+      description: 'Định luật phóng xạ: Số hạt nhân chưa phân rã giảm theo hàm mũ N(t) = N₀·2^(-t/T).',
       xLabel: 'Thời gian t',
       xUnit: 'chu kỳ T',
       tMax: 6,
@@ -292,16 +584,16 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
     };
   }
 
-  // 6. Áp suất chất lỏng & Lực đàn hồi (Grades 6, 8, 10)
-  if (key.includes('fluid') || key.includes('pressure') || key.includes('archimedes') || key.includes('hooke')) {
-    const k_spring = Number(params.k || 50); // N/m
+  // 12. Định luật Hooke & Biến dạng Lò xo (Grades 6, 10)
+  if (k.includes('hooke') || k.includes('spring')) {
+    const k_sp = Number(params.k || 50);
 
     return {
       domainTitle: 'Đồ thị Định luật Hooke: Lực đàn hồi Fđh - Độ giãn Δl',
-      description: 'Mối quan hệ tuyến tính giữa lực đàn hồi và độ biến dạng của lò xo.',
+      description: 'Mối quan hệ tỷ lệ thuận giữa lực đàn hồi lò xo và độ biến dạng Fđh = k·Δl.',
       xLabel: 'Độ biến dạng Δl',
       xUnit: 'cm',
-      tMax: 10,
+      tMax: 15,
       dt: 0.1,
       series: [
         {
@@ -310,7 +602,7 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
           unit: 'N',
           color: '#0ea5e9',
           formulaLabel: 'Fđh = k · |Δl|',
-          calculate: (dl) => k_spring * (dl / 100),
+          calculate: (dl) => k_sp * (dl / 100),
         },
         {
           id: 'Wt_dh',
@@ -318,16 +610,47 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
           unit: 'mJ',
           color: '#f59e0b',
           formulaLabel: 'Wt = ½k · (Δl)²',
-          calculate: (dl) => 0.5 * k_spring * Math.pow(dl / 100, 2) * 1000,
+          calculate: (dl) => 0.5 * k_sp * Math.pow(dl / 100, 2) * 1000,
         },
       ],
       defaultActiveSeries: ['F_dh', 'Wt_dh'],
     };
   }
 
-  // Default Universal Fallback
+  // 13. Thiên văn học, Trái đất & Mặt trăng (Grades 6)
+  if (k.includes('earth') || k.includes('moon') || k.includes('solar')) {
+    return {
+      domainTitle: 'Đồ thị Vận tốc Quỹ đạo & Góc quay Thiên thể',
+      description: 'Chuyển động tự quay và quay quanh Mặt Trời theo thời gian.',
+      xLabel: 'Thời gian t',
+      xUnit: 'giờ',
+      tMax: 24,
+      dt: 0.2,
+      series: [
+        {
+          id: 'theta',
+          name: 'Góc quay quỹ đạo θ(t)',
+          unit: 'độ',
+          color: '#38bdf8',
+          formulaLabel: 'θ = ω · t = (360°/24) · t',
+          calculate: (t) => (360 / 24) * t,
+        },
+        {
+          id: 'alt',
+          name: 'Độ cao Mặt Trời góc chiếu h',
+          unit: 'độ',
+          color: '#fbbf24',
+          formulaLabel: 'h = max(0, 90° · sin(πt/24))',
+          calculate: (t) => Math.max(0, 90 * Math.sin((Math.PI * t) / 24)),
+        },
+      ],
+      defaultActiveSeries: ['theta', 'alt'],
+    };
+  }
+
+  // Fallback an toàn (chỉ dùng khi sim_key hoàn toàn mới chưa định nghĩa)
   return {
-    domainTitle: 'Đồ thị Vật lý & Quan hệ Đại lượng Thời gian thực',
+    domainTitle: `Đồ thị Vật lý Chuyên đề (${simKey.replace(/_/g, ' ')})`,
     description: 'Trực quan hóa sự biến đổi liên tục của các thông số vật lý theo thời gian.',
     xLabel: 'Thời gian t',
     xUnit: 's',
@@ -336,7 +659,7 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
     series: [
       {
         id: 'y1',
-        name: 'Đại lượng chính Y₁(t)',
+        name: 'Đại lượng quan sát Y₁(t)',
         unit: 'đơn vị',
         color: '#2563eb',
         formulaLabel: 'Y₁(t) = A · sin(ωt)',
@@ -654,7 +977,7 @@ export function PhysicsGraphEngine({ simKey, parameters = {} }: PhysicsGraphEngi
 
       {/* Series Toggles & Formula Badges */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Đường cong:</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Đường biểu diễn:</span>
         {spec.series.map((s) => {
           const isActive = activeSeriesIds.includes(s.id);
           const curVal = s.calculate(currentTime, parameters);
