@@ -8,9 +8,6 @@ import {
   Printer,
   AlertCircle,
   Settings,
-  Sparkles,
-  HelpCircle,
-  Compass,
   ChevronDown,
 } from 'lucide-react';
 import { GlobalSearchModal } from './GlobalSearchModal';
@@ -33,23 +30,6 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
       label: 'Cẩm nang Công thức A4 (In / PDF)',
       icon: <Printer className="w-4 h-4 text-blue-600" />,
       href: '/cheatsheet',
-    },
-    {
-      label: 'Sổ tay câu hỏi làm sai',
-      icon: <AlertCircle className="w-4 h-4 text-rose-500" />,
-      href: '/mistakes',
-      badge: activeMistakeCount > 0 ? activeMistakeCount : undefined,
-    },
-    { divider: true, label: '' },
-    {
-      label: 'Khối THCS (Lớp 6, 7, 8, 9)',
-      icon: <Compass className="w-4 h-4 text-emerald-600" />,
-      href: '/?grade=6',
-    },
-    {
-      label: 'Khối THPT (Lớp 10, 11, 12)',
-      icon: <Sparkles className="w-4 h-4 text-indigo-600" />,
-      href: '/?grade=10',
     },
     { divider: true, label: '' },
     {
