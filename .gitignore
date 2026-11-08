@@ -7,3 +7,6 @@ out
 .env*.local
 .agents
 tsconfig.tsbuildinfo
+
+deverr.txt
+devout.txt
