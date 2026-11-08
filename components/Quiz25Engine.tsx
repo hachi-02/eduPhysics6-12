@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QuestionItem } from '@/types/cms';
 import { RichPhysicsText } from './KatexRenderer';
@@ -338,6 +339,14 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
                 Thời gian hoàn thành: {formatTime(secondsElapsed)} • Bấm vào từng ô số bên dưới để xem giải thích chi tiết.
               </div>
             </div>
+            {score < totalQuestions && (
+              <Link
+                href="/mistakes"
+                className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition shadow-sm"
+              >
+                Đã lưu {totalQuestions - score} câu sai vào Sổ tay →
+              </Link>
+            )}
           </div>
         )}
 

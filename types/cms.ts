@@ -139,3 +139,42 @@ export interface TopicDetail extends TopicSummaryItem {
   simulations: SimulationItem[];
   questions: QuestionItem[];
 }
+
+export interface MistakeQuestionItem extends QuestionItem {
+  mistake_id: number;
+  last_wrong_option: number;
+  wrong_count: number;
+  mastered: number;
+  updated_at: string;
+  grade_number: number;
+  chapter_code: string;
+  chapter_title: string;
+  topic_code: string | null;
+  topic_title: string | null;
+}
+
+export interface SearchResults {
+  formulas: (FormulaItem & {
+    topic_title: string;
+    topic_code: string;
+    chapter_title: string;
+    chapter_id: number;
+    grade_number: number;
+  })[];
+  quantities: (QuantityItem & {
+    topic_title: string;
+    topic_code: string;
+    chapter_title: string;
+    chapter_id: number;
+    grade_number: number;
+  })[];
+  topics: {
+    id: number;
+    code: string;
+    title: string;
+    overview: string;
+    chapter_id: number;
+    chapter_title: string;
+    grade_number: number;
+  }[];
+}

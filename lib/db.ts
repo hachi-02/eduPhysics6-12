@@ -76,15 +76,10 @@ function createRawConnection(dbPath: string) {
 }
 
 function ensureInitialized(client: DatabaseClient) {
-  const tableCheck = client.get<{ count: number }>(
-    "SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name='grades'"
-  );
-  if (!tableCheck || tableCheck.count === 0) {
-    const schemaPath = path.join(process.cwd(), 'lib', 'schema.sql');
-    if (fs.existsSync(schemaPath)) {
-      const sql = fs.readFileSync(schemaPath, 'utf8');
-      client.exec(sql);
-    }
+  const schemaPath = path.join(process.cwd(), 'lib', 'schema.sql');
+  if (fs.existsSync(schemaPath)) {
+    const sql = fs.readFileSync(schemaPath, 'utf8');
+    client.exec(sql);
   }
 }
 

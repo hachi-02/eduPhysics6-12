@@ -130,8 +130,19 @@ CREATE TABLE IF NOT EXISTS quiz_attempts (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS question_mistakes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  question_id INTEGER NOT NULL UNIQUE,
+  last_wrong_option INTEGER NOT NULL,
+  wrong_count INTEGER NOT NULL DEFAULT 1,
+  mastered INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_chapters_grade ON chapters(grade_id, order_index);
 CREATE INDEX IF NOT EXISTS idx_topics_chapter ON topics(chapter_id, order_index);
 CREATE INDEX IF NOT EXISTS idx_questions_topic ON questions(scope_type, topic_id, order_index);
 CREATE INDEX IF NOT EXISTS idx_questions_chapter ON questions(scope_type, chapter_id, order_index);
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_scope ON quiz_attempts(scope_type, scope_id);
+CREATE INDEX IF NOT EXISTS idx_question_mistakes_status ON question_mistakes(mastered, updated_at);

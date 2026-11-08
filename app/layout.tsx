@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Link from 'next/link';
-import { BookOpen, Settings } from 'lucide-react';
+import { BookOpen, Settings, AlertCircle } from 'lucide-react';
 import { getAdminFromCookie } from '@/lib/auth';
+import { getActiveMistakeCount } from '@/lib/cms-service';
+import { GlobalSearchModal } from '@/components/GlobalSearchModal';
 
 export const metadata: Metadata = {
   title: 'Vật Lý 6–12 | Tự học Vật lý chuẩn SGK',
@@ -16,6 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const admin = getAdminFromCookie();
+  const activeMistakeCount = getActiveMistakeCount();
 
   return (
     <html lang="vi">
@@ -32,13 +35,34 @@ export default function RootLayout({
               </span>
             </Link>
 
+            <div className="flex-1 max-w-xs mx-3 hidden sm:block">
+              <GlobalSearchModal />
+            </div>
+
             <nav className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+              <div className="sm:hidden">
+                <GlobalSearchModal />
+              </div>
+
               <Link
                 href="/"
                 className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5 transition"
               >
                 <BookOpen className="w-4 h-4 text-slate-500" />
                 <span>Chương trình học</span>
+              </Link>
+
+              <Link
+                href="/mistakes"
+                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-rose-700 hover:bg-rose-50/70 flex items-center gap-1.5 transition"
+              >
+                <AlertCircle className="w-4 h-4 text-rose-500" />
+                <span>Sổ tay câu sai</span>
+                {activeMistakeCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 font-bold text-[11px]">
+                    {activeMistakeCount}
+                  </span>
+                )}
               </Link>
 
               <Link

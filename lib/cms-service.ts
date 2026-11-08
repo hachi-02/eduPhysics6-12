@@ -5,6 +5,7 @@ import {
   ExampleItem,
   FormulaItem,
   GradeItem,
+  MistakeQuestionItem,
   QuantityItem,
   QuestionItem,
   SimulationItem,
@@ -419,5 +420,292 @@ export function recordQuizAttempt(input: {
       JSON.stringify(input.answers || {}),
     ]
   );
+
+  // Sync question_mistakes for Smart Mistake Notebook
+  const scopeQuestions =
+    input.scopeType === 'topic'
+      ? db.query<{ id: number; correct_index: number }>(
+          `SELECT id, correct_index FROM questions WHERE scope_type = 'topic' AND topic_id = ?`,
+          [input.scopeId]
+        )
+      : db.query<{ id: number; correct_index: number }>(
+          `SELECT id, correct_index FROM questions WHERE scope_type = 'chapter' AND chapter_id = ?`,
+          [input.scopeId]
+        );
+
+  const answersMap = input.answers || {};
+  for (const q of scopeQuestions) {
+    const selectedOpt = answersMap[String(q.id)] ?? answersMap[q.id as any];
+    if (selectedOpt === undefined || selectedOpt === null) {
+      // Unanswered question counts as a mistake (last_wrong_option = -1)
+      db.run(
+        `INSERT INTO question_mistakes (question_id, last_wrong_option, wrong_count, mastered, updated_at)
+         VALUES (?, -1, 1, 0, datetime('now'))
+         ON CONFLICT(question_id) DO UPDATE SET
+           last_wrong_option = -1,
+           wrong_count = question_mistakes.wrong_count + 1,
+           mastered = 0,
+           updated_at = datetime('now')`,
+        [q.id]
+      );
+    } else if (Number(selectedOpt) !== Number(q.correct_index)) {
+      // Wrong option selected
+      db.run(
+        `INSERT INTO question_mistakes (question_id, last_wrong_option, wrong_count, mastered, updated_at)
+         VALUES (?, ?, 1, 0, datetime('now'))
+         ON CONFLICT(question_id) DO UPDATE SET
+           last_wrong_option = excluded.last_wrong_option,
+           wrong_count = question_mistakes.wrong_count + 1,
+           mastered = 0,
+           updated_at = datetime('now')`,
+        [q.id, Number(selectedOpt)]
+      );
+    } else {
+      // Answered correctly: if it was in mistakes, mark as mastered!
+      db.run(
+        `UPDATE question_mistakes SET mastered = 1, updated_at = datetime('now') WHERE question_id = ?`,
+        [q.id]
+      );
+    }
+  }
+
   return Number(res.lastInsertRowid);
+}
+
+export function getMistakeNotebookData(gradeFilter?: number, showMastered = false): {
+  mistakes: MistakeQuestionItem[];
+  activeMistakeCount: number;
+  masteredCount: number;
+  countsByGrade: Record<number, number>;
+} {
+  ensureDatabaseSeeded(false);
+  const db = getDb();
+
+  const statusRows = db.query<{ mastered: number; c: number }>(
+    `SELECT mastered, count(*) as c FROM question_mistakes GROUP BY mastered`
+  );
+  let activeMistakeCount = 0;
+  let masteredCount = 0;
+  for (const r of statusRows) {
+    if (r.mastered === 0) activeMistakeCount = Number(r.c);
+    else masteredCount = Number(r.c);
+  }
+
+  const gradeCountRows = db.query<{ grade_number: number; c: number }>(
+    `SELECT g.grade_number, count(*) as c
+     FROM question_mistakes m
+     JOIN questions q ON q.id = m.question_id
+     JOIN chapters c ON c.id = q.chapter_id
+     JOIN grades g ON g.id = c.grade_id
+     WHERE m.mastered = ?
+     GROUP BY g.grade_number`,
+    [showMastered ? 1 : 0]
+  );
+  const countsByGrade: Record<number, number> = {};
+  for (const r of gradeCountRows) {
+    countsByGrade[r.grade_number] = Number(r.c);
+  }
+
+  const params: any[] = [showMastered ? 1 : 0];
+  let gradeClause = '';
+  if (gradeFilter && gradeFilter >= 6 && gradeFilter <= 12) {
+    gradeClause = 'AND g.grade_number = ?';
+    params.push(gradeFilter);
+  }
+
+  const rawRows = db.query<any>(
+    `SELECT
+       m.id as mistake_id,
+       m.last_wrong_option,
+       m.wrong_count,
+       m.mastered,
+       m.updated_at,
+       q.*,
+       g.grade_number,
+       c.code as chapter_code,
+       c.title as chapter_title,
+       t.code as topic_code,
+       t.title as topic_title
+     FROM question_mistakes m
+     JOIN questions q ON q.id = m.question_id
+     JOIN chapters c ON c.id = q.chapter_id
+     JOIN grades g ON g.id = c.grade_id
+     LEFT JOIN topics t ON t.id = q.topic_id
+     WHERE m.mastered = ? ${gradeClause}
+     ORDER BY m.wrong_count DESC, m.updated_at DESC`,
+    params
+  );
+
+  const mistakes: MistakeQuestionItem[] = rawRows.map((r) => ({
+    id: r.id,
+    scope_type: r.scope_type,
+    topic_id: r.topic_id,
+    chapter_id: r.chapter_id,
+    order_index: r.order_index,
+    difficulty: r.difficulty,
+    question_text: r.question_text,
+    options: safeJsonParse<string[]>(r.options_json, ['', '', '', '']),
+    correct_index: r.correct_index,
+    explanation: r.explanation,
+    mistake_id: r.mistake_id,
+    last_wrong_option: r.last_wrong_option,
+    wrong_count: r.wrong_count,
+    mastered: r.mastered,
+    updated_at: r.updated_at,
+    grade_number: r.grade_number,
+    chapter_code: r.chapter_code,
+    chapter_title: r.chapter_title,
+    topic_code: r.topic_code || null,
+    topic_title: r.topic_title || null,
+  }));
+
+  return {
+    mistakes,
+    activeMistakeCount,
+    masteredCount,
+    countsByGrade,
+  };
+}
+
+export function searchKnowledgeBase(term: string): import('@/types/cms').SearchResults {
+  ensureDatabaseSeeded(false);
+  const db = getDb();
+  const clean = term.trim();
+  if (!clean) {
+    return { formulas: [], quantities: [], topics: [] };
+  }
+
+  const pattern = `%${clean}%`;
+
+  // Search formulas
+  const rawFormulas = db.query<any>(
+    `SELECT
+       f.*,
+       t.title as topic_title,
+       t.code as topic_code,
+       c.title as chapter_title,
+       c.id as chapter_id,
+       g.grade_number
+     FROM formulas f
+     JOIN topics t ON t.id = f.topic_id
+     JOIN chapters c ON c.id = t.chapter_id
+     JOIN grades g ON g.id = c.grade_id
+     WHERE f.name LIKE ? OR f.plain_expression LIKE ? OR f.latex_expression LIKE ? OR f.usage_note LIKE ?
+     ORDER BY g.grade_number ASC, f.id ASC
+     LIMIT 15`,
+    [pattern, pattern, pattern, pattern]
+  );
+
+  const formulas = rawFormulas.map((f) => ({
+    id: f.id,
+    topic_id: f.topic_id,
+    order_index: f.order_index,
+    name: f.name,
+    latex_expression: f.latex_expression,
+    plain_expression: f.plain_expression,
+    variables: safeJsonParse(f.variables_json, []),
+    derived_formulas: safeJsonParse(f.derived_formulas_json, []),
+    usage_note: f.usage_note,
+    topic_title: f.topic_title,
+    topic_code: f.topic_code,
+    chapter_title: f.chapter_title,
+    chapter_id: f.chapter_id,
+    grade_number: f.grade_number,
+  }));
+
+  // Search quantities
+  const rawQuantities = db.query<any>(
+    `SELECT
+       q.*,
+       t.title as topic_title,
+       t.code as topic_code,
+       c.title as chapter_title,
+       c.id as chapter_id,
+       g.grade_number
+     FROM quantities q
+     JOIN topics t ON t.id = q.topic_id
+     JOIN chapters c ON c.id = t.chapter_id
+     JOIN grades g ON g.id = c.grade_id
+     WHERE q.name LIKE ? OR q.symbol LIKE ? OR q.si_unit LIKE ? OR q.description LIKE ?
+     ORDER BY g.grade_number ASC, q.id ASC
+     LIMIT 15`,
+    [pattern, pattern, pattern, pattern]
+  );
+
+  const quantities = rawQuantities.map((q) => ({
+    id: q.id,
+    topic_id: q.topic_id,
+    order_index: q.order_index,
+    name: q.name,
+    symbol: q.symbol,
+    si_unit: q.si_unit,
+    other_units: q.other_units,
+    measuring_device: q.measuring_device,
+    description: q.description,
+    topic_title: q.topic_title,
+    topic_code: q.topic_code,
+    chapter_title: q.chapter_title,
+    chapter_id: q.chapter_id,
+    grade_number: q.grade_number,
+  }));
+
+  // Search topics
+  const rawTopics = db.query<any>(
+    `SELECT
+       t.id,
+       t.code,
+       t.title,
+       t.overview,
+       c.id as chapter_id,
+       c.title as chapter_title,
+       g.grade_number
+     FROM topics t
+     JOIN chapters c ON c.id = t.chapter_id
+     JOIN grades g ON g.id = c.grade_id
+     WHERE t.title LIKE ? OR t.overview LIKE ? OR t.code LIKE ?
+     ORDER BY g.grade_number ASC, t.id ASC
+     LIMIT 15`,
+    [pattern, pattern, pattern]
+  );
+
+  const topics = rawTopics.map((t) => ({
+    id: t.id,
+    code: t.code,
+    title: t.title,
+    overview: t.overview,
+    chapter_id: t.chapter_id,
+    chapter_title: t.chapter_title,
+    grade_number: t.grade_number,
+  }));
+
+  return { formulas, quantities, topics };
+}
+
+export function getActiveMistakeCount(): number {
+  try {
+    const db = getDb();
+    const row = db.get<{ c: number }>(`SELECT count(*) as c FROM question_mistakes WHERE mastered = 0`);
+    return Number(row?.c || 0);
+  } catch {
+    return 0;
+  }
+}
+
+export function updateMistakeStatus(questionId: number, action: 'master' | 'retry_wrong' | 'delete', wrongOption = -1) {
+  const db = getDb();
+  if (action === 'delete') {
+    db.run(`DELETE FROM question_mistakes WHERE question_id = ?`, [questionId]);
+  } else if (action === 'master') {
+    db.run(
+      `UPDATE question_mistakes SET mastered = 1, updated_at = datetime('now') WHERE question_id = ?`,
+      [questionId]
+    );
+  } else if (action === 'retry_wrong') {
+    db.run(
+      `UPDATE question_mistakes
+       SET mastered = 0, wrong_count = wrong_count + 1, last_wrong_option = ?, updated_at = datetime('now')
+       WHERE question_id = ?`,
+      [wrongOption, questionId]
+    );
+  }
 }
