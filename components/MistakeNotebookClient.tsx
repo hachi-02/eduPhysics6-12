@@ -352,13 +352,32 @@ export function MistakeNotebookClient({
     router.refresh();
   };
 
-  // Start Practice
-  const handleStartPractice = (subset?: MistakeQuestionItem[]) => {
+  // Start Practice with explicit mode
+  const handleStartPractice = (
+    subset?: MistakeQuestionItem[],
+    targetMode: 'format2025' | 'standard' = 'format2025'
+  ) => {
     let list = subset && subset.length > 0 ? subset : filteredMistakes;
     if (list.length === 0) return;
 
-    if (practiceMode === 'format2025') {
+    setPracticeMode(targetMode);
+
+    if (targetMode === 'format2025') {
       list = list.map((q) => prepareQuestionFor2025(q) as MistakeQuestionItem);
+      // Group by Part I (multiple_choice) -> Part II (true_false) -> Part III (short_answer)
+      const rank: Record<string, number> = { multiple_choice: 1, true_false: 2, short_answer: 3 };
+      list = [...list].sort(
+        (a, b) =>
+          (rank[a.question_type || 'multiple_choice'] || 1) -
+          (rank[b.question_type || 'multiple_choice'] || 1)
+      );
+    } else {
+      list = list.map((q) => ({
+        ...q,
+        question_type: 'multiple_choice' as const,
+        tf_statements: undefined,
+        short_answer: undefined,
+      }));
     }
 
     setAnswers({});
@@ -475,6 +494,105 @@ export function MistakeNotebookClient({
         {/* Progress Bar */}
         <div className="edu-progress">
           <div className="edu-progress-bar" style={{ width: `${practicePct}%` }} />
+        </div>
+
+        {/* Mode Banner */}
+        <div
+          className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 text-xs ${
+            practiceMode === 'format2025'
+              ? 'border-purple-200 bg-purple-50/90 text-purple-950'
+              : 'border-slate-200 bg-slate-100 text-slate-800'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {practiceMode === 'format2025' ? (
+              <>
+                <Sparkles className="h-4 w-4 shrink-0 text-purple-600" />
+                <span>
+                  Đang làm bài theo <strong>Cấu trúc Đổi mới 2025 (Bộ GD&ĐT)</strong> • Gồm 3 phần: 4 Lựa chọn (Xanh), Đúng/Sai (Tím) &amp; Điền số (Cam)
+                </span>
+              </>
+            ) : (
+              <>
+                <CheckSquare className="h-4 w-4 shrink-0 text-slate-600" />
+                <span>
+                  Đang làm bài theo <strong>Dạng Trắc nghiệm Truyền thống</strong> • Tất cả câu hỏi đều hiển thị 4 lựa chọn (A, B, C, D)
+                </span>
+              </>
+            )}
+          </div>
+          <span className="rounded-lg bg-white/90 px-2.5 py-1 text-[11px] font-extrabold text-slate-700 shadow-2xs">
+            Tổng cộng {total} câu
+          </span>
+        </div>
+
+        {/* Question Number Strip 1..N with colored dots */}
+        <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="font-bold text-slate-700">Dải số chuyển câu (Bấm để chọn câu bất kỳ):</span>
+            {practiceMode === 'format2025' && (
+              <div className="flex flex-wrap items-center gap-3 text-[11px]">
+                <span className="flex items-center gap-1 font-semibold text-brand-700">
+                  <span className="h-2.5 w-2.5 rounded-full bg-brand-500" /> 4 Lựa chọn
+                </span>
+                <span className="flex items-center gap-1 font-semibold text-purple-700">
+                  <span className="h-2.5 w-2.5 rounded-full bg-purple-500" /> Đúng / Sai
+                </span>
+                <span className="flex items-center gap-1 font-semibold text-amber-700">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Điền số
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pt-1">
+            {practiceQuestions.map((item, idx) => {
+              const isCur = currentIdx === idx;
+              const itemType = item.question_type || 'multiple_choice';
+              const ans = answers[item.id];
+              const isAns =
+                ans !== undefined &&
+                ans !== null &&
+                (typeof ans !== 'object' || Object.keys(ans).length > 0);
+              const isRight = submitted && evaluatePracticeQuestion(item, ans);
+              const isWrong = submitted && !isRight;
+
+              let btnClass = 'bg-slate-100 text-slate-700 hover:bg-slate-200';
+              if (!submitted) {
+                if (isCur) {
+                  btnClass = 'bg-slate-900 text-white font-extrabold ring-2 ring-brand-400';
+                } else if (isAns) {
+                  btnClass = 'border border-brand-300 bg-brand-50 text-brand-800 font-bold';
+                } else if (practiceMode === 'format2025') {
+                  if (itemType === 'true_false')
+                    btnClass = 'border border-purple-200 bg-purple-50/70 text-purple-700 font-semibold';
+                  else if (itemType === 'short_answer')
+                    btnClass = 'border border-amber-200 bg-amber-50/70 text-amber-800 font-semibold';
+                }
+              } else {
+                if (isRight) btnClass = 'bg-emerald-600 text-white font-bold';
+                else if (isWrong) btnClass = 'bg-rose-500 text-white font-bold';
+              }
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setCurrentIdx(idx)}
+                  className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs transition duration-150 ${btnClass}`}
+                  title={`Câu ${idx + 1}: ${
+                    itemType === 'multiple_choice'
+                      ? '4 Lựa chọn'
+                      : itemType === 'true_false'
+                        ? 'Đúng/Sai'
+                        : 'Điền số'
+                  }`}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Question Card */}
@@ -799,10 +917,7 @@ export function MistakeNotebookClient({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setPracticeMode('format2025');
-                  handleStartPractice(filteredMistakes);
-                }}
+                onClick={() => handleStartPractice(filteredMistakes, 'format2025')}
                 className="edu-btn-primary px-4 py-2.5 text-xs shadow-soft"
               >
                 <Sparkles className="h-4 w-4 fill-current text-amber-300" />
@@ -811,10 +926,7 @@ export function MistakeNotebookClient({
 
               <button
                 type="button"
-                onClick={() => {
-                  setPracticeMode('standard');
-                  handleStartPractice(filteredMistakes);
-                }}
+                onClick={() => handleStartPractice(filteredMistakes, 'standard')}
                 className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
               >
                 Luyện 4 lựa chọn
@@ -1137,10 +1249,10 @@ export function MistakeNotebookClient({
                   {!showMastered && (
                     <button
                       type="button"
-                      onClick={() => handleStartPractice(group.items)}
+                      onClick={() => handleStartPractice(group.items, 'format2025')}
                       className="edu-btn-primary px-3.5 py-1.5 text-xs"
                     >
-                      <Play className="h-3.5 w-3.5 fill-current" />
+                      <Sparkles className="h-3.5 w-3.5 text-amber-300" />
                       <span>Ôn cả chương ({group.items.length} câu)</span>
                     </button>
                   )}
@@ -1180,10 +1292,10 @@ export function MistakeNotebookClient({
                         {!showMastered && (
                           <button
                             type="button"
-                            onClick={() => handleStartPractice(tGroup.items)}
+                            onClick={() => handleStartPractice(tGroup.items, 'format2025')}
                             className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-soft transition hover:bg-slate-800"
                           >
-                            <Play className="h-3 w-3 fill-current" />
+                            <Sparkles className="h-3 w-3 text-amber-300" />
                             <span>Ôn chủ đề này ({tGroup.items.length})</span>
                           </button>
                         )}
