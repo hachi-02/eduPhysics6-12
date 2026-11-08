@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Sparkles,
 } from 'lucide-react';
-import { DashboardGradeActions } from '@/components/DashboardGradeActions';
 import { ChapterActionsMenu } from '@/components/ChapterActionsMenu';
 
 export const dynamic = 'force-dynamic';
@@ -56,9 +55,10 @@ export default function HomeBoardPage({
             </p>
           </div>
 
-          {/* Consolidated Actions Dropdown */}
-          <div className="flex items-center gap-2">
-            <DashboardGradeActions gradeNumber={selectedGradeNum} />
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">
+              3 bộ SGK: KNTT • Cánh Diều • CTST
+            </span>
           </div>
         </div>
 
