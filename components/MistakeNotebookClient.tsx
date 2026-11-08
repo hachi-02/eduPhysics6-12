@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MistakeQuestionItem } from '@/types/cms';
 import { RichPhysicsText } from './KatexRenderer';
+import { DropdownMenu, DropdownItem } from './ui/DropdownMenu';
 import {
   AlertCircle,
   CheckCircle2,
@@ -20,6 +21,10 @@ import {
   Layers,
   Target,
   Trophy,
+  GraduationCap,
+  ChevronDown,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 
 const DIFF_LABELS: Record<string, string> = {
@@ -161,6 +166,109 @@ export function MistakeNotebookClient({
   const filteredMistakes = useMemo(() => {
     return visibleGroups.flatMap((cg) => cg.items);
   }, [visibleGroups]);
+
+  const currentChapter = useMemo(() => {
+    if (selectedChapterId === 'all') return null;
+    return chapterGroups.find((cg) => cg.chapter_id === selectedChapterId) || null;
+  }, [chapterGroups, selectedChapterId]);
+
+  const currentTopic = useMemo(() => {
+    if (selectedTopicKey === 'all') return null;
+    return availableTopicGroups.find((tg) => tg.key === selectedTopicKey) || null;
+  }, [availableTopicGroups, selectedTopicKey]);
+
+  const hasActiveFilters = Boolean(
+    selectedGrade || selectedChapterId !== 'all' || selectedTopicKey !== 'all'
+  );
+
+  const gradeDropdownItems = useMemo<DropdownItem[]>(() => {
+    const items: DropdownItem[] = [
+      {
+        label: 'Tất cả khối lớp',
+        href: `/mistakes?mastered=${showMastered ? 1 : 0}`,
+        active: !selectedGrade,
+        badge: mistakes.length,
+        onClick: () => {
+          setSelectedChapterId('all');
+          setSelectedTopicKey('all');
+        },
+      },
+      { label: '', divider: true },
+    ];
+
+    for (let g = 6; g <= 12; g++) {
+      const count = countsByGrade[g] || 0;
+      items.push({
+        label: `Lớp ${g}`,
+        href: `/mistakes?grade=${g}&mastered=${showMastered ? 1 : 0}`,
+        active: selectedGrade === g,
+        badge: count,
+        onClick: () => {
+          setSelectedChapterId('all');
+          setSelectedTopicKey('all');
+        },
+      });
+    }
+
+    return items;
+  }, [showMastered, selectedGrade, mistakes.length, countsByGrade]);
+
+  const chapterDropdownItems = useMemo<DropdownItem[]>(() => {
+    const items: DropdownItem[] = [
+      {
+        label: 'Tất cả các chương',
+        active: selectedChapterId === 'all',
+        badge: mistakes.length,
+        onClick: () => {
+          setSelectedChapterId('all');
+          setSelectedTopicKey('all');
+        },
+      },
+    ];
+
+    if (chapterGroups.length > 0) {
+      items.push({ label: '', divider: true });
+      for (const cg of chapterGroups) {
+        items.push({
+          label: (!selectedGrade ? `[Lớp ${cg.grade_number}] ` : '') + cg.chapter_title,
+          active: selectedChapterId === cg.chapter_id,
+          badge: cg.items.length,
+          onClick: () => {
+            setSelectedChapterId(cg.chapter_id);
+            setSelectedTopicKey('all');
+          },
+        });
+      }
+    }
+
+    return items;
+  }, [selectedChapterId, mistakes.length, chapterGroups, selectedGrade]);
+
+  const topicDropdownItems = useMemo<DropdownItem[]>(() => {
+    const totalTopicMistakes = availableTopicGroups.reduce((acc, tg) => acc + tg.items.length, 0);
+    const items: DropdownItem[] = [
+      {
+        label: 'Tất cả chủ đề',
+        active: selectedTopicKey === 'all',
+        badge: totalTopicMistakes,
+        onClick: () => setSelectedTopicKey('all'),
+      },
+    ];
+
+    if (availableTopicGroups.length > 0) {
+      items.push({ label: '', divider: true });
+      for (const tg of availableTopicGroups) {
+        items.push({
+          label: tg.topic_title,
+          active: selectedTopicKey === tg.key,
+          badge: tg.items.length,
+          onClick: () => setSelectedTopicKey(tg.key),
+        });
+      }
+    }
+
+    return items;
+  }, [availableTopicGroups, selectedTopicKey]);
 
   const handleToggleExplanation = (qId: number) => {
     setExpandedExplanations((prev) => ({ ...prev, [qId]: !prev[qId] }));
@@ -429,25 +537,26 @@ export function MistakeNotebookClient({
           )}
         </div>
 
-        {/* Tier 1: Status Tabs (Cần ôn lại vs Đã nắm vững) & Grade Filter (Lớp 6 - 12) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
-          <div className="flex items-center gap-2">
+        {/* Toolbar: Status Switcher & Dropdown Filter Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          {/* Status Tabs (Segmented Control) */}
+          <div className="inline-flex items-center rounded-xl bg-slate-100 p-1">
             <Link
               href={`/mistakes?${selectedGrade ? `grade=${selectedGrade}&` : ''}mastered=0`}
               onClick={() => {
                 setSelectedChapterId('all');
                 setSelectedTopicKey('all');
               }}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition duration-150 ease-snap ${
                 !showMastered
                   ? 'bg-rose-600 text-white shadow-soft'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <span>Cần ôn lại</span>
               <span
-                className={`rounded-full px-1.5 py-0.5 text-[11px] ${
-                  !showMastered ? 'bg-rose-700 text-white' : 'bg-slate-200 text-slate-700'
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                  !showMastered ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
                 }`}
               >
                 {activeMistakeCount}
@@ -460,16 +569,16 @@ export function MistakeNotebookClient({
                 setSelectedChapterId('all');
                 setSelectedTopicKey('all');
               }}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition duration-150 ease-snap ${
                 showMastered
                   ? 'bg-emerald-600 text-white shadow-soft'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <span>Đã nắm vững</span>
               <span
-                className={`rounded-full px-1.5 py-0.5 text-[11px] ${
-                  showMastered ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                  showMastered ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
                 }`}
               >
                 {masteredCount}
@@ -477,163 +586,158 @@ export function MistakeNotebookClient({
             </Link>
           </div>
 
-          {/* Filter by Grade 6-12 */}
-          <div className="flex items-center gap-1.5 overflow-x-auto">
-            <Link
-              href={`/mistakes?mastered=${showMastered ? 1 : 0}`}
-              onClick={() => {
-                setSelectedChapterId('all');
-                setSelectedTopicKey('all');
-              }}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                !selectedGrade
-                  ? 'bg-slate-900 text-white shadow-soft'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Tất cả lớp
-            </Link>
-            {[6, 7, 8, 9, 10, 11, 12].map((g) => {
-              const count = countsByGrade[g] || 0;
-              const isSelected = selectedGrade === g;
-              return (
-                <Link
-                  key={g}
-                  href={`/mistakes?grade=${g}&mastered=${showMastered ? 1 : 0}`}
-                  onClick={() => {
-                    setSelectedChapterId('all');
-                    setSelectedTopicKey('all');
-                  }}
-                  className={`flex items-center gap-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    isSelected
-                      ? 'bg-brand-gradient text-white shadow-glow'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          {/* Smart Dropdown Filter Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Filter: Grade */}
+            <DropdownMenu
+              menuWidth="w-52"
+              align="left"
+              trigger={
+                <button
+                  type="button"
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
+                    selectedGrade
+                      ? 'border-brand-500 bg-brand-50 text-brand-900 shadow-2xs'
+                      : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 shadow-2xs'
                   }`}
                 >
-                  <span>Lớp {g}</span>
-                  {count > 0 && (
-                    <span
-                      className={`rounded px-1 text-[10px] ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-rose-100 font-bold text-rose-700'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+                  <GraduationCap
+                    className={`h-4 w-4 shrink-0 ${selectedGrade ? 'text-brand-600' : 'text-slate-400'}`}
+                  />
+                  <span>{selectedGrade ? `Lớp ${selectedGrade}` : 'Tất cả lớp'}</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-0.5" />
+                </button>
+              }
+              items={gradeDropdownItems}
+            />
 
-        {/* Tier 2: Chapter Selector Pills (Lọc theo Chương) */}
-        {chapterGroups.length > 0 && (
-          <div className="space-y-2 border-t border-slate-100 pt-3">
-            <div className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
-              1. Chọn Chương học ({chapterGroups.length} chương):
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
+            {/* Filter: Chapter */}
+            <DropdownMenu
+              menuWidth="w-72 sm:w-80"
+              align="left"
+              trigger={
+                <button
+                  type="button"
+                  disabled={chapterGroups.length === 0}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition duration-150 ease-snap max-w-[200px] sm:max-w-[260px] ${
+                    selectedChapterId !== 'all'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-900 shadow-2xs'
+                      : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 shadow-2xs'
+                  } disabled:opacity-50`}
+                >
+                  <Layers
+                    className={`h-4 w-4 shrink-0 ${
+                      selectedChapterId !== 'all' ? 'text-indigo-600' : 'text-slate-400'
+                    }`}
+                  />
+                  <span className="truncate">
+                    {currentChapter ? currentChapter.chapter_title : 'Tất cả chương'}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-0.5" />
+                </button>
+              }
+              items={chapterDropdownItems}
+            />
+
+            {/* Filter: Topic */}
+            <DropdownMenu
+              menuWidth="w-72 sm:w-80"
+              align="left"
+              trigger={
+                <button
+                  type="button"
+                  disabled={availableTopicGroups.length === 0}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition duration-150 ease-snap max-w-[200px] sm:max-w-[260px] ${
+                    selectedTopicKey !== 'all'
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-2xs'
+                      : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 shadow-2xs'
+                  } disabled:opacity-50`}
+                >
+                  <FileText
+                    className={`h-4 w-4 shrink-0 ${
+                      selectedTopicKey !== 'all' ? 'text-emerald-600' : 'text-slate-400'
+                    }`}
+                  />
+                  <span className="truncate">
+                    {currentTopic ? currentTopic.topic_title : 'Tất cả chủ đề'}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-0.5" />
+                </button>
+              }
+              items={topicDropdownItems}
+            />
+
+            {/* Reset Filters */}
+            {hasActiveFilters && (
               <button
                 type="button"
                 onClick={() => {
                   setSelectedChapterId('all');
                   setSelectedTopicKey('all');
+                  if (selectedGrade) router.push(`/mistakes?mastered=${showMastered ? 1 : 0}`);
                 }}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                  selectedChapterId === 'all'
-                    ? 'bg-brand-600 text-white shadow-soft'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                }`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-rose-300 bg-rose-50/70 px-2.5 py-2 text-xs font-bold text-rose-700 shadow-2xs transition hover:bg-rose-100"
+                title="Xóa bộ lọc"
               >
-                <Layers className="h-3.5 w-3.5" />
-                <span>Tất cả các chương</span>
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                    selectedChapterId === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  {mistakes.length}
-                </span>
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Đặt lại</span>
               </button>
-
-              {chapterGroups.map((cg) => {
-                const isSelected = selectedChapterId === cg.chapter_id;
-                return (
-                  <button
-                    key={cg.chapter_id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedChapterId(cg.chapter_id);
-                      setSelectedTopicKey('all');
-                    }}
-                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                      isSelected
-                        ? 'bg-brand-600 text-white shadow-soft'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
-                    }`}
-                  >
-                    <span>
-                      {!selectedGrade ? `[Lớp ${cg.grade_number}] ` : ''}
-                      {cg.chapter_title}
-                    </span>
-                    <span
-                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
-                      }`}
-                    >
-                      {cg.items.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Tier 3: Topic Selector Pills (Lọc theo Chủ đề / Bài học) */}
-        {availableTopicGroups.length > 0 && (
-          <div className="space-y-2 border-t border-slate-100 pt-3">
-            <div className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
-              2. Chọn Chủ đề / Bài học ({availableTopicGroups.length} chủ đề):
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setSelectedTopicKey('all')}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                  selectedTopicKey === 'all'
-                    ? 'bg-slate-900 text-white shadow-soft'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                }`}
-              >
-                <span>Tất cả chủ đề</span>
-              </button>
-
-              {availableTopicGroups.map((tg) => {
-                const isSelected = selectedTopicKey === tg.key;
-                return (
-                  <button
-                    key={tg.key}
-                    type="button"
-                    onClick={() => setSelectedTopicKey(tg.key)}
-                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                      isSelected
-                        ? 'bg-slate-900 text-white shadow-soft'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
-                    }`}
-                  >
-                    <span>{tg.topic_title}</span>
-                    <span
-                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
-                      }`}
-                    >
-                      {tg.items.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+        {/* Active Filter Chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-xs">
+            <span className="font-semibold text-slate-500">Đang lọc:</span>
+            {selectedGrade && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1 font-bold text-brand-800">
+                <span>Khối {selectedGrade}</span>
+                <Link
+                  href={`/mistakes?mastered=${showMastered ? 1 : 0}`}
+                  onClick={() => {
+                    setSelectedChapterId('all');
+                    setSelectedTopicKey('all');
+                  }}
+                  className="rounded hover:bg-brand-100 text-brand-500 hover:text-brand-900"
+                >
+                  <X className="h-3 w-3" />
+                </Link>
+              </span>
+            )}
+            {selectedChapterId !== 'all' && currentChapter && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1 font-bold text-indigo-800">
+                <span className="truncate max-w-[200px]">
+                  {currentChapter.chapter_code}: {currentChapter.chapter_title}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedChapterId('all');
+                    setSelectedTopicKey('all');
+                  }}
+                  className="rounded hover:bg-indigo-100 text-indigo-500 hover:text-indigo-900"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {selectedTopicKey !== 'all' && currentTopic && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 font-bold text-emerald-800">
+                <span className="truncate max-w-[200px]">{currentTopic.topic_title}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTopicKey('all')}
+                  className="rounded hover:bg-emerald-100 text-emerald-500 hover:text-emerald-900"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            <span className="text-slate-400">•</span>
+            <span className="font-semibold text-rose-600">
+              {filteredMistakes.length} câu hỏi
+            </span>
           </div>
         )}
       </div>
