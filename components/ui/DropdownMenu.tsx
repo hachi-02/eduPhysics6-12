@@ -53,16 +53,29 @@ export function DropdownMenu({
     };
   }, [isOpen]);
 
-  return (
-    <div className={`relative inline-block text-left ${className}`} ref={menuRef}>
+  const triggerElement = React.isValidElement(trigger)
+    ? React.cloneElement(trigger as React.ReactElement<any>, {
+        onClick: (e: React.MouseEvent) => {
+          (trigger.props as any)?.onClick?.(e);
+          setIsOpen((prev) => !prev);
+        },
+        'aria-expanded': isOpen,
+        'aria-haspopup': 'menu',
+      })
+    : (
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
         className="focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-xl"
       >
         {trigger}
       </button>
+    );
+
+  return (
+    <div className={`relative inline-block text-left ${className}`} ref={menuRef}>
+      {triggerElement}
 
       {isOpen && (
         <div
