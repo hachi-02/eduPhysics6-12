@@ -20,17 +20,39 @@ export default function CheatsheetViewer({
   initialChapterId,
 }: CheatsheetViewerProps) {
   const router = useRouter();
+
+  // Validate initialChapterId belongs to current grade's chapters
+  const validInitialChapterId =
+    initialChapterId && data.chapters.some((ch) => ch.id === initialChapterId)
+      ? initialChapterId
+      : 'all';
+
   const [selectedChapterId, setSelectedChapterId] = useState<number | 'all'>(
-    initialChapterId || 'all'
+    validInitialChapterId
   );
   const [viewMode, setViewMode] = useState<'full' | 'compact'>('full');
   const [showQuantities, setShowQuantities] = useState<boolean>(true);
   const [showDerived, setShowDerived] = useState<boolean>(true);
 
+  // Automatically reset selectedChapterId to 'all' or new initialChapterId when grade changes
+  React.useEffect(() => {
+    if (initialChapterId && data.chapters.some((ch) => ch.id === initialChapterId)) {
+      setSelectedChapterId(initialChapterId);
+    } else {
+      setSelectedChapterId('all');
+    }
+  }, [selectedGrade, data.grade.id, initialChapterId]);
+
+  // Safe fallback if selectedChapterId doesn't belong to current grade's chapters
+  const activeChapterId =
+    selectedChapterId !== 'all' && data.chapters.some((ch) => ch.id === selectedChapterId)
+      ? selectedChapterId
+      : 'all';
+
   const filteredChapters =
-    selectedChapterId === 'all'
+    activeChapterId === 'all'
       ? data.chapters
-      : data.chapters.filter((ch) => ch.id === selectedChapterId);
+      : data.chapters.filter((ch) => ch.id === activeChapterId);
 
   const totalFormulasDisplayed = filteredChapters.reduce(
     (sum, ch) => sum + ch.topics.reduce((ts, tp) => ts + tp.formulas.length, 0),
@@ -76,7 +98,10 @@ export default function CheatsheetViewer({
               return (
                 <button
                   key={g.id}
-                  onClick={() => router.push(`/cheatsheet?grade=${g.grade_number}`)}
+                  onClick={() => {
+                    setSelectedChapterId('all');
+                    router.push(`/cheatsheet?grade=${g.grade_number}`);
+                  }}
                   className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap transition-all ${
                     active
                       ? 'bg-blue-600 text-white shadow-sm'
@@ -113,7 +138,7 @@ export default function CheatsheetViewer({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-slate-700">Lọc chương:</span>
             <select
-              value={selectedChapterId}
+              value={activeChapterId}
               onChange={(e) => {
                 const val = e.target.value;
                 setSelectedChapterId(val === 'all' ? 'all' : Number(val));

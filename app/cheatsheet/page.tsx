@@ -22,7 +22,7 @@ export default function CheatsheetPage({ searchParams }: CheatsheetPageProps) {
     notFound();
   }
 
-  const cheatsheetData = getCheatsheetData(validGrade.grade_number, chapterId);
+  const cheatsheetData = getCheatsheetData(validGrade.grade_number);
   if (!cheatsheetData) {
     notFound();
   }

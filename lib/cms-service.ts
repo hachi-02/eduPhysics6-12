@@ -761,22 +761,17 @@ export function updateMistakeStatus(questionId: number, action: 'master' | 'retr
   }
 }
 
-export function getCheatsheetData(gradeNumber: number, chapterId?: number): CheatsheetGradeData | null {
+export function getCheatsheetData(gradeNumber: number): CheatsheetGradeData | null {
   ensureDatabaseSeeded(false);
   const db = getDb();
 
   const grade = db.get<any>(`SELECT * FROM grades WHERE grade_number = ?`, [gradeNumber]);
   if (!grade) return null;
 
-  let chapterQuery = `SELECT * FROM chapters WHERE grade_id = ?`;
-  const chapterParams: any[] = [grade.id];
-  if (chapterId) {
-    chapterQuery += ` AND id = ?`;
-    chapterParams.push(chapterId);
-  }
-  chapterQuery += ` ORDER BY order_index ASC`;
-
-  const rawChapters = db.query<any>(chapterQuery, chapterParams);
+  const rawChapters = db.query<any>(
+    `SELECT * FROM chapters WHERE grade_id = ? ORDER BY order_index ASC`,
+    [grade.id]
+  );
   let totalFormulas = 0;
   let totalQuantities = 0;
 
