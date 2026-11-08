@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Link from 'next/link';
-import { BookOpen, Settings, AlertCircle } from 'lucide-react';
+import { BookOpen, Settings, AlertCircle, Printer } from 'lucide-react';
 import { getAdminFromCookie } from '@/lib/auth';
 import { getActiveMistakeCount } from '@/lib/cms-service';
 import { GlobalSearchModal } from '@/components/GlobalSearchModal';
@@ -24,7 +24,7 @@ export default function RootLayout({
     <html lang="vi">
       <body className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-800">
         {/* Minimalist Distraction-Free Header */}
-        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/80">
+        <header className="no-print sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/80 print:hidden">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
@@ -50,6 +50,14 @@ export default function RootLayout({
               >
                 <BookOpen className="w-4 h-4 text-slate-500" />
                 <span>Chương trình học</span>
+              </Link>
+
+              <Link
+                href="/cheatsheet"
+                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-blue-50/70 flex items-center gap-1.5 transition"
+              >
+                <Printer className="w-4 h-4 text-blue-500" />
+                <span>Cẩm nang A4</span>
               </Link>
 
               <Link

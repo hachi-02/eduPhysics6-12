@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   CheckSquare,
   FileText,
+  Printer,
 } from 'lucide-react';
 
 export function ChapterWorkspaceClient({
@@ -63,32 +64,42 @@ export function ChapterWorkspaceClient({
           </p>
         </div>
 
-        <div className="px-6 border-t border-slate-100 bg-slate-50/60 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('summary')}
-            className={`py-3.5 px-4 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
-              activeTab === 'summary'
-                ? 'border-indigo-600 text-indigo-600 bg-white/80'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Tóm tắt kiến thức & Công thức chương</span>
-          </button>
+        <div className="px-6 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('summary')}
+              className={`py-3.5 px-4 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
+                activeTab === 'summary'
+                  ? 'border-indigo-600 text-indigo-600 bg-white/80'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>Tóm tắt kiến thức & Công thức chương</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('exam')}
-            className={`py-3.5 px-4 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
-              activeTab === 'exam'
-                ? 'border-indigo-600 text-indigo-600 bg-white/80'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+            <button
+              type="button"
+              onClick={() => setActiveTab('exam')}
+              className={`py-3.5 px-4 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
+                activeTab === 'exam'
+                  ? 'border-indigo-600 text-indigo-600 bg-white/80'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <CheckSquare className="w-4 h-4" />
+              <span>Kiểm tra tổng hợp Chương ({examQuestions.length} câu)</span>
+            </button>
+          </div>
+
+          <Link
+            href={`/cheatsheet?grade=${grade.grade_number}&chapterId=${chapter.id}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-semibold shadow-xs transition my-1"
           >
-            <CheckSquare className="w-4 h-4" />
-            <span>Kiểm tra tổng hợp Chương ({examQuestions.length} câu)</span>
-          </button>
+            <Printer className="w-3.5 h-3.5 text-blue-600" />
+            <span>In Cẩm nang A4 Chương này</span>
+          </Link>
         </div>
       </div>
 

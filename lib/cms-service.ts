@@ -2,6 +2,9 @@ import getDb from './db';
 import { ensureDatabaseSeeded } from './seed';
 import {
   ChapterItem,
+  CheatsheetChapterItem,
+  CheatsheetGradeData,
+  CheatsheetTopicItem,
   ExampleItem,
   FormulaItem,
   GradeItem,
@@ -756,4 +759,104 @@ export function updateMistakeStatus(questionId: number, action: 'master' | 'retr
       [wrongOption, questionId]
     );
   }
+}
+
+export function getCheatsheetData(gradeNumber: number, chapterId?: number): CheatsheetGradeData | null {
+  ensureDatabaseSeeded(false);
+  const db = getDb();
+
+  const grade = db.get<any>(`SELECT * FROM grades WHERE grade_number = ?`, [gradeNumber]);
+  if (!grade) return null;
+
+  let chapterQuery = `SELECT * FROM chapters WHERE grade_id = ?`;
+  const chapterParams: any[] = [grade.id];
+  if (chapterId) {
+    chapterQuery += ` AND id = ?`;
+    chapterParams.push(chapterId);
+  }
+  chapterQuery += ` ORDER BY order_index ASC`;
+
+  const rawChapters = db.query<any>(chapterQuery, chapterParams);
+  let totalFormulas = 0;
+  let totalQuantities = 0;
+
+  const chapters: CheatsheetChapterItem[] = rawChapters.map((ch) => {
+    const rawTopics = db.query<any>(
+      `SELECT * FROM topics WHERE chapter_id = ? ORDER BY order_index ASC`,
+      [ch.id]
+    );
+
+    const topics: CheatsheetTopicItem[] = rawTopics.map((tp) => {
+      const rawFormulas = db.query<any>(
+        `SELECT * FROM formulas WHERE topic_id = ? ORDER BY order_index ASC`,
+        [tp.id]
+      );
+      const rawQuantities = db.query<any>(
+        `SELECT * FROM quantities WHERE topic_id = ? ORDER BY order_index ASC`,
+        [tp.id]
+      );
+
+      totalFormulas += rawFormulas.length;
+      totalQuantities += rawQuantities.length;
+
+      const formulas: FormulaItem[] = rawFormulas.map((f) => ({
+        id: f.id,
+        topic_id: f.topic_id,
+        order_index: f.order_index,
+        name: f.name,
+        latex_expression: f.latex_expression,
+        plain_expression: f.plain_expression,
+        variables: safeJsonParse(f.variables_json, []),
+        derived_formulas: safeJsonParse(f.derived_formulas_json, []),
+        usage_note: f.usage_note || '',
+      }));
+
+      const quantities: QuantityItem[] = rawQuantities.map((q) => ({
+        id: q.id,
+        topic_id: q.topic_id,
+        order_index: q.order_index,
+        name: q.name,
+        symbol: q.symbol,
+        si_unit: q.si_unit,
+        other_units: q.other_units || '',
+        measuring_device: q.measuring_device || '',
+        description: q.description || '',
+      }));
+
+      return {
+        id: tp.id,
+        code: tp.code,
+        title: tp.title,
+        formulas,
+        quantities,
+      };
+    });
+
+    return {
+      id: ch.id,
+      grade_id: ch.grade_id,
+      order_index: ch.order_index,
+      code: ch.code,
+      title: ch.title,
+      description: ch.description,
+      key_takeaways: safeJsonParse<string[]>(ch.key_takeaways_json, []),
+      formula_cheatsheet: safeJsonParse<any[]>(ch.formula_cheatsheet_json, []),
+      topics,
+    };
+  });
+
+  return {
+    grade: {
+      id: grade.id,
+      grade_number: grade.grade_number,
+      title: grade.title,
+      subtitle: grade.subtitle,
+      description: grade.description,
+      level_group: grade.level_group,
+      is_primary_seeded: grade.is_primary_seeded,
+    },
+    chapters,
+    totalFormulas,
+    totalQuantities,
+  };
 }

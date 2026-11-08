@@ -190,3 +190,34 @@ export interface SearchResults {
     grade_number: number;
   }[];
 }
+
+export interface CheatsheetTopicItem {
+  id: number;
+  code: string;
+  title: string;
+  formulas: FormulaItem[];
+  quantities: QuantityItem[];
+}
+
+export interface CheatsheetChapterItem {
+  id: number;
+  grade_id: number;
+  order_index: number;
+  code: string;
+  title: string;
+  description: string;
+  key_takeaways: string[];
+  formula_cheatsheet: {
+    name: string;
+    latex: string;
+    note: string;
+  }[];
+  topics: CheatsheetTopicItem[];
+}
+
+export interface CheatsheetGradeData {
+  grade: GradeItem;
+  chapters: CheatsheetChapterItem[];
+  totalFormulas: number;
+  totalQuantities: number;
+}
