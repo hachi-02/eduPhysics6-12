@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SearchResults } from '@/types/cms';
 import { KatexFormula } from './KatexRenderer';
@@ -12,14 +11,15 @@ import {
   Scale,
   BookOpen,
   ArrowRight,
-  ExternalLink,
   Sparkles,
+  CornerDownLeft,
 } from 'lucide-react';
 
 export function GlobalSearchModal() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState<number | 'all'>('all');
   const [results, setResults] = useState<SearchResults>({
     formulas: [],
     quantities: [],
@@ -27,6 +27,7 @@ export function GlobalSearchModal() {
   });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'formulas' | 'quantities' | 'topics'>('all');
+  const [focusedIndex, setFocusedIndex] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -53,7 +54,9 @@ export function GlobalSearchModal() {
       }, 50);
     } else {
       setQuery('');
+      setSelectedGrade('all');
       setResults({ formulas: [], quantities: [], topics: [] });
+      setFocusedIndex(0);
     }
   }, [isOpen]);
 
@@ -68,20 +71,53 @@ export function GlobalSearchModal() {
     setLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`);
+        const gradeQuery = selectedGrade !== 'all' ? `&grade=${selectedGrade}` : '';
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}${gradeQuery}`);
         if (res.ok) {
           const data: SearchResults = await res.json();
           setResults(data);
+          setFocusedIndex(0);
         }
       } catch {
         // Ignore network error
       } finally {
         setLoading(false);
       }
-    }, 200);
+    }, 180);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, selectedGrade]);
+
+  // Flat list of clickable items for arrow keys navigation
+  const flatItems = React.useMemo(() => {
+    const items: { type: 'formula' | 'quantity' | 'topic'; id: number; url: string }[] = [];
+    if (activeTab === 'all' || activeTab === 'formulas') {
+      results.formulas.forEach((f) => items.push({ type: 'formula', id: f.id, url: `/topic/${f.topic_id}` }));
+    }
+    if (activeTab === 'all' || activeTab === 'quantities') {
+      results.quantities.forEach((q) => items.push({ type: 'quantity', id: q.id, url: `/topic/${q.topic_id}` }));
+    }
+    if (activeTab === 'all' || activeTab === 'topics') {
+      results.topics.forEach((t) => items.push({ type: 'topic', id: t.id, url: `/topic/${t.id}` }));
+    }
+    return items;
+  }, [results, activeTab]);
+
+  // Keyboard navigation inside modal (ArrowDown, ArrowUp, Enter)
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (flatItems.length > 0 ? (prev + 1) % flatItems.length : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (flatItems.length > 0 ? (prev - 1 + flatItems.length) % flatItems.length : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (flatItems.length > 0 && flatItems[focusedIndex]) {
+        handleSelectResult(flatItems[focusedIndex].url);
+      }
+    }
+  };
 
   const handleSelectResult = (url: string) => {
     setIsOpen(false);
@@ -97,12 +133,14 @@ export function GlobalSearchModal() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 border border-slate-200/80 text-xs text-slate-500 hover:text-slate-800 transition"
+        className="w-full flex items-center justify-between gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 border border-slate-200/90 text-xs text-slate-500 hover:text-slate-800 transition shadow-2xs"
         title="Tìm kiếm công thức, đại lượng, bài học (Ctrl + K)"
       >
-        <Search className="w-3.5 h-3.5 text-slate-400" />
-        <span className="hidden sm:inline">Tìm công thức, đại lượng, bài học...</span>
-        <span className="sm:hidden">Tìm kiếm</span>
+        <div className="flex items-center gap-2">
+          <Search className="w-3.5 h-3.5 text-slate-400" />
+          <span className="hidden sm:inline">Tìm công thức, đại lượng, bài học...</span>
+          <span className="sm:hidden">Tìm kiếm</span>
+        </div>
         <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white rounded border border-slate-200 text-slate-400 shadow-2xs">
           Ctrl K
         </kbd>
@@ -110,9 +148,12 @@ export function GlobalSearchModal() {
 
       {/* Modal Backdrop & Dialog */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-14 sm:pt-20 px-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-16 px-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setIsOpen(false)}
+        >
           <div
-            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[82vh]"
+            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Input Header */}
@@ -123,7 +164,8 @@ export function GlobalSearchModal() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Nhập tên định luật, công thức (v, s, F...), đại lượng, đơn vị hoặc bài học..."
+                onKeyDown={handleInputKeyDown}
+                placeholder="Nhập tên công thức (v, s, F, I, U...), đại lượng, đơn vị hoặc bài học..."
                 className="w-full text-sm sm:text-base bg-transparent text-slate-900 placeholder:text-slate-400 focus:outline-hidden"
               />
               {query && (
@@ -143,16 +185,48 @@ export function GlobalSearchModal() {
               </kbd>
             </div>
 
-            {/* Filter Tabs when has query */}
+            {/* Grade Filter Bar (Lớp 6 -> 12) */}
+            <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/60 flex items-center gap-1.5 overflow-x-auto text-xs">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+                Lớp:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedGrade('all')}
+                className={`px-2.5 py-1 rounded-lg font-semibold transition shrink-0 ${
+                  selectedGrade === 'all'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                }`}
+              >
+                Tất cả (6–12)
+              </button>
+              {[6, 7, 8, 9, 10, 11, 12].map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setSelectedGrade(g)}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition shrink-0 ${
+                    selectedGrade === g
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                  }`}
+                >
+                  Lớp {g}
+                </button>
+              ))}
+            </div>
+
+            {/* Category Filter Tabs when has query */}
             {query.trim() && (
-              <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/70 flex items-center gap-1.5 overflow-x-auto text-xs">
+              <div className="px-4 py-2 border-b border-slate-100 bg-white flex items-center gap-1.5 overflow-x-auto text-xs">
                 <button
                   type="button"
                   onClick={() => setActiveTab('all')}
                   className={`px-3 py-1 rounded-lg font-semibold transition ${
                     activeTab === 'all'
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                   }`}
                 >
                   Tất cả ({totalResults})
@@ -163,7 +237,7 @@ export function GlobalSearchModal() {
                   className={`px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1 ${
                     activeTab === 'formulas'
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                   }`}
                 >
                   <Calculator className="w-3.5 h-3.5" />
@@ -175,7 +249,7 @@ export function GlobalSearchModal() {
                   className={`px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1 ${
                     activeTab === 'quantities'
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                   }`}
                 >
                   <Scale className="w-3.5 h-3.5" />
@@ -187,7 +261,7 @@ export function GlobalSearchModal() {
                   className={`px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1 ${
                     activeTab === 'topics'
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                   }`}
                 >
                   <BookOpen className="w-3.5 h-3.5" />
@@ -214,7 +288,7 @@ export function GlobalSearchModal() {
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2 text-xs text-slate-500">
                     <span>Gợi ý:</span>
-                    {['v = s / t', 'Định luật Ôm', 'Lực đẩy Ác-si-mét', 'Công suất', 'Quang năng', 'Bước sóng'].map(
+                    {['v = s / t', 'Định luật Ôm', 'Lực đẩy Ác-si-mét', 'Công suất', 'Quang năng', 'Bước sóng', 'Áp suất'].map(
                       (k) => (
                         <button
                           key={k}
@@ -232,9 +306,9 @@ export function GlobalSearchModal() {
 
               {!loading && query.trim() && totalResults === 0 && (
                 <div className="py-10 text-center text-xs sm:text-sm text-slate-500 space-y-1">
-                  <p>Không tìm thấy kết quả nào khớp với &quot;<strong>{query}</strong>&quot;.</p>
+                  <p>Không tìm thấy kết quả nào khớp với &quot;<strong>{query}</strong>&quot; {selectedGrade !== 'all' ? `ở Lớp ${selectedGrade}` : ''}.</p>
                   <p className="text-xs text-slate-400">
-                    Thử tìm bằng tên đại lượng, ký hiệu toán học hoặc từ khóa ngắn gọn hơn.
+                    Thử đổi sang &quot;Tất cả lớp&quot;, tìm bằng ký hiệu toán học hoặc từ khóa ngắn gọn hơn.
                   </p>
                 </div>
               )}
@@ -249,7 +323,7 @@ export function GlobalSearchModal() {
                   <div className="space-y-2">
                     {results.formulas.map((f) => (
                       <div
-                        key={f.id}
+                        key={`f-${f.id}`}
                         onClick={() => handleSelectResult(`/topic/${f.topic_id}`)}
                         className="p-3.5 rounded-xl border border-slate-200/90 hover:border-indigo-300 hover:bg-indigo-50/40 transition cursor-pointer space-y-2 bg-white"
                       >
@@ -271,7 +345,7 @@ export function GlobalSearchModal() {
                         )}
 
                         <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-100">
-                          <span>Bài học: {f.topic_title}</span>
+                          <span>Chủ đề: {f.topic_title}</span>
                           <span className="text-indigo-600 font-semibold flex items-center gap-0.5">
                             Đi tới bài học <ArrowRight className="w-3 h-3" />
                           </span>
@@ -292,7 +366,7 @@ export function GlobalSearchModal() {
                   <div className="space-y-2">
                     {results.quantities.map((q) => (
                       <div
-                        key={q.id}
+                        key={`q-${q.id}`}
                         onClick={() => handleSelectResult(`/topic/${q.topic_id}`)}
                         className="p-3.5 rounded-xl border border-slate-200/90 hover:border-emerald-300 hover:bg-emerald-50/40 transition cursor-pointer space-y-2 bg-white"
                       >
@@ -336,7 +410,7 @@ export function GlobalSearchModal() {
                   <div className="space-y-2">
                     {results.topics.map((t) => (
                       <div
-                        key={t.id}
+                        key={`t-${t.id}`}
                         onClick={() => handleSelectResult(`/topic/${t.id}`)}
                         className="p-3.5 rounded-xl border border-slate-200/90 hover:border-indigo-300 hover:bg-indigo-50/40 transition cursor-pointer space-y-1.5 bg-white"
                       >
@@ -362,8 +436,18 @@ export function GlobalSearchModal() {
             </div>
 
             {/* Footer with Hotkey Tips */}
-            <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/90 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Mẹo: Nhấn <strong>ESC</strong> để đóng cửa sổ tìm kiếm</span>
+            <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/90 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px]">↑↓</kbd> Di chuyển
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px] flex items-center"><CornerDownLeft className="w-2.5 h-2.5" /> Enter</kbd> Mở bài
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px]">ESC</kbd> Đóng
+                </span>
+              </div>
               <span className="text-slate-400">Vật Lý 6–12 • Tra cứu toàn diện</span>
             </div>
           </div>

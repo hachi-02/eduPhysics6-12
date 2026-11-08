@@ -567,7 +567,7 @@ export function getMistakeNotebookData(gradeFilter?: number, showMastered = fals
   };
 }
 
-export function searchKnowledgeBase(term: string): import('@/types/cms').SearchResults {
+export function searchKnowledgeBase(term: string, gradeFilter?: number): import('@/types/cms').SearchResults {
   ensureDatabaseSeeded(false);
   const db = getDb();
   const clean = term.trim();
@@ -576,6 +576,10 @@ export function searchKnowledgeBase(term: string): import('@/types/cms').SearchR
   }
 
   const pattern = `%${clean}%`;
+  const gradeClause = gradeFilter && gradeFilter >= 6 && gradeFilter <= 12 ? 'AND g.grade_number = ?' : '';
+  const formulaParams = gradeClause ? [pattern, pattern, pattern, pattern, gradeFilter] : [pattern, pattern, pattern, pattern];
+  const quantityParams = gradeClause ? [pattern, pattern, pattern, pattern, gradeFilter] : [pattern, pattern, pattern, pattern];
+  const topicParams = gradeClause ? [pattern, pattern, pattern, gradeFilter] : [pattern, pattern, pattern];
 
   // Search formulas
   const rawFormulas = db.query<any>(
@@ -590,10 +594,11 @@ export function searchKnowledgeBase(term: string): import('@/types/cms').SearchR
      JOIN topics t ON t.id = f.topic_id
      JOIN chapters c ON c.id = t.chapter_id
      JOIN grades g ON g.id = c.grade_id
-     WHERE f.name LIKE ? OR f.plain_expression LIKE ? OR f.latex_expression LIKE ? OR f.usage_note LIKE ?
+     WHERE (f.name LIKE ? OR f.plain_expression LIKE ? OR f.latex_expression LIKE ? OR f.usage_note LIKE ?)
+       ${gradeClause}
      ORDER BY g.grade_number ASC, f.id ASC
-     LIMIT 15`,
-    [pattern, pattern, pattern, pattern]
+     LIMIT 20`,
+    formulaParams
   );
 
   const formulas = rawFormulas.map((f) => ({
@@ -626,10 +631,11 @@ export function searchKnowledgeBase(term: string): import('@/types/cms').SearchR
      JOIN topics t ON t.id = q.topic_id
      JOIN chapters c ON c.id = t.chapter_id
      JOIN grades g ON g.id = c.grade_id
-     WHERE q.name LIKE ? OR q.symbol LIKE ? OR q.si_unit LIKE ? OR q.description LIKE ?
+     WHERE (q.name LIKE ? OR q.symbol LIKE ? OR q.si_unit LIKE ? OR q.description LIKE ?)
+       ${gradeClause}
      ORDER BY g.grade_number ASC, q.id ASC
-     LIMIT 15`,
-    [pattern, pattern, pattern, pattern]
+     LIMIT 20`,
+    quantityParams
   );
 
   const quantities = rawQuantities.map((q) => ({
@@ -662,10 +668,11 @@ export function searchKnowledgeBase(term: string): import('@/types/cms').SearchR
      FROM topics t
      JOIN chapters c ON c.id = t.chapter_id
      JOIN grades g ON g.id = c.grade_id
-     WHERE t.title LIKE ? OR t.overview LIKE ? OR t.code LIKE ?
+     WHERE (t.title LIKE ? OR t.overview LIKE ? OR t.code LIKE ?)
+       ${gradeClause}
      ORDER BY g.grade_number ASC, t.id ASC
-     LIMIT 15`,
-    [pattern, pattern, pattern]
+     LIMIT 20`,
+    topicParams
   );
 
   const topics = rawTopics.map((t) => ({
