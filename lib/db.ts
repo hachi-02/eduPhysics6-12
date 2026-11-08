@@ -81,6 +81,30 @@ function ensureInitialized(client: DatabaseClient) {
     const sql = fs.readFileSync(schemaPath, 'utf8');
     client.exec(sql);
   }
+  migrateQuestionFormatColumns(client);
+}
+
+/**
+ * Bổ sung các cột phục vụ Cấu trúc đề 2025 cho bảng questions của CSDL cũ
+ * (CREATE TABLE IF NOT EXISTS không tự thêm cột vào bảng đã tồn tại).
+ */
+function migrateQuestionFormatColumns(client: DatabaseClient) {
+  try {
+    const cols = client.query<{ name: string }>('PRAGMA table_info(questions)').map((c) => c.name);
+    if (cols.length === 0) return;
+    const wanted: [string, string][] = [
+      ['tf_stem', 'TEXT'],
+      ['tf_statements_json', 'TEXT'],
+      ['tf_source', 'TEXT'],
+    ];
+    for (const [name, type] of wanted) {
+      if (!cols.includes(name)) {
+        client.exec(`ALTER TABLE questions ADD COLUMN ${name} ${type}`);
+      }
+    }
+  } catch {
+    // Ignore migration errors (e.g. concurrent migration)
+  }
 }
 
 function initDatabaseInstance(dbPath: string): DatabaseClient {

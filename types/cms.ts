@@ -155,6 +155,7 @@ export interface QuestionItem {
   options: string[];
   correct_index: number;
   explanation: string;
+  tf_stem?: string;
   tf_statements?: TrueFalseStatement[];
   short_answer?: ShortAnswerConfig;
 }

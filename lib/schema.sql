@@ -114,6 +114,9 @@ CREATE TABLE IF NOT EXISTS questions (
   options_json TEXT NOT NULL,
   correct_index INTEGER NOT NULL CHECK (correct_index BETWEEN 0 AND 3),
   explanation TEXT NOT NULL,
+  tf_stem TEXT,
+  tf_statements_json TEXT,
+  tf_source TEXT,
   FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE,
   FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE
 );

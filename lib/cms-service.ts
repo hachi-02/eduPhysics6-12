@@ -14,6 +14,7 @@ import {
   SimulationItem,
   TopicDetail,
   TopicSummaryItem,
+  TrueFalseStatement,
 } from '@/types/cms';
 
 function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
@@ -255,6 +256,8 @@ export function getTopicFullDetail(topicId: number): (TopicDetail & {
     options: safeJsonParse<string[]>(q.options_json, ['', '', '', '']),
     correct_index: q.correct_index,
     explanation: q.explanation,
+    tf_stem: q.tf_stem || undefined,
+    tf_statements: q.tf_statements_json ? safeJsonParse<TrueFalseStatement[]>(q.tf_statements_json, []) : undefined,
   }));
 
   const siblingTopics = db.query<{ id: number }>(
@@ -405,6 +408,8 @@ export function getChapterFullDetail(chapterId: number): {
     options: safeJsonParse<string[]>(q.options_json, ['', '', '', '']),
     correct_index: q.correct_index,
     explanation: q.explanation,
+    tf_stem: q.tf_stem || undefined,
+    tf_statements: q.tf_statements_json ? safeJsonParse<TrueFalseStatement[]>(q.tf_statements_json, []) : undefined,
   }));
 
   const recentAttempts = db.query<any>(
@@ -591,6 +596,8 @@ export function getMistakeNotebookData(gradeFilter?: number, showMastered = fals
     options: safeJsonParse<string[]>(r.options_json, ['', '', '', '']),
     correct_index: r.correct_index,
     explanation: r.explanation,
+    tf_stem: r.tf_stem || undefined,
+    tf_statements: r.tf_statements_json ? safeJsonParse<TrueFalseStatement[]>(r.tf_statements_json, []) : undefined,
     mistake_id: r.mistake_id,
     last_wrong_option: r.last_wrong_option,
     wrong_count: r.wrong_count,

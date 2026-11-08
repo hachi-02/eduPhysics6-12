@@ -8,6 +8,7 @@ import {
   isPureNumericOptions,
   generateIndependentTrueFalseStatements,
   classifyQuestionFormat,
+  prepareQuestionFor2025,
 } from '../lib/format2025-adapter';
 import { QuestionItem } from '../types/cms';
 
@@ -229,5 +230,32 @@ describe('Format 2025 Adapter & Scoring Engine', () => {
     // It should have independent propositions with an authentic mix (e.g. 2 True, 2 False)
     expect(trueCount).toBeGreaterThan(1);
     expect(falseCount).toBeGreaterThan(0);
+  });
+
+  it('retrieves curated authored statements from TF_BANK when matching grade and scope', () => {
+    const q12: any = {
+      id: 9999,
+      grade_number: 12,
+      chapter_code: 'G12-CH1',
+      scope_type: 'chapter',
+      topic_id: null,
+      chapter_id: 1,
+      order_index: 11,
+      difficulty: 'thong_hieu',
+      question_text: 'Một lượng khí trong bình kín cách nhiệt nhận công 80 J do ngoại lực nén vào. Độ biến thiên nội năng của khối khí là:',
+      options: ['ΔU = +80 J', 'ΔU = -80 J', 'ΔU = 0 J', 'ΔU = +160 J'],
+      correct_index: 0,
+      explanation: 'Bình cách nhiệt nên Q = 0. Áp dụng định luật I: ΔU = +80 J.',
+    };
+
+    const prepared = prepareQuestionFor2025(q12);
+    expect(prepared.question_type).toBe('true_false');
+    expect(prepared.tf_statements).toBeDefined();
+    expect(prepared.tf_statements?.length).toBe(4);
+
+    // Verify it used the curated Grade 12 Chapter 1 bank entry
+    const stA = prepared.tf_statements?.[0];
+    expect(stA?.text).toContain('nhiệt lượng khối khí trao đổi với môi trường ngoài bằng 0');
+    expect(stA?.is_correct).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
 import { QuestionItem, TrueFalseStatement, ShortAnswerConfig, QuestionType } from '@/types/cms';
+import { findTfBankEntryForQuestion } from './format2025-bank';
 
 export interface ExamScoreResult {
   totalScore: number;
@@ -135,6 +136,23 @@ export function calculateTrueFalseScore(
  * Tránh việc chỉ có 1 ý Đúng và 3 ý Sai gây suy luận đoán mò.
  */
 export function generateIndependentTrueFalseStatements(q: QuestionItem): TrueFalseStatement[] {
+  // 1. Nếu câu hỏi đã có sẵn tf_statements (từ DB hoặc pre-authored), giữ nguyên tuyệt đối
+  if (q.tf_statements && q.tf_statements.length === 4) {
+    return q.tf_statements;
+  }
+
+  // 2. Tra cứu trong Ngân hàng đề Đúng/Sai đã soạn chuẩn Bộ GD&ĐT 2025 (TF_BANK)
+  const bankEntry = findTfBankEntryForQuestion(q as any);
+  if (bankEntry && bankEntry.statements && bankEntry.statements.length === 4) {
+    const letterIds = ['a', 'b', 'c', 'd'];
+    return bankEntry.statements.map((st, idx) => ({
+      id: letterIds[idx] || `item_${idx}`,
+      text: st.text,
+      is_correct: st.is_correct,
+      explanation: st.explanation,
+    }));
+  }
+
   const correctOpt = q.options[q.correct_index] || '';
   const distractors = q.options.filter((_, idx) => idx !== q.correct_index);
   const letterIds = ['a', 'b', 'c', 'd'];
@@ -259,9 +277,11 @@ export function prepareQuestionFor2025(q: QuestionItem): QuestionItem {
   const correctOpt = q.options[q.correct_index] || '';
 
   if (type === 'true_false') {
+    const bankEntry = findTfBankEntryForQuestion(q as any);
     const tf_statements = generateIndependentTrueFalseStatements(q);
     return {
       ...q,
+      question_text: bankEntry?.stem || q.tf_stem || q.question_text,
       question_type: 'true_false',
       tf_statements,
     };
@@ -341,12 +361,16 @@ export function adaptToFormat2025(questions: QuestionItem[]): QuestionItem[] {
   }));
 
   // 2. Phần II: True / False với các mệnh đề độc lập
-  const part2: QuestionItem[] = part2Raw.map((q, idx) => ({
-    ...q,
-    order_index: part1Count + idx + 1,
-    question_type: 'true_false' as QuestionType,
-    tf_statements: generateIndependentTrueFalseStatements(q),
-  }));
+  const part2: QuestionItem[] = part2Raw.map((q, idx) => {
+    const bankEntry = findTfBankEntryForQuestion(q as any);
+    return {
+      ...q,
+      question_text: bankEntry?.stem || q.tf_stem || q.question_text,
+      order_index: part1Count + idx + 1,
+      question_type: 'true_false' as QuestionType,
+      tf_statements: generateIndependentTrueFalseStatements(q),
+    };
+  });
 
   // 3. Phần III: Short answer (Điền số)
   const part3: QuestionItem[] = part3Raw.map((q, idx) => {
