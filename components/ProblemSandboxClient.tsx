@@ -398,16 +398,18 @@ export function ProblemSandboxClient({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-xs font-extrabold text-teal-900">
                       <Zap className="h-4 w-4 text-teal-600" />
-                      <span>Thông số Vật lý nạp vào Phòng Mô phỏng:</span>
+                      <span>Tóm tắt Dữ kiện Bóc tách từ Đề bài:</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleSyncToSim}
-                      className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2.5 py-1 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-teal-500"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      <span>Nạp chuẩn theo đề</span>
-                    </button>
+                    {hasCustomOverrides && (
+                      <button
+                        type="button"
+                        onClick={handleSyncToSim}
+                        className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2.5 py-1 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-teal-500"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        <span>Khôi phục theo đề</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -568,8 +570,14 @@ export function ProblemSandboxClient({
 
             <div className="space-y-4">
               {sandboxState.sliders.map((slider) => {
+                const extractedItem = sandboxState.extractedList.find(
+                  (x) => x.paramKey === slider.paramKey
+                );
                 const currentVal =
-                  sandboxState.simParameters[slider.paramKey] ?? slider.defaultValue;
+                  overrideParams[slider.paramKey] ??
+                  extractedItem?.value ??
+                  sandboxState.simParameters[slider.paramKey] ??
+                  slider.defaultValue;
                 return (
                   <div key={slider.paramKey} className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
