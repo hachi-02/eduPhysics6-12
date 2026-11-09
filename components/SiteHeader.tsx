@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -26,7 +26,6 @@ interface SiteHeaderProps {
 export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
 
   const isHome = pathname === '/' || pathname.startsWith('/?');
   const isKnowledgeGraph = pathname.startsWith('/knowledge-graph');
@@ -38,28 +37,25 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const isAnyUtilityActive =
     isKnowledgeGraph || isAdaptiveTest || isMistakes || isCheatsheet || isAdmin;
 
-  // Close menu when route changes
+  // Close drawer when route changes
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
 
-  // Close on Escape or outside click
+  // Close on Escape & lock body scroll when drawer is open
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setMenuOpen(false);
     }
-    function handleMouseDown(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
     if (menuOpen) {
       document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('mousedown', handleMouseDown);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleMouseDown);
+      document.body.style.overflow = '';
     };
   }, [menuOpen]);
 
@@ -110,53 +106,53 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   ];
 
   return (
-    <header className="no-print sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 shadow-soft backdrop-blur-xl print:hidden">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-        {/* Brand Logo */}
-        <Link href="/" className="group flex shrink-0 items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-glow transition duration-150 ease-snap group-hover:scale-105 group-active:scale-95">
-            <Atom className="h-5 w-5" />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5 leading-none">
-              <span className="text-sm font-extrabold tracking-tight text-slate-900 transition-colors group-hover:text-brand-700 sm:text-base">
-                eduPhysics
-              </span>
-              <span className="rounded-md bg-brand-50 px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-brand-700">
-                6–12
+    <>
+      <header className="no-print sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 shadow-soft backdrop-blur-xl print:hidden">
+        <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+          {/* Brand Logo (Left) */}
+          <Link href="/" className="group flex shrink-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-glow transition duration-150 ease-snap group-hover:scale-105 group-active:scale-95">
+              <Atom className="h-5 w-5" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5 leading-none">
+                <span className="text-sm font-extrabold tracking-tight text-slate-900 transition-colors group-hover:text-brand-700 sm:text-base">
+                  eduPhysics
+                </span>
+                <span className="rounded-md bg-brand-50 px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-brand-700">
+                  6–12
+                </span>
+              </div>
+              <span className="hidden text-[9px] font-semibold tracking-[0.14em] text-slate-500 sm:block">
+                CHUẨN GDPT 2018
               </span>
             </div>
-            <span className="hidden text-[9px] font-semibold tracking-[0.14em] text-slate-500 sm:block">
-              CHUẨN GDPT 2018
-            </span>
-          </div>
-        </Link>
-
-        {/* Global Search Bar (Center Spotlight) */}
-        <div className="mx-2 flex-1 max-w-md">
-          <GlobalSearchModal />
-        </div>
-
-        {/* Right Navigation: Curriculum + Right-hand Utilities Menu */}
-        <nav className="flex items-center gap-2" ref={panelRef}>
-          {/* Main Link: Curriculum */}
-          <Link
-            href="/"
-            className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition duration-150 ease-snap ${
-              isHome
-                ? 'bg-brand-50 text-brand-700 shadow-soft ring-1 ring-brand-200/80'
-                : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-            }`}
-          >
-            <BookOpen className="h-4 w-4" />
-            <span className="hidden sm:inline">Chương trình</span>
           </Link>
 
-          {/* Right-side Utilities Menu Trigger */}
-          <div className="relative">
+          {/* Global Search Bar (Center) */}
+          <div className="mx-2 flex-1 max-w-md">
+            <GlobalSearchModal />
+          </div>
+
+          {/* Right Navigation Flush to Right Edge */}
+          <nav className="flex shrink-0 items-center gap-2">
+            {/* Main Link: Curriculum */}
+            <Link
+              href="/"
+              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition duration-150 ease-snap ${
+                isHome
+                  ? 'bg-brand-50 text-brand-700 shadow-soft ring-1 ring-brand-200/80'
+                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+              }`}
+            >
+              <BookOpen className="h-4 w-4" />
+              <span className="hidden sm:inline">Chương trình</span>
+            </Link>
+
+            {/* Right-edge Slide-out Drawer Trigger */}
             <button
               type="button"
-              onClick={() => setMenuOpen((prev) => !prev)}
+              onClick={() => setMenuOpen(true)}
               aria-expanded={menuOpen}
               className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition duration-150 ease-snap ${
                 menuOpen || isAnyUtilityActive
@@ -171,91 +167,139 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
                   {activeMistakeCount}
                 </span>
               )}
-              {menuOpen ? (
-                <X className="h-4 w-4 text-slate-500" />
-              ) : (
-                <Menu className="h-4 w-4 text-slate-600" />
-              )}
+              <Menu className="h-4 w-4 text-slate-600" />
             </button>
+          </nav>
+        </div>
+      </header>
 
-            {/* Right-aligned Full Utilities Menu Panel */}
-            {menuOpen && (
-              <div className="absolute right-0 top-full z-50 mt-2.5 w-[340px] sm:w-[390px] origin-top-right animate-pop rounded-3xl border border-slate-200/90 bg-white p-4 shadow-2xl ring-1 ring-slate-900/5">
-                <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5 px-1">
-                  <div>
-                    <div className="text-xs font-extrabold uppercase tracking-wider text-indigo-700">
-                      ✨ Trung tâm Tiện ích Học tập
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Chọn công cụ thông minh bạn muốn sử dụng
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen(false)}
-                    className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+      {/* Right-to-Left Slide-Over Drawer (Outside header so fixed covers full viewport height) */}
+      <div
+        className={`no-print fixed inset-0 z-50 transition-visibility duration-300 print:hidden ${
+          menuOpen ? 'pointer-events-auto visible' : 'pointer-events-none invisible'
+        }`}
+        aria-hidden={!menuOpen}
+      >
+        {/* Backdrop */}
+        <div
+          onClick={() => setMenuOpen(false)}
+          className={`fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300 ${
+            menuOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
 
-                <div className="space-y-2">
-                  {utilityItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMenuOpen(false)}
-                      className={`group flex items-start gap-3 rounded-2xl border p-3 transition duration-150 ${
-                        item.active
-                          ? 'border-indigo-300 bg-indigo-50/70 shadow-2xs'
-                          : 'border-slate-200/70 bg-white hover:border-indigo-200 hover:bg-slate-50/80'
-                      }`}
-                    >
-                      <div
-                        className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${item.iconBg}`}
-                      >
-                        {item.icon}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-extrabold text-slate-900 group-hover:text-indigo-700">
-                            {item.title}
-                          </span>
-                          <span
-                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${item.badgeCls}`}
-                          >
-                            {item.badge}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                          {item.desc}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-
-                {/* Admin Footer inside Menu */}
-                <div className="mt-3 border-t border-slate-100 pt-2.5">
-                  <Link
-                    href={admin ? '/admin' : '/admin/login'}
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Settings className="h-4 w-4 text-slate-500" />
-                      <span>
-                        {admin ? 'Hệ thống Quản trị CMS' : 'Đăng nhập Quản trị viên'}
-                      </span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-slate-400" />
-                  </Link>
-                </div>
+        {/* Drawer Panel Sliding in from the Right */}
+        <aside
+          className={`fixed inset-y-0 right-0 z-10 flex w-full max-w-sm flex-col border-l border-slate-200/90 bg-white shadow-2xl transition-transform duration-300 ease-out sm:max-w-md ${
+            menuOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          {/* Drawer Header */}
+          <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 px-5 py-4 text-white">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-amber-300 ring-1 ring-white/20">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-sm font-extrabold tracking-tight text-white">
+                  Trung tâm Tiện ích Học tập
+                </h2>
+                <p className="text-[11px] text-purple-200">
+                  Hệ thống công cụ thông minh eduPhysics 6–12
+                </p>
               </div>
-            )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-xl bg-white/10 p-2 text-white/80 transition hover:bg-white/20 hover:text-white"
+              title="Đóng menu"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        </nav>
+
+          {/* Drawer Body: All Utilities List */}
+          <div className="flex-1 space-y-3 overflow-y-auto p-5">
+            <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+              Công cụ Học tập &amp; Khảo thí
+            </div>
+
+            {utilityItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMenuOpen(false)}
+                className={`group flex items-start gap-3.5 rounded-2xl border p-3.5 transition duration-150 ${
+                  item.active
+                    ? 'border-indigo-400 bg-indigo-50/70 shadow-soft ring-1 ring-indigo-400/20'
+                    : 'border-slate-200/80 bg-white hover:border-indigo-200 hover:bg-slate-50/80'
+                }`}
+              >
+                <div
+                  className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${item.iconBg}`}
+                >
+                  {item.icon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-extrabold text-slate-900 group-hover:text-indigo-700 sm:text-sm">
+                      {item.title}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${item.badgeCls}`}
+                    >
+                      {item.badge}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                    {item.desc}
+                  </p>
+                </div>
+              </Link>
+            ))}
+
+            {/* Quick return to Curriculum */}
+            <div className="pt-2">
+              <div className="mb-2 text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+                Điều hướng nhanh
+              </div>
+              <Link
+                href="/"
+                onClick={() => setMenuOpen(false)}
+                className={`flex items-center justify-between rounded-2xl border p-3.5 text-xs font-bold transition ${
+                  isHome
+                    ? 'border-brand-300 bg-brand-50 text-brand-800'
+                    : 'border-slate-200/80 bg-slate-50/60 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <BookOpen className="h-4 w-4 text-brand-600" />
+                  <span>Trang chủ Chương trình Vật lý 6–12</span>
+                </span>
+                <ChevronRight className="h-4 w-4 text-slate-400" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Drawer Footer: Admin CMS */}
+          <div className="border-t border-slate-200 bg-slate-50/80 p-4">
+            <Link
+              href={admin ? '/admin' : '/admin/login'}
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-extrabold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+            >
+              <span className="flex items-center gap-2.5">
+                <Settings className="h-4 w-4 text-slate-500" />
+                <span>
+                  {admin ? 'Hệ thống Quản trị CMS' : 'Đăng nhập Quản trị viên'}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 text-slate-400" />
+            </Link>
+          </div>
+        </aside>
       </div>
-    </header>
+    </>
   );
 }
