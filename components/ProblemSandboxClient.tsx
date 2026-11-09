@@ -10,7 +10,10 @@ import {
 } from '@/types/cms';
 import { RichPhysicsText, KatexFormula } from './KatexRenderer';
 import { InteractivePhysicsLab } from './InteractivePhysicsLab';
-import { buildProblemSandboxState } from '@/lib/problem-sandbox';
+import {
+  buildProblemSandboxState,
+  verifyStudentNumericAnswer,
+} from '@/lib/problem-sandbox';
 import {
   FlaskConical,
   Sliders,
@@ -104,7 +107,8 @@ export function ProblemSandboxClient({
     initialQuestionId
   );
 
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [userAnswerInput, setUserAnswerInput] = useState<string>('');
+  const [submittedStatus, setSubmittedStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
   const [showSolution, setShowSolution] = useState<boolean>(false);
   const [overrideParams, setOverrideParams] = useState<Record<string, number>>({});
 
@@ -148,10 +152,17 @@ export function ProblemSandboxClient({
   }, [topicQuestions, selectedQuestionId]);
 
   useEffect(() => {
-    setSelectedOption(null);
+    setUserAnswerInput('');
+    setSubmittedStatus('idle');
     setShowSolution(false);
     setOverrideParams({});
   }, [activeQuestion?.id]);
+
+  // Whenever the user drags a What-If slider to change the problem numbers,
+  // reset the check banner so they can check their new answer for the new problem
+  useEffect(() => {
+    setSubmittedStatus('idle');
+  }, [overrideParams]);
 
   const baseSimulation = useMemo<SimulationItem>(() => {
     if (activeTopic && simulationByTopicId[activeTopic.id]) {
@@ -180,8 +191,11 @@ export function ProblemSandboxClient({
 
   // Compute synchronized Problem-to-Sim Sandbox state
   const sandboxState = useMemo(() => {
+    const correctOptText = activeQuestion
+      ? activeQuestion.options[activeQuestion.correct_index] || ''
+      : '';
     const combinedText = activeQuestion
-      ? `${activeQuestion.question_text}|||${activeQuestion.explanation || ''}`
+      ? `${activeQuestion.question_text}|||${activeQuestion.explanation || ''}|||${correctOptText}`
       : '';
     return buildProblemSandboxState(
       combinedText,
@@ -199,6 +213,19 @@ export function ProblemSandboxClient({
   }, [baseSimulation, sandboxState.simParameters]);
 
   const hasCustomOverrides = Object.keys(overrideParams).length > 0;
+  const isResultUnlocked = showSolution || submittedStatus !== 'idle';
+
+  const handleCheckAnswer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userAnswerInput.trim()) return;
+    const isOk = verifyStudentNumericAnswer(
+      userAnswerInput,
+      sandboxState.targetNumericAnswer,
+      sandboxState.acceptableAnswers
+    );
+    setSubmittedStatus(isOk ? 'correct' : 'wrong');
+    setShowSolution(true);
+  };
 
   // SVG coordinates for the Live Problem Comparison Graph
   const pg = sandboxState.problemGraph;
@@ -430,60 +457,59 @@ export function ProblemSandboxClient({
                   <RichPhysicsText text={sandboxState.modifiedQuestionText} />
                 </div>
 
-                {/* 4 Answer Options (for Original Problem) */}
-                <div className="space-y-2">
-                  <div className="text-xs font-bold text-slate-600">
-                    Chọn đáp án của bạn (A, B, C, D):
+                {/* Numerical Answer Input (works for BOTH Original & Modified What-If Question!) */}
+                <form
+                  onSubmit={handleCheckAnswer}
+                  className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <label className="text-xs font-extrabold text-slate-800">
+                      ✍️{' '}
+                      {hasCustomOverrides
+                        ? 'Nhập đáp án của bạn cho Đề thay đổi (What-If):'
+                        : 'Nhập đáp án tính được cho Đề gốc:'}
+                    </label>
+                    {sandboxState.answerUnit && (
+                      <span className="rounded-md bg-teal-50 px-2 py-0.5 font-mono text-[11px] font-bold text-teal-800">
+                        Đơn vị chuẩn: {sandboxState.answerUnit}
+                      </span>
+                    )}
                   </div>
-                  <div className="grid grid-cols-1 gap-2">
-                    {activeQuestion.options.map((opt, oIdx) => {
-                      const letter = ['A', 'B', 'C', 'D'][oIdx] || 'A';
-                      const isSelected = selectedOption === oIdx;
-                      const isCorrect = activeQuestion.correct_index === oIdx;
 
-                      let cls =
-                        'border-slate-200 bg-white text-slate-800 hover:border-teal-300 hover:bg-teal-50/30';
-                      if (selectedOption !== null || showSolution) {
-                        if (isCorrect) {
-                          cls =
-                            'border-emerald-500 bg-emerald-50/90 font-bold text-emerald-950 ring-2 ring-emerald-500/20';
-                        } else if (isSelected && !isCorrect) {
-                          cls = 'border-rose-400 bg-rose-50 text-rose-950';
-                        }
-                      }
-
-                      return (
-                        <button
-                          key={oIdx}
-                          type="button"
-                          onClick={() => {
-                            setSelectedOption(oIdx);
-                            setShowSolution(true);
-                          }}
-                          className={`flex w-full items-start gap-2.5 rounded-xl border p-3 text-left text-xs transition ${cls}`}
-                        >
-                          <span
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[11px] font-extrabold ${
-                              (selectedOption !== null || showSolution) && isCorrect
-                                ? 'bg-emerald-600 text-white'
-                                : isSelected && !isCorrect
-                                  ? 'bg-rose-600 text-white'
-                                  : 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {letter}
-                          </span>
-                          <span className="flex-1 leading-relaxed">
-                            <RichPhysicsText text={opt} />
-                          </span>
-                        </button>
-                      );
-                    })}
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={userAnswerInput}
+                        onChange={(e) => {
+                          setUserAnswerInput(e.target.value);
+                          if (submittedStatus !== 'idle') setSubmittedStatus('idle');
+                        }}
+                        placeholder={`Nhập kết quả số (VD: 627 hoặc 12,5)${
+                          sandboxState.answerUnit ? ` • ${sandboxState.answerUnit}` : ''
+                        }...`}
+                        className="w-full rounded-xl border border-slate-300 bg-slate-50/70 px-3.5 py-2.5 font-mono text-sm font-bold text-slate-900 placeholder:font-sans placeholder:font-normal placeholder:text-slate-400 focus:border-teal-600 focus:bg-white focus:outline-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2.5 text-xs font-extrabold text-white shadow-soft transition hover:bg-teal-500"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Kiểm tra đáp án</span>
+                    </button>
                   </div>
-                </div>
 
-                {/* Toggle Solution */}
-                <div className="pt-1">
+                  <p className="text-[11px] leading-snug text-slate-500">
+                    💡 Bạn có thể nhập số nguyên hoặc thập phân (dấu phẩy hoặc dấu chấm). Khi kéo thanh
+                    trượt <strong>What-If</strong> đổi đề bài, hệ thống sẽ tự động chấm và giải theo số
+                    liệu của <strong>đề bài mới</strong>!
+                  </p>
+                </form>
+
+                {/* Toggle Solution Button */}
+                <div className="pt-0.5">
                   <button
                     type="button"
                     onClick={() => setShowSolution((prev) => !prev)}
@@ -492,35 +518,56 @@ export function ProblemSandboxClient({
                     <Eye className="h-4 w-4" />
                     <span>
                       {showSolution
-                        ? 'Ẩn Lời giải Chi tiết'
-                        : 'Xem Lời giải & Mở khóa Kết quả Kiểm chứng'}
+                        ? 'Ẩn Lời giải & Đáp án theo Đề hiện tại'
+                        : 'Xem Lời giải & Đáp án giải theo Đề hiện tại'}
                     </span>
                   </button>
                 </div>
 
-                {/* Live Recalculated Answer & Solution (ONLY shown after user selects an option or clicks Show Solution, or when testing What-If) */}
-                {(showSolution || hasCustomOverrides) && (
+                {/* Live Recalculated Answer & Step-by-Step Solution (Always solves current question!) */}
+                {isResultUnlocked && (
                   <div className="animate-fade-in space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs">
-                    {selectedOption !== null && (
-                      <div className="flex items-center gap-1.5 font-extrabold">
-                        {selectedOption === activeQuestion.correct_index ? (
-                          <span className="flex items-center gap-1 text-emerald-700">
-                            <CheckCircle2 className="h-4 w-4" /> Chính xác! Bạn đã chọn đúng đáp án.
-                          </span>
+                    {submittedStatus !== 'idle' && (
+                      <div
+                        className={`flex items-start gap-2 rounded-xl border p-3 font-bold ${
+                          submittedStatus === 'correct'
+                            ? 'border-emerald-300 bg-emerald-100/80 text-emerald-900'
+                            : 'border-rose-300 bg-rose-100/80 text-rose-900'
+                        }`}
+                      >
+                        {submittedStatus === 'correct' ? (
+                          <>
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                            <div>
+                              Chính xác! Kết quả{' '}
+                              <span className="font-mono underline">{userAnswerInput}</span> hoàn toàn
+                              khớp với đáp án của{' '}
+                              {hasCustomOverrides ? 'đề bài sau khi đổi số What-If' : 'đề bài gốc'} (
+                              <span className="font-mono">{sandboxState.newAnswerLabel}</span>).
+                            </div>
+                          </>
                         ) : (
-                          <span className="flex items-center gap-1 text-rose-700">
-                            <XCircle className="h-4 w-4" /> Chưa chính xác. Đáp án đúng là{' '}
-                            {['A', 'B', 'C', 'D'][activeQuestion.correct_index]}.
-                          </span>
+                          <>
+                            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-700" />
+                            <div>
+                              Chưa chính xác (Bạn nhập:{' '}
+                              <span className="font-mono underline">{userAnswerInput}</span>). Đáp án
+                              đúng của {hasCustomOverrides ? 'đề bài đang hiển thị' : 'đề bài gốc'} là{' '}
+                              <span className="font-mono font-extrabold">
+                                {sandboxState.newAnswerLabel}
+                              </span>
+                              .
+                            </div>
+                          </>
                         )}
                       </div>
                     )}
 
                     {/* Auto-solved Comparison Box */}
-                    <div className="rounded-xl border border-indigo-200 bg-white p-3 space-y-2">
+                    <div className="space-y-2 rounded-xl border border-indigo-200 bg-white p-3">
                       <div className="flex items-center justify-between">
                         <span className="font-extrabold text-indigo-950">
-                          🎯 Kết quả Giải Tự động theo Số liệu Đề bài:
+                          🎯 Đáp án Giải theo Số liệu Đề bài:
                         </span>
                         {hasCustomOverrides && (
                           <button
@@ -537,9 +584,7 @@ export function ProblemSandboxClient({
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
                           <div className="text-[10px] font-bold text-slate-400">ĐÁP ÁN ĐỀ GỐC</div>
                           <div className="mt-0.5 font-mono text-xs font-extrabold text-slate-800">
-                            {showSolution
-                              ? sandboxState.originalAnswerLabel
-                              : '🔒 Chọn A/B/C/D ở trên để mở'}
+                            {sandboxState.originalAnswerLabel}
                           </div>
                         </div>
                         <div
@@ -554,23 +599,43 @@ export function ProblemSandboxClient({
                               hasCustomOverrides ? 'text-indigo-200' : 'text-emerald-700'
                             }`}
                           >
-                            {hasCustomOverrides ? 'ĐÁP ÁN MỚI (KHI ĐỔI ĐỀ)' : 'ĐÁP ÁN HIỆN TẠI'}
+                            {hasCustomOverrides
+                              ? 'ĐÁP ÁN ĐỀ THAY ĐỔI (HIỆN TẠI)'
+                              : 'ĐÁP ÁN ĐỀ HIỆN TẠI'}
                           </div>
                           <div className="mt-0.5 font-mono text-xs font-extrabold">
-                            {hasCustomOverrides || showSolution
-                              ? sandboxState.newAnswerLabel
-                              : '🔒 Chọn A/B/C/D để mở'}
+                            {sandboxState.newAnswerLabel}
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {showSolution && (
-                      <div className="leading-relaxed text-slate-800">
-                        <strong className="text-emerald-800">Lời giải đề gốc: </strong>
-                        <RichPhysicsText text={activeQuestion.explanation} />
+                    {/* Dynamic Step-by-Step Solution (Always matches the current numbers in the problem!) */}
+                    <div className="space-y-2 rounded-xl border border-emerald-200/90 bg-white p-3.5 leading-relaxed text-slate-800">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                        <strong className="text-emerald-800">
+                          📖{' '}
+                          {hasCustomOverrides
+                            ? 'Lời giải chi tiết (Giải tự động theo Đề thay đổi What-If):'
+                            : 'Lời giải chi tiết (Giải theo Đề gốc):'}
+                        </strong>
+                        {hasCustomOverrides && (
+                          <span className="rounded bg-indigo-100 px-2 py-0.5 text-[10px] font-extrabold text-indigo-800">
+                            Cập nhật theo số mới
+                          </span>
+                        )}
                       </div>
-                    )}
+                      <div className="text-xs leading-relaxed text-slate-800">
+                        <RichPhysicsText text={sandboxState.dynamicExplanation} />
+                      </div>
+
+                      {hasCustomOverrides && activeQuestion.explanation && (
+                        <div className="mt-2 border-t border-dashed border-slate-200 pt-2 text-[11px] text-slate-500">
+                          <strong className="text-slate-600">Đối chiếu lời giải đề gốc ban đầu: </strong>
+                          <RichPhysicsText text={activeQuestion.explanation} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -589,7 +654,7 @@ export function ProblemSandboxClient({
                     🎛️ Giả định &ldquo;Điều gì xảy ra nếu...?&rdquo; (What-If)
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Kéo thanh trượt để sửa trực tiếp số trong đề bài ở trên &amp; xem Đồ thị bên phải tách nhánh
+                    Kéo thanh trượt để sửa trực tiếp số trong đề bài ở trên, tự giải lại lời giải &amp; vẽ đồ thị mới
                   </p>
                 </div>
               </div>
@@ -677,9 +742,9 @@ export function ProblemSandboxClient({
 
             <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-xs leading-relaxed text-indigo-950">
               <strong className="font-extrabold text-indigo-800">💡 Giải thích biến thiên: </strong>
-              {showSolution || hasCustomOverrides
+              {isResultUnlocked
                 ? sandboxState.verificationInsight
-                : 'Hãy chọn đáp án A, B, C, D ở trên hoặc kéo thử thanh trượt What-If để mở khóa phân tích số liệu kiểm chứng.'}
+                : 'Hãy nhập đáp án ở trên để kiểm tra hoặc bấm "Xem Lời giải & Đáp án giải theo Đề hiện tại" để mở khóa phân tích số liệu.'}
             </div>
           </div>
         </div>
@@ -821,22 +886,20 @@ export function ProblemSandboxClient({
                 <span className="text-slate-400">
                   ⚪ Điểm đáp án đề gốc:{' '}
                   <strong className="text-slate-200">
-                    {showSolution ? pg.markerOrig.label : '🔒 Chọn A/B/C/D để mở khóa'}
+                    {isResultUnlocked ? pg.markerOrig.label : '🔒 Kiểm tra đáp án để mở khóa'}
                   </strong>
                 </span>
                 <span className="text-amber-300">
-                  🟠 Điểm đáp án đang khảo sát:{' '}
+                  🟠 Điểm đáp án đề hiện tại:{' '}
                   <strong>
-                    {showSolution || hasCustomOverrides
-                      ? pg.markerNew.label
-                      : '🔒 Chọn A/B/C/D hoặc kéo thanh trượt What-If'}
+                    {isResultUnlocked ? pg.markerNew.label : '🔒 Kiểm tra đáp án để mở khóa'}
                   </strong>
                 </span>
               </div>
             </div>
 
             {/* Live Derived Telemetry Cards */}
-            {showSolution || hasCustomOverrides ? (
+            {isResultUnlocked ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {sandboxState.liveMetrics.map((m, i) => (
                   <div
@@ -859,7 +922,9 @@ export function ProblemSandboxClient({
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-3.5 text-center text-xs font-semibold text-slate-500">
-                🔒 Kết quả tính toán chi tiết của đề gốc đang được ẩn để bạn tự chọn đáp án <strong>A, B, C, D</strong> bên trái trước (hoặc kéo thanh trượt What-If để thử số khác).
+                🔒 Số liệu đáp án trên đồ thị đang được ẩn để bạn tự nhập kết quả vào ô{' '}
+                <strong>Nhập đáp án</strong> bên trái và bấm <strong>Kiểm tra đáp án</strong> (dù là đề
+                gốc hay đề đã đổi số What-If).
               </div>
             )}
           </div>

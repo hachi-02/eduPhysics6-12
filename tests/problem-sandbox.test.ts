@@ -3,6 +3,7 @@ import {
   classifySimDomain,
   extractRawQuantitiesFromText,
   buildProblemSandboxState,
+  verifyStudentNumericAnswer,
 } from '../lib/problem-sandbox';
 
 console.log('Running Problem-to-Sim Sandbox unit tests...');
@@ -39,5 +40,34 @@ const overriddenState = buildProblemSandboxState(
 );
 assert.strictEqual(overriddenState.simParameters.resistance, 9);
 assert.strictEqual(overriddenState.liveMetrics[0].value, '2.00'); // I = 18 / 9 = 2.00 A
+assert.strictEqual(overriddenState.targetNumericAnswer, 2);
+assert.strictEqual(
+  verifyStudentNumericAnswer('2', overriddenState.targetNumericAnswer, overriddenState.acceptableAnswers),
+  true
+);
+assert.strictEqual(
+  verifyStudentNumericAnswer('2,0 A', overriddenState.targetNumericAnswer, overriddenState.acceptableAnswers),
+  true
+);
+assert.ok(overriddenState.dynamicExplanation.includes('I = U / R = 18 / 9 = 2 A'));
+
+// 5. Test Thermal Calorimetry Original vs Modified Answer & Solution
+const sampleHeat =
+  'Đun nóng 2 kg nước từ 25 °C lên đến 100 °C. Cho nhiệt dung riêng c = 4180 J/(kg.K).|||Q = m.c.Δt = 627 000 J|||627 000 J (627 kJ)';
+const heatOrig = buildProblemSandboxState(sampleHeat, 'thermal_lab');
+assert.strictEqual(
+  verifyStudentNumericAnswer('627', heatOrig.targetNumericAnswer, heatOrig.acceptableAnswers),
+  true
+);
+assert.strictEqual(
+  verifyStudentNumericAnswer('627 000', heatOrig.targetNumericAnswer, heatOrig.acceptableAnswers),
+  true
+);
+const heatMod = buildProblemSandboxState(sampleHeat, 'thermal_lab', {}, { mass: 3 });
+assert.strictEqual(
+  verifyStudentNumericAnswer('940,5', heatMod.targetNumericAnswer, heatMod.acceptableAnswers),
+  true
+);
+assert.ok(heatMod.dynamicExplanation.includes('940,5 kJ'));
 
 console.log('✅ All Problem-to-Sim Sandbox tests passed!');

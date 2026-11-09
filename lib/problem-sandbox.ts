@@ -2,12 +2,14 @@
  * ============================================================================
  * INTERACTIVE PROBLEM-TO-SIM SANDBOX ENGINE (GRADES 6 - 12)
  * ============================================================================
- * Directly parses the active question's text (`question_text`) and solution
- * (`explanation`) to extract the EXACT numbers, variables, and formula of that
- * specific problem, linking them 1-to-1 with:
+ * Directly parses the active question's text (`question_text`), solution
+ * (`explanation`), and correct option (`correctOptionText`) to provide:
  *   1. Dynamic rewriting of the Question Text (`modifiedQuestionText`) when What-If sliders move
- *   2. Real-time Recalculated Answer (`originalAnswerSummary` vs `newAnswerSummary`)
- *   3. Live Comparative Problem Curve (`problemGraph`) showing Original Curve (dashed)
+ *   2. Live Numerical Answer Checking (`targetNumericAnswer`, `acceptableAnswers`, `answerUnit`)
+ *      that works for BOTH the Original Problem AND any Modified What-If Problem!
+ *   3. Dynamic Step-by-Step Solution (`dynamicExplanation`) computed live from the
+ *      exact numbers currently on screen!
+ *   4. Live Comparative Problem Curve (`problemGraph`) showing Original Curve (dashed)
  *      vs Modified What-If Curve (solid) + Moving Answer Crosshair Point!
  */
 
@@ -64,6 +66,10 @@ export interface ProblemSandboxExtractionResult {
   modifiedQuestionText: string;
   originalAnswerLabel: string;
   newAnswerLabel: string;
+  targetNumericAnswer: number;
+  acceptableAnswers: number[];
+  answerUnit: string;
+  dynamicExplanation: string;
   extractedList: ExtractedPhysicsParam[];
   simParameters: Record<string, number>;
   sliders: SandboxSliderSpec[];
@@ -210,14 +216,14 @@ export function classifySimDomain(simKey: string): SandboxDomainType {
   return 'thermal';
 }
 
-function parseVnNumber(raw: string): number | null {
+export function parseVnNumber(raw: string): number | null {
   if (!raw) return null;
   const cleaned = raw.trim().replace(/\s+/g, '').replace(',', '.');
   const val = Number(cleaned);
   return Number.isFinite(val) ? val : null;
 }
 
-function formatVnNum(val: number): string {
+export function formatVnNum(val: number): string {
   return String(Number(val.toFixed(4))).replace('.', ',');
 }
 
@@ -237,8 +243,43 @@ function makeSliderBounds(val: number, stepHint?: number): { min: number; max: n
 }
 
 /**
- * Replace numbers in the original question stem when a user moves a What-If slider
+ * Check if a student's typed numerical answer matches any of the acceptable target values
  */
+export function verifyStudentNumericAnswer(
+  rawInput: string,
+  targetPrimary: number,
+  acceptableList: number[] = []
+): boolean {
+  if (!rawInput || !rawInput.trim()) return false;
+  // Allow students to type just the number ("627", "12,5", "627 000") or number + unit ("627 kJ")
+  const match = rawInput
+    .trim()
+    .replace(/\s+/g, '')
+    .match(/^[-+]?\d+(?:[.,]\d+)?/);
+  if (!match) return false;
+
+  const token = match[0];
+  const parsedCandidates: number[] = [];
+  const asDecimal = Number(token.replace(',', '.'));
+  if (Number.isFinite(asDecimal)) parsedCandidates.push(asDecimal);
+
+  // Also support dot as thousand separator when 3 digits follow (e.g. "627.000" -> 627000)
+  if (/^[-+]?\d+\.\d{3}$/.test(token)) {
+    const asThousand = Number(token.replace('.', ''));
+    if (Number.isFinite(asThousand)) parsedCandidates.push(asThousand);
+  }
+
+  const targets = [targetPrimary, ...acceptableList];
+  for (const userVal of parsedCandidates) {
+    for (const target of targets) {
+      const absDiff = Math.abs(userVal - target);
+      const relTol = Math.max(0.05, Math.abs(target) * 0.025); // 2.5% tolerance or 0.05
+      if (absDiff <= relTol) return true;
+    }
+  }
+  return false;
+}
+
 function rewriteQuestionStem(
   rawStem: string,
   replacements: Array<{ rawToken?: string; oldVal: number; newVal: number; unit: string }>
@@ -246,7 +287,9 @@ function rewriteQuestionStem(
   let out = rawStem;
   for (const r of replacements) {
     if (Math.abs(r.newVal - r.oldVal) < 1e-6) continue;
-    const newFormatted = `[${formatVnNum(r.newVal)} ${r.unit} (Đề gốc: ${formatVnNum(r.oldVal)} ${r.unit})]`;
+    const newFormatted = r.unit
+      ? `[${formatVnNum(r.newVal)} ${r.unit} (Đề gốc: ${formatVnNum(r.oldVal)} ${r.unit})]`
+      : `[${formatVnNum(r.newVal)} (Đề gốc: ${formatVnNum(r.oldVal)})]`;
     if (r.rawToken && out.includes(r.rawToken)) {
       out = out.replace(r.rawToken, newFormatted);
     }
@@ -300,8 +343,8 @@ export function extractRawQuantitiesFromText(text: string): Record<string, { val
 }
 
 /**
- * Build Question-Specific Sandbox State directly from the active Question's text & explanation!
- * Note: questionText can be passed as just question_text or question_text + " ||| " + explanation
+ * Build Question-Specific Sandbox State directly from the active Question's text, explanation & correct option!
+ * Format of questionText: `${question_text}|||${explanation}|||${correctOptionText}`
  */
 export function buildProblemSandboxState(
   questionText: string,
@@ -311,6 +354,8 @@ export function buildProblemSandboxState(
 ): ProblemSandboxExtractionResult {
   const parts = (questionText || '').split('|||');
   const stemOnly = parts[0] || '';
+  const origExplanation = parts[1] || '';
+  const correctOptText = parts[2] || '';
   const fullClean = (questionText || '')
     .replace(/\\text\{([^}]*)\}/g, '$1')
     .replace(/\\,/g, ' ');
@@ -320,7 +365,7 @@ export function buildProblemSandboxState(
   };
 
   // ==========================================================================
-  // ARCHETYPE 1: RADIOACTIVE DECAY (T = ... ngày/năm/giờ/phút, m0 / N0, t = ...)
+  // ARCHETYPE 1: RADIOACTIVE DECAY
   // ==========================================================================
   const halfLifeMatch = stemOnly.match(
     /chu\s*k[ỳì]\s*bán\s*rã\s*(?:T\s*=\s*)?((\d+(?:[.,]\d+)?)\s*(ngày|năm|giờ|phút|giây|s))\b/i
@@ -333,10 +378,75 @@ export function buildProblemSandboxState(
     const timeMatches = Array.from(
       stemOnly.matchAll(/(?:sau\s+|thời gian\s+t\s*=\s*)((\d+(?:[.,]\d+)?)\s*(ngày|năm|giờ|phút|giây|s))\b/gi)
     );
+    const ratioMatch = stemOnly.match(/tỉ số[^0-9]{0,60}bằng\s*((\d+(?:[.,]\d+)?))/i);
 
-    const m0_base = m0Match ? parseVnNumber(m0Match[2]) || 100 : 100;
+    // Sub-case 1A: Asking for time t when ratio ΔN / N = R (e.g. Polonium-210 question)
+    if (ratioMatch && !m0Match) {
+      const ratio_base = parseVnNumber(ratioMatch[2]) || 3;
+      const T_val = getVal('halfLife', T_base);
+      const ratio_val = getVal('targetRatio', ratio_base);
+
+      const t_orig = T_base * Math.log2(ratio_base + 1);
+      const numPeriods = Math.log2(ratio_val + 1);
+      const t_ans = T_val * numPeriods;
+
+      const modifiedQuestionText = rewriteQuestionStem(stemOnly, [
+        { rawToken: rawTToken, oldVal: T_base, newVal: T_val, unit: tUnit },
+        { rawToken: ratioMatch[1], oldVal: ratio_base, newVal: ratio_val, unit: '' },
+      ]);
+
+      const graphPoints: ProblemGraphPoint[] = [];
+      const tMaxG = Math.max(t_orig * 1.4, t_ans * 1.4, T_base * 4);
+      for (let i = 0; i <= 35; i++) {
+        const tx = Number(((tMaxG * i) / 35).toFixed(1));
+        graphPoints.push({
+          x: tx,
+          yOrig: Math.pow(2, tx / T_base) - 1,
+          yNew: Math.pow(2, tx / T_val) - 1,
+        });
+      }
+
+      return {
+        domainName: 'Định luật Phóng xạ: Tìm Thời gian theo Tỉ số Phân rã ΔN / N',
+        modifiedQuestionText,
+        originalAnswerLabel: `t = ${formatVnNum(t_orig)} ${tUnit}`,
+        newAnswerLabel: `t = ${formatVnNum(t_ans)} ${tUnit}`,
+        targetNumericAnswer: Number(t_ans.toFixed(2)),
+        acceptableAnswers: [Number(t_ans.toFixed(1)), Math.round(t_ans)],
+        answerUnit: tUnit,
+        dynamicExplanation: `Ta có tỉ số giữa số hạt đã phân rã và số hạt còn lại: ΔN / N(t) = ${formatVnNum(ratio_val)} ⇔ [N₀ - N(t)] / N(t) = ${formatVnNum(ratio_val)} ⇔ N₀ / N(t) = ${formatVnNum(ratio_val + 1)} = 2^(t/T). Suy ra số chu kỳ bán rã đã trôi qua là k = t / T = log₂(${formatVnNum(ratio_val + 1)}) ≈ ${formatVnNum(numPeriods)} chu kỳ. Vậy thời gian cần tìm là: t = k · T = ${formatVnNum(numPeriods)} · ${formatVnNum(T_val)} = ${formatVnNum(t_ans)} ${tUnit}.`,
+        extractedList: [
+          { paramKey: 'halfLife', symbol: 'T', label: 'Chu kỳ bán rã', value: T_val, defaultValue: T_base, unit: tUnit, fromQuestionText: true },
+          { paramKey: 'targetRatio', symbol: 'ΔN/N', label: 'Tỉ số Phân rã / Còn lại', value: ratio_val, defaultValue: ratio_base, unit: 'lần', fromQuestionText: true },
+        ],
+        simParameters: { ...baseSimParams, initialCount: 1000, halfLife: T_val },
+        sliders: [
+          { paramKey: 'halfLife', symbol: 'T', label: 'Chu kỳ bán rã T trong đề', unit: tUnit, min: 10, max: Math.max(300, T_base * 2), step: 2, defaultValue: T_base },
+          { paramKey: 'targetRatio', symbol: 'ΔN/N', label: 'Tỉ số ΔN / N trong đề', unit: 'lần', min: 1, max: 15, step: 1, defaultValue: ratio_base },
+        ],
+        liveMetrics: [
+          { symbol: 'N₀ / N', label: 'Tỉ số hạt ban đầu / còn lại', formula: 'N₀/N = (ΔN/N) + 1', value: (ratio_val + 1).toFixed(1), unit: 'lần', highlightColor: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
+          { symbol: 'k = t/T', label: 'Số chu kỳ bán rã', formula: 'k = log₂(N₀/N)', value: numPeriods.toFixed(2), unit: 'chu kỳ', highlightColor: 'text-purple-700 bg-purple-50 border-purple-200' },
+          { symbol: 't', label: 'Thời gian cần tìm', formula: 't = k · T', value: t_ans.toFixed(1), unit: tUnit, highlightColor: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+        ],
+        verificationInsight: `Với chu kỳ T = ${T_val} ${tUnit}, để tỉ số ΔN/N đạt ${ratio_val} thì mẫu chất phải trải qua k = ${numPeriods.toFixed(2)} chu kỳ, tương ứng t = ${t_ans.toFixed(1)} ${tUnit}.`,
+        problemGraph: {
+          title: `Đồ thị Tỉ số Phân rã ΔN/N theo Thời gian t (${tUnit})`,
+          xLabel: 'Thời gian t',
+          xUnit: tUnit,
+          yLabel: 'Tỉ số ΔN / N',
+          yUnit: 'lần',
+          points: graphPoints,
+          markerOrig: { x: t_orig, y: ratio_base, label: `Đề gốc: (${t_orig.toFixed(1)} ${tUnit}, tỉ số ${ratio_base})` },
+          markerNew: { x: t_ans, y: ratio_val, label: `Đề hiện tại: (${t_ans.toFixed(1)} ${tUnit}, tỉ số ${ratio_val})` },
+        },
+      };
+    }
+
+    // Sub-case 1B: Standard remaining mass m = m0 * 2^(-t/T)
+    const m0_base = m0Match ? parseVnNumber(m0Match[2]) || 200 : 200;
     const mUnit = m0Match ? m0Match[3] : 'g';
-    const t_base = timeMatches.length > 0 ? parseVnNumber(timeMatches[0][2]) || T_base * 2 : T_base * 2;
+    const t_base = timeMatches.length > 0 ? parseVnNumber(timeMatches[0][2]) || T_base * 4 : T_base * 4;
 
     const T_val = getVal('halfLife', T_base);
     const m0_val = getVal('initialCount', m0_base);
@@ -347,9 +457,9 @@ export function buildProblemSandboxState(
     const mRemain = m0_val * Math.pow(2, -numPeriods);
     const mDecayed = m0_val - mRemain;
 
-    const bT = makeSliderBounds(T_base);
+    const bT = makeSliderBounds(T_base, 1);
     const bM0 = makeSliderBounds(m0_base, 10);
-    const bTime = makeSliderBounds(Math.max(1, Number(t_base.toFixed(1))));
+    const bTime = makeSliderBounds(Math.max(1, Number(t_base.toFixed(1))), 2);
 
     const modifiedQuestionText = rewriteQuestionStem(stemOnly, [
       { rawToken: rawTToken, oldVal: T_base, newVal: T_val, unit: tUnit },
@@ -357,7 +467,7 @@ export function buildProblemSandboxState(
       { rawToken: timeMatches[0]?.[1], oldVal: t_base, newVal: t_val, unit: tUnit },
     ]);
 
-    const tMaxGraph = Math.max(t_base * 1.5, t_val * 1.3, T_base * 4);
+    const tMaxGraph = Math.max(t_base * 1.4, t_val * 1.3, T_base * 4);
     const graphPoints: ProblemGraphPoint[] = [];
     for (let i = 0; i <= 40; i++) {
       const tx = Number(((tMaxGraph * i) / 40).toFixed(2));
@@ -371,8 +481,12 @@ export function buildProblemSandboxState(
     return {
       domainName: 'Định luật Phóng xạ & Chu kỳ Bán rã',
       modifiedQuestionText,
-      originalAnswerLabel: `m_còn_lại = ${formatVnNum(origRemain)} ${mUnit} (sau ${formatVnNum(t_base / T_base)} chu kỳ)`,
-      newAnswerLabel: `m_còn_lại = ${formatVnNum(mRemain)} ${mUnit} (sau ${formatVnNum(numPeriods)} chu kỳ)`,
+      originalAnswerLabel: `${formatVnNum(origRemain)} ${mUnit}`,
+      newAnswerLabel: `${formatVnNum(mRemain)} ${mUnit}`,
+      targetNumericAnswer: Number(mRemain.toFixed(3)),
+      acceptableAnswers: [Number(mRemain.toFixed(2)), Number(mRemain.toFixed(1))],
+      answerUnit: mUnit,
+      dynamicExplanation: `Số chu kỳ bán rã đã trôi qua là: k = t / T = ${formatVnNum(t_val)} / ${formatVnNum(T_val)} = ${formatVnNum(numPeriods)} chu kỳ. Áp dụng định luật phóng xạ, khối lượng chất phóng xạ còn lại sau thời gian t = ${formatVnNum(t_val)} ${tUnit} là: m(t) = m₀ · 2^(-t/T) = ${formatVnNum(m0_val)} · 2^(-${formatVnNum(numPeriods)}) ≈ ${formatVnNum(mRemain)} ${mUnit} (lượng đã bị phân rã là Δm = ${formatVnNum(mDecayed)} ${mUnit}).`,
       extractedList: [
         { paramKey: 'halfLife', symbol: 'T', label: 'Chu kỳ bán rã', value: T_val, defaultValue: T_base, unit: tUnit, fromQuestionText: true },
         { paramKey: 'initialCount', symbol: 'm₀', label: 'Khối lượng ban đầu', value: m0_val, defaultValue: m0_base, unit: mUnit, fromQuestionText: Boolean(m0Match) },
@@ -401,8 +515,8 @@ export function buildProblemSandboxState(
         yLabel: 'Khối lượng còn lại m',
         yUnit: mUnit,
         points: graphPoints,
-        markerOrig: { x: t_base, y: origRemain, label: `Đề gốc: (${t_base} ${tUnit}, ${origRemain.toFixed(1)} ${mUnit})` },
-        markerNew: { x: t_val, y: mRemain, label: `Đề mới: (${t_val} ${tUnit}, ${mRemain.toFixed(1)} ${mUnit})` },
+        markerOrig: { x: t_base, y: origRemain, label: `Đề gốc: (${t_base} ${tUnit}, ${origRemain.toFixed(2)} ${mUnit})` },
+        markerNew: { x: t_val, y: mRemain, label: `Đề hiện tại: (${t_val} ${tUnit}, ${mRemain.toFixed(2)} ${mUnit})` },
       },
     };
   }
@@ -411,7 +525,7 @@ export function buildProblemSandboxState(
   // ARCHETYPE 2: KELVIN <-> CELSIUS TEMPERATURE CONVERSION
   // ==========================================================================
   if (
-    (fullClean.includes('Kelvin') || fullClean.includes('Celsius') || fullClean.includes('Fahrenheit')) &&
+    (fullClean.includes('Kelvin') || fullClean.includes('Celsius')) &&
     (stemOnly.match(/\d+\s*K\b/) || stemOnly.match(/-?\d+\s*°C/))
   ) {
     const kMatch = stemOnly.match(/((\d+(?:[.,]\d+)?)\s*K)\b/);
@@ -440,11 +554,20 @@ export function buildProblemSandboxState(
       });
     }
 
+    const targetAns = isInputKelvin ? c_val : k_val;
+    const ansUnit = isInputKelvin ? '°C' : 'K';
+
     return {
       domainName: 'Chuyển đổi Thang Nhiệt độ (Celsius • Kelvin • Fahrenheit)',
       modifiedQuestionText,
-      originalAnswerLabel: isInputKelvin ? `t = ${formatVnNum(c_base)} °C` : `T = ${formatVnNum(k_base)} K`,
-      newAnswerLabel: isInputKelvin ? `t = ${formatVnNum(c_val)} °C` : `T = ${formatVnNum(k_val)} K`,
+      originalAnswerLabel: isInputKelvin ? `${formatVnNum(Math.round(c_base))} °C (${formatVnNum(c_base)} °C)` : `${formatVnNum(k_base)} K`,
+      newAnswerLabel: isInputKelvin ? `${formatVnNum(Math.round(c_val))} °C (${formatVnNum(c_val)} °C)` : `${formatVnNum(k_val)} K`,
+      targetNumericAnswer: targetAns,
+      acceptableAnswers: [Math.round(targetAns), Number(targetAns.toFixed(1)), Number((isInputKelvin ? k_val - 273 : c_val + 273).toFixed(2))],
+      answerUnit: ansUnit,
+      dynamicExplanation: isInputKelvin
+        ? `Áp dụng công thức quy đổi từ thang Kelvin (K) sang thang Celsius (°C): t(°C) = T(K) - 273,15 = ${formatVnNum(k_val)} - 273,15 = ${formatVnNum(c_val)} °C (xấp xỉ ${Math.round(c_val)} °C).`
+        : `Áp dụng công thức quy đổi từ thang Celsius (°C) sang thang Kelvin (K): T(K) = t(°C) + 273,15 = ${formatVnNum(c_val)} + 273,15 = ${formatVnNum(k_val)} K.`,
       extractedList: [
         { paramKey: 'celsius', symbol: 't (°C)', label: 'Nhiệt độ Celsius', value: c_val, defaultValue: c_base, unit: '°C', fromQuestionText: true },
         { paramKey: 'temperature', symbol: 'T (K)', label: 'Nhiệt độ Kelvin', value: k_val, defaultValue: k_base, unit: 'K', fromQuestionText: true },
@@ -467,7 +590,7 @@ export function buildProblemSandboxState(
         yUnit: 'K',
         points: graphPoints,
         markerOrig: { x: c_base, y: k_base, label: `Đề gốc: (${c_base} °C, ${k_base} K)` },
-        markerNew: { x: c_val, y: k_val, label: `Đề mới: (${c_val} °C, ${k_val} K)` },
+        markerNew: { x: c_val, y: k_val, label: `Đề hiện tại: (${c_val} °C, ${k_val} K)` },
       },
     };
   }
@@ -477,13 +600,13 @@ export function buildProblemSandboxState(
   // ==========================================================================
   if (fullClean.includes('ΔU') || fullClean.includes('nội năng')) {
     const aUnsigned = stemOnly.match(/công\s+((\d+(?:[.,]\d+)?)\s*J)/i);
-    const qUnsigned = stemOnly.match(/nhiệt lượng\s+((\d+(?:[.,]\d+)?)\s*J)/i);
+    const qUnsigned = stemOnly.match(/(?:nhiệt lượng|Q\s*=\s*)((\d+(?:[.,]\d+)?)\s*J)/i);
 
-    const aSign = stemOnly.includes('thực hiện một công') || stemOnly.includes('sinh công') ? -1 : 1;
+    const aSign = stemOnly.includes('đẳng tích') ? 0 : stemOnly.includes('thực hiện một công') || stemOnly.includes('sinh công') ? -1 : 1;
     const qSign = stemOnly.includes('truyền ra') || stemOnly.includes('tỏa') ? -1 : 1;
 
-    const A_mag_base = aUnsigned ? parseVnNumber(aUnsigned[2]) || 80 : 80;
-    const Q_mag_base = qUnsigned ? parseVnNumber(qUnsigned[2]) || 25 : 25;
+    const A_mag_base = aUnsigned ? parseVnNumber(aUnsigned[2]) || 80 : 0;
+    const Q_mag_base = qUnsigned ? parseVnNumber(qUnsigned[2]) || 25 : 600;
 
     const A_mag = getVal('workMag', A_mag_base);
     const Q_mag = getVal('heatMag', Q_mag_base);
@@ -497,13 +620,13 @@ export function buildProblemSandboxState(
     const deltaU = A_val + Q_val;
 
     const modifiedQuestionText = rewriteQuestionStem(stemOnly, [
-      { rawToken: aUnsigned?.[1], oldVal: A_mag_base, newVal: A_mag, unit: 'J' },
-      { rawToken: qUnsigned?.[1], oldVal: Q_mag_base, newVal: Q_mag, unit: 'J' },
+      ...(aUnsigned ? [{ rawToken: aUnsigned[1], oldVal: A_mag_base, newVal: A_mag, unit: 'J' }] : []),
+      ...(qUnsigned ? [{ rawToken: qUnsigned[1], oldVal: Q_mag_base, newVal: Q_mag, unit: 'J' }] : []),
     ]);
 
     const graphPoints: ProblemGraphPoint[] = [];
     for (let i = 0; i <= 30; i++) {
-      const qx = -200 + (400 * i) / 30;
+      const qx = -200 + (800 * i) / 30;
       graphPoints.push({
         x: Number(qx.toFixed(0)),
         yOrig: A_orig + qx,
@@ -516,21 +639,37 @@ export function buildProblemSandboxState(
       modifiedQuestionText,
       originalAnswerLabel: `ΔU = ${deltaU_orig >= 0 ? '+' : ''}${formatVnNum(deltaU_orig)} J`,
       newAnswerLabel: `ΔU = ${deltaU >= 0 ? '+' : ''}${formatVnNum(deltaU)} J`,
+      targetNumericAnswer: deltaU,
+      acceptableAnswers: [Math.abs(deltaU)],
+      answerUnit: 'J',
+      dynamicExplanation: `Theo quy ước dấu của Định luật I Nhiệt động lực học: ${
+        aSign === 0
+          ? 'Quá trình đẳng tích nên công A = 0 J'
+          : aSign > 0
+            ? `Hệ nhận công nên A = +${formatVnNum(A_mag)} J`
+            : `Hệ thực hiện công nên A = -${formatVnNum(A_mag)} J`
+      }; ${
+        qSign > 0
+          ? `Hệ nhận nhiệt lượng nên Q = +${formatVnNum(Q_mag)} J`
+          : `Hệ truyền nhiệt ra ngoài nên Q = -${formatVnNum(Q_mag)} J`
+      }. Vậy độ biến thiên nội năng của khối khí là: ΔU = A + Q = (${A_val}) + (${Q_val}) = ${deltaU >= 0 ? '+' : ''}${formatVnNum(deltaU)} J.`,
       extractedList: [
         { paramKey: 'workMag', symbol: '|A|', label: 'Độ lớn công trao đổi', value: A_mag, defaultValue: A_mag_base, unit: 'J', fromQuestionText: true },
         { paramKey: 'heatMag', symbol: '|Q|', label: 'Độ lớn nhiệt lượng', value: Q_mag, defaultValue: Q_mag_base, unit: 'J', fromQuestionText: true },
       ],
       simParameters: { ...baseSimParams, power: Math.max(200, Math.abs(Q_val) * 20), mass: 1 },
       sliders: [
-        { paramKey: 'workMag', symbol: '|A|', label: 'Độ lớn công trong đề', unit: 'J', min: 10, max: 500, step: 5, defaultValue: A_mag_base },
-        { paramKey: 'heatMag', symbol: '|Q|', label: 'Độ lớn nhiệt lượng trong đề', unit: 'J', min: 5, max: 500, step: 5, defaultValue: Q_mag_base },
+        ...(aSign !== 0
+          ? [{ paramKey: 'workMag', symbol: '|A|', label: 'Độ lớn công trong đề', unit: 'J', min: 10, max: 600, step: 5, defaultValue: A_mag_base }]
+          : []),
+        { paramKey: 'heatMag', symbol: '|Q|', label: 'Độ lớn nhiệt lượng trong đề', unit: 'J', min: 10, max: 1000, step: 10, defaultValue: Q_mag_base },
       ],
       liveMetrics: [
-        { symbol: 'A', label: 'Công cơ học (kèm dấu)', formula: A_val >= 0 ? 'Nhận công (A > 0)' : 'Sinh công (A < 0)', value: `${A_val >= 0 ? '+' : ''}${A_val}`, unit: 'J', highlightColor: 'text-sky-700 bg-sky-50 border-sky-200' },
+        { symbol: 'A', label: 'Công cơ học (kèm dấu)', formula: A_val >= 0 ? 'Nhận công (A ≥ 0)' : 'Sinh công (A < 0)', value: `${A_val >= 0 ? '+' : ''}${A_val}`, unit: 'J', highlightColor: 'text-sky-700 bg-sky-50 border-sky-200' },
         { symbol: 'Q', label: 'Nhiệt lượng (kèm dấu)', formula: Q_val >= 0 ? 'Nhận nhiệt (Q > 0)' : 'Tỏa nhiệt (Q < 0)', value: `${Q_val >= 0 ? '+' : ''}${Q_val}`, unit: 'J', highlightColor: 'text-amber-800 bg-amber-50 border-amber-200' },
         { symbol: 'ΔU', label: 'Độ biến thiên Nội năng', formula: 'ΔU = A + Q', value: `${deltaU >= 0 ? '+' : ''}${deltaU}`, unit: 'J', highlightColor: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
       ],
-      verificationInsight: `Khi thay số trên đề bài thành |A| = ${A_mag} J (${A_val >= 0 ? '+' : ''}${A_val} J) và |Q| = ${Q_mag} J (${Q_val >= 0 ? '+' : ''}${Q_val} J), độ biến thiên nội năng là ΔU = A + Q = ${deltaU >= 0 ? '+' : ''}${deltaU} J.`,
+      verificationInsight: `Với A = ${A_val >= 0 ? '+' : ''}${A_val} J và Q = ${Q_val >= 0 ? '+' : ''}${Q_val} J, độ biến thiên nội năng là ΔU = A + Q = ${deltaU >= 0 ? '+' : ''}${deltaU} J.`,
       problemGraph: {
         title: 'Đồ thị Độ biến thiên Nội năng ΔU theo Nhiệt lượng Q',
         xLabel: 'Nhiệt lượng Q',
@@ -539,7 +678,7 @@ export function buildProblemSandboxState(
         yUnit: 'J',
         points: graphPoints,
         markerOrig: { x: Q_orig, y: deltaU_orig, label: `Đề gốc: ΔU = ${deltaU_orig} J` },
-        markerNew: { x: Q_val, y: deltaU, label: `Đề mới: ΔU = ${deltaU} J` },
+        markerNew: { x: Q_val, y: deltaU, label: `Đề hiện tại: ΔU = ${deltaU} J` },
       },
     };
   }
@@ -549,7 +688,7 @@ export function buildProblemSandboxState(
   // ==========================================================================
   const cHeatMatch = stemOnly.match(/c\s*=\s*(\d+(?:[.,]\d+)?)\s*J\/\(kg/i);
   const tempMatches = Array.from(stemOnly.matchAll(/((-?\d+(?:[.,]\d+)?)\s*°C)/g));
-  if (cHeatMatch && tempMatches.length >= 2) {
+  if (cHeatMatch && tempMatches.length >= 2 && !stemOnly.includes('ấm siêu tốc') && !stemOnly.includes('c_sắt')) {
     const mMatch = stemOnly.match(/((\d+(?:[.,]\d+)?)\s*kg)/i);
     const m_base = mMatch ? parseVnNumber(mMatch[2]) || 2 : 2;
     const c_base = parseVnNumber(cHeatMatch[1]) || 4180;
@@ -585,8 +724,12 @@ export function buildProblemSandboxState(
     return {
       domainName: 'Phương trình Nhiệt lượng Đun nóng Q = m·c·(t₂ - t₁)',
       modifiedQuestionText,
-      originalAnswerLabel: `Q = ${formatVnNum(Q_orig_kj)} kJ (${(Q_orig_kj * 1000).toLocaleString('vi-VN')} J)`,
-      newAnswerLabel: `Q = ${formatVnNum(Q_kj)} kJ (${Q_joule.toLocaleString('vi-VN')} J)`,
+      originalAnswerLabel: `${formatVnNum(Q_orig_kj)} kJ (hoặc ${(Q_orig_kj * 1000).toLocaleString('vi-VN')} J)`,
+      newAnswerLabel: `${formatVnNum(Q_kj)} kJ (hoặc ${Q_joule.toLocaleString('vi-VN')} J)`,
+      targetNumericAnswer: Number(Q_kj.toFixed(2)),
+      acceptableAnswers: [Number(Q_joule.toFixed(0)), Number(Q_kj.toFixed(1))],
+      answerUnit: 'kJ (hoặc J)',
+      dynamicExplanation: `Độ tăng nhiệt độ của nước là: Δt = t₂ - t₁ = ${formatVnNum(t2_val)} - ${formatVnNum(t1_val)} = ${formatVnNum(deltaT)} °C. Áp dụng công thức tính nhiệt lượng thu vào: Q = m · c · (t₂ - t₁) = ${formatVnNum(m_val)} · ${c_base} · ${formatVnNum(deltaT)} = ${Q_joule.toLocaleString('vi-VN')} J = ${formatVnNum(Q_kj)} kJ.`,
       extractedList: [
         { paramKey: 'mass', symbol: 'm', label: 'Khối lượng nước', value: m_val, defaultValue: m_base, unit: 'kg', fromQuestionText: true },
         { paramKey: 't1', symbol: 't₁', label: 'Nhiệt độ ban đầu', value: t1_val, defaultValue: t1_base, unit: '°C', fromQuestionText: true },
@@ -603,7 +746,7 @@ export function buildProblemSandboxState(
         { symbol: 'Q (J)', label: 'Nhiệt lượng (Joule)', formula: 'Q = m · c · Δt', value: Q_joule.toFixed(0), unit: 'J', highlightColor: 'text-amber-800 bg-amber-50 border-amber-200' },
         { symbol: 'Q (kJ)', label: 'Nhiệt lượng (kJ)', formula: 'Q / 1000', value: Q_kj.toFixed(1), unit: 'kJ', highlightColor: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
       ],
-      verificationInsight: `Khi đổi đề bài thành m = ${m_val} kg, đun từ t₁ = ${t1_val} °C lên t₂ = ${t2_val} °C, nhiệt lượng cần cung cấp là Q = ${Q_kj.toFixed(1)} kJ.`,
+      verificationInsight: `Với m = ${m_val} kg, đun từ t₁ = ${t1_val} °C lên t₂ = ${t2_val} °C, nhiệt lượng cần cung cấp là Q = ${Q_kj.toFixed(1)} kJ (${Q_joule.toFixed(0)} J).`,
       problemGraph: {
         title: 'Đồ thị Nhiệt lượng Q (kJ) theo Nhiệt độ đun tới t₂ (°C)',
         xLabel: 'Nhiệt độ t₂',
@@ -611,8 +754,8 @@ export function buildProblemSandboxState(
         yLabel: 'Nhiệt lượng Q',
         yUnit: 'kJ',
         points: graphPoints,
-        markerOrig: { x: t2_base, y: Q_orig_kj, label: `Đề gốc: (${t2_base} °C, ${Q_orig_kj.toFixed(0)} kJ)` },
-        markerNew: { x: t2_val, y: Q_kj, label: `Đề mới: (${t2_val} °C, ${Q_kj.toFixed(0)} kJ)` },
+        markerOrig: { x: t2_base, y: Q_orig_kj, label: `Đề gốc: (${t2_base} °C, ${Q_orig_kj.toFixed(1)} kJ)` },
+        markerNew: { x: t2_val, y: Q_kj, label: `Đề hiện tại: (${t2_val} °C, ${Q_kj.toFixed(1)} kJ)` },
       },
     };
   }
@@ -654,8 +797,12 @@ export function buildProblemSandboxState(
     return {
       domainName: 'Định luật Boyle (Đẳng nhiệt p₁·V₁ = p₂·V₂)',
       modifiedQuestionText,
-      originalAnswerLabel: `p₂ = ${formatVnNum(p2_orig)} ${pUnit}`,
-      newAnswerLabel: `p₂ = ${formatVnNum(p2_val)} ${pUnit}`,
+      originalAnswerLabel: `${formatVnNum(p2_orig)} ${pUnit}`,
+      newAnswerLabel: `${formatVnNum(p2_val)} ${pUnit}`,
+      targetNumericAnswer: Number(p2_val.toFixed(2)),
+      acceptableAnswers: [Number((p2_val * 1e5).toFixed(0)), Number(p2_val.toFixed(1))],
+      answerUnit: pUnit,
+      dynamicExplanation: `Áp dụng phương trình Định luật Boyle cho quá trình đẳng nhiệt: p₁ · V₁ = p₂ · V₂ ⇒ p₂ = (p₁ · V₁) / V₂ = (${formatVnNum(p1_val)} · ${formatVnNum(V1_val)}) / ${formatVnNum(V2_val)} = ${formatVnNum(p2_val)} ${pUnit}.`,
       extractedList: [
         { paramKey: 'V1', symbol: 'V₁', label: 'Thể tích ban đầu', value: V1_val, defaultValue: V1_base, unit: 'L', fromQuestionText: true },
         { paramKey: 'p1', symbol: 'p₁', label: 'Áp suất ban đầu', value: p1_val, defaultValue: p1_base, unit: pUnit, fromQuestionText: true },
@@ -680,18 +827,18 @@ export function buildProblemSandboxState(
         yUnit: pUnit,
         points: graphPoints,
         markerOrig: { x: V2_base, y: p2_orig, label: `Đề gốc: (${V2_base} L, ${p2_orig.toFixed(2)} ${pUnit})` },
-        markerNew: { x: V2_val, y: p2_val, label: `Đề mới: (${V2_val} L, ${p2_val.toFixed(2)} ${pUnit})` },
+        markerNew: { x: V2_val, y: p2_val, label: `Đề hiện tại: (${V2_val} L, ${p2_val.toFixed(2)} ${pUnit})` },
       },
     };
   }
 
   // ==========================================================================
-  // ARCHETYPE 6: AMPÈRE MAGNETIC FORCE (F = B * I * L * sin(theta))
+  // ARCHETYPE 6: AMPÈRE MAGNETIC FORCE (F = B * I * L)
   // ==========================================================================
   const bTeslaMatch = stemOnly.match(/B\s*=\s*((\d+(?:[.,]\d+)?)\s*T)\b/i);
   const iAmpMatch = stemOnly.match(/(?:I\s*=\s*|dòng điện\s+)((\d+(?:[.,]\d+)?)\s*A)\b/i);
   const lCmMatch = stemOnly.match(/(?:dài\s+|L\s*=\s*)((\d+(?:[.,]\d+)?)\s*cm)\b/i);
-  if (bTeslaMatch && iAmpMatch && lCmMatch) {
+  if (bTeslaMatch && iAmpMatch && lCmMatch && !stemOnly.includes('đo được là')) {
     const L_cm_base = parseVnNumber(lCmMatch[2]) || 25;
     const I_base = parseVnNumber(iAmpMatch[2]) || 4;
     const B_base = parseVnNumber(bTeslaMatch[2]) || 0.2;
@@ -721,8 +868,12 @@ export function buildProblemSandboxState(
     return {
       domainName: 'Lực từ Ampère tác dụng lên đoạn dây dẫn (F = B·I·L)',
       modifiedQuestionText,
-      originalAnswerLabel: `F = ${formatVnNum(F_orig)} N`,
-      newAnswerLabel: `F = ${formatVnNum(F_ampere)} N`,
+      originalAnswerLabel: `${formatVnNum(F_orig)} N`,
+      newAnswerLabel: `${formatVnNum(F_ampere)} N`,
+      targetNumericAnswer: Number(F_ampere.toFixed(3)),
+      acceptableAnswers: [Number(F_ampere.toFixed(2))],
+      answerUnit: 'N',
+      dynamicExplanation: `Đổi chiều dài dây dẫn: L = ${formatVnNum(L_cm)} cm = ${formatVnNum(L_cm / 100)} m. Vì dây dẫn đặt vuông góc với các đường sức từ (θ = 90°, sin 90° = 1), độ lớn lực từ Ampère tác dụng lên đoạn dây là: F = B · I · L · sin 90° = ${formatVnNum(B_val)} · ${formatVnNum(I_val)} · ${formatVnNum(L_cm / 100)} = ${formatVnNum(F_ampere)} N.`,
       extractedList: [
         { paramKey: 'lengthCm', symbol: 'L', label: 'Chiều dài dây dẫn', value: L_cm, defaultValue: L_cm_base, unit: 'cm', fromQuestionText: true },
         { paramKey: 'currentI', symbol: 'I', label: 'Cường độ dòng điện', value: I_val, defaultValue: I_base, unit: 'A', fromQuestionText: true },
@@ -738,7 +889,7 @@ export function buildProblemSandboxState(
         { symbol: 'L (m)', label: 'Chiều dài đổi ra mét', formula: 'L = L(cm) / 100', value: (L_cm / 100).toFixed(2), unit: 'm', highlightColor: 'text-sky-700 bg-sky-50 border-sky-200' },
         { symbol: 'F_từ', label: 'Độ lớn lực từ Ampère', formula: 'F = B · I · L', value: F_ampere.toFixed(3), unit: 'N', highlightColor: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
       ],
-      verificationInsight: `Khi thay đổi thông số đề bài thành L = ${L_cm} cm, I = ${I_val} A, B = ${B_val} T, độ lớn lực từ Ampère mới là F = ${F_ampere.toFixed(3)} N.`,
+      verificationInsight: `Với L = ${L_cm} cm, I = ${I_val} A, B = ${B_val} T, độ lớn lực từ Ampère là F = ${F_ampere.toFixed(3)} N.`,
       problemGraph: {
         title: 'Đồ thị Lực từ Ampère F (N) theo Cường độ dòng điện I (A)',
         xLabel: 'Cường độ dòng điện I',
@@ -747,7 +898,7 @@ export function buildProblemSandboxState(
         yUnit: 'N',
         points: graphPoints,
         markerOrig: { x: I_base, y: F_orig, label: `Đề gốc: (${I_base} A, ${F_orig.toFixed(2)} N)` },
-        markerNew: { x: I_val, y: F_ampere, label: `Đề mới: (${I_val} A, ${F_ampere.toFixed(2)} N)` },
+        markerNew: { x: I_val, y: F_ampere, label: `Đề hiện tại: (${I_val} A, ${F_ampere.toFixed(2)} N)` },
       },
     };
   }
@@ -786,8 +937,12 @@ export function buildProblemSandboxState(
     return {
       domainName: 'Định luật Ohm & Công suất Mạch điện (I = U / R)',
       modifiedQuestionText,
-      originalAnswerLabel: `I = ${formatVnNum(I_orig)} A (P = ${formatVnNum(U_base * I_orig)} W)`,
-      newAnswerLabel: `I = ${formatVnNum(I_val)} A (P = ${formatVnNum(P_val)} W)`,
+      originalAnswerLabel: `${formatVnNum(I_orig)} A`,
+      newAnswerLabel: `${formatVnNum(I_val)} A`,
+      targetNumericAnswer: Number(I_val.toFixed(2)),
+      acceptableAnswers: [Number(P_val.toFixed(1)), Number(I_val.toFixed(1))],
+      answerUnit: 'A',
+      dynamicExplanation: `Áp dụng Định luật Ohm cho đoạn mạch: I = U / R = ${formatVnNum(U_val)} / ${formatVnNum(R_val)} = ${formatVnNum(I_val)} A (công suất tiêu thụ trên điện trở là P = U · I = ${formatVnNum(P_val)} W).`,
       extractedList: [
         { paramKey: 'resistance', symbol: 'R', label: 'Điện trở mạch', value: R_val, defaultValue: R_base, unit: 'Ω', fromQuestionText: true },
         { paramKey: 'voltage', symbol: 'U', label: 'Hiệu điện thế', value: U_val, defaultValue: U_base, unit: 'V', fromQuestionText: Boolean(uMatch) },
@@ -802,7 +957,7 @@ export function buildProblemSandboxState(
         { symbol: 'P', label: 'Công suất tỏa nhiệt', formula: 'P = U² / R', value: P_val.toFixed(1), unit: 'W', highlightColor: 'text-rose-700 bg-rose-50 border-rose-200' },
         { symbol: 'Q(1p)', label: 'Nhiệt lượng tỏa ra (60s)', formula: 'Q = I²Rt', value: (P_val * 60).toFixed(0), unit: 'J', highlightColor: 'text-amber-800 bg-amber-50 border-amber-200' },
       ],
-      verificationInsight: `Khi thay số trong đề thành R = ${R_val} Ω và U = ${U_val} V, cường độ dòng điện là I = ${I_val.toFixed(2)} A và công suất tỏa nhiệt là P = ${P_val.toFixed(1)} W.`,
+      verificationInsight: `Khi R = ${R_val} Ω và U = ${U_val} V, cường độ dòng điện là I = ${I_val.toFixed(2)} A và công suất tỏa nhiệt là P = ${P_val.toFixed(1)} W.`,
       problemGraph: {
         title: 'Đặc tuyến Vôn - Ampe I(U) của Bài toán',
         xLabel: 'Hiệu điện thế U',
@@ -811,16 +966,20 @@ export function buildProblemSandboxState(
         yUnit: 'A',
         points: graphPoints,
         markerOrig: { x: U_base, y: I_orig, label: `Đề gốc: (${U_base} V, ${I_orig.toFixed(2)} A)` },
-        markerNew: { x: U_val, y: I_val, label: `Đề mới: (${U_val} V, ${I_val.toFixed(2)} A)` },
+        markerNew: { x: U_val, y: I_val, label: `Đề hiện tại: (${U_val} V, ${I_val.toFixed(2)} A)` },
       },
     };
   }
 
   // ==========================================================================
-  // ARCHETYPE 8: GENERIC NUMBER TOKEN EXTRACTOR FROM QUESTION STEM
+  // ARCHETYPE 8: GENERAL QUESTION WITH DYNAMIC ANSWER SCALING & EXPLANATION
   // ==========================================================================
-  // Extract all "<number> <unit>" tokens directly from the question stem!
-  const tokenRegex = /((\d+(?:[.,]\d+)?)\s*(kg|g|cm|m\/s²|m\/s\^2|m\/s|km\/h|m|N\/m|N|Hz|s|V|A|\\Omega|Ω|W|kW|J|kJ|°C|K|L|atm|Pa|T|H|u|MeV))\b/g;
+  // Parse numerical value & unit from correctOptText (`activeQuestion.options[correct_index]`)
+  const optNumMatch = correctOptText.match(/([+-]?\d+(?:[.,]\d+)?)\s*([^\d\s(;]*)/);
+  const origAnsNum = optNumMatch ? parseVnNumber(optNumMatch[1]) ?? 1 : 1;
+  const origAnsUnit = optNumMatch && optNumMatch[2] ? optNumMatch[2].trim() : '';
+
+  const tokenRegex = /((\d+(?:[.,]\d+)?)\s*(kg|g|cm|mm|m\/s²|m\/s\^2|m\/s|km\/h|m|N\/m|N|Hz|s|phút|giờ|ngày|năm|V|A|\\Omega|Ω|W|kW|J|kJ|°C|K|L|atm|Pa|T|H|u|MeV|vòng))\b/g;
   const stemTokens = Array.from(stemOnly.matchAll(tokenRegex));
 
   if (stemTokens.length > 0) {
@@ -845,23 +1004,46 @@ export function buildProblemSandboxState(
         : []),
     ]);
 
-    const ratioScale = (p1_val / (p1_base || 1)) * (secondary ? p2_val / (p2_base || 1) : 1);
+    // Detect if explanation divides or multiplies p1 and p2
+    const isInverseP2 =
+      secondary &&
+      (origExplanation.includes(`/ ${secondary[2]}`) ||
+        origExplanation.includes(`/${secondary[2]}`) ||
+        origExplanation.includes(`/ (${secondary[2]}`));
+
+    const ratio1 = p1_base !== 0 ? p1_val / p1_base : 1;
+    const ratio2 = secondary && p2_base !== 0 ? (isInverseP2 ? p2_base / p2_val : p2_val / p2_base) : 1;
+    const ratioScale = ratio1 * ratio2;
+    const scaledAns = Number((origAnsNum * ratioScale).toFixed(4));
+
+    const isUnchanged = Math.abs(ratioScale - 1) < 1e-6;
+    const dynamicExp = isUnchanged
+      ? origExplanation
+      : `${origExplanation}\n\n⚡ Giải theo thông số đề mới: Khi thay ${formatVnNum(p1_base)} ${p1_unit} → ${formatVnNum(p1_val)} ${p1_unit}${
+          secondary ? ` và ${formatVnNum(p2_base)} ${p2_unit} → ${formatVnNum(p2_val)} ${p2_unit}` : ''
+        }, kết quả bài toán biến đổi theo hệ số tỉ lệ k = ${formatVnNum(ratioScale)} lần ⇒ Đáp án mới = ${formatVnNum(origAnsNum)} × ${formatVnNum(ratioScale)} = ${formatVnNum(scaledAns)} ${origAnsUnit}.`;
+
     const graphPoints: ProblemGraphPoint[] = [];
     const xMax = Math.max(p1_base * 2, p1_val * 1.5, 10);
     for (let i = 0; i <= 30; i++) {
       const xx = Number(((xMax * i) / 30).toFixed(2));
+      const rX = p1_base !== 0 ? xx / p1_base : 1;
       graphPoints.push({
         x: xx,
-        yOrig: xx * p2_base,
-        yNew: xx * p2_val,
+        yOrig: origAnsNum * rX,
+        yNew: origAnsNum * rX * ratio2,
       });
     }
 
     return {
-      domainName: 'Mô phỏng Thực nghiệm theo Số liệu Đề bài',
+      domainName: 'Mô phỏng Thực nghiệm & Giải tự động theo Đề bài',
       modifiedQuestionText,
-      originalAnswerLabel: `Hệ số đề gốc = 1,00× (với ${formatVnNum(p1_base)} ${p1_unit})`,
-      newAnswerLabel: `Tỉ lệ biến thiên đáp án = ${formatVnNum(ratioScale)}× (với ${formatVnNum(p1_val)} ${p1_unit})`,
+      originalAnswerLabel: `${formatVnNum(origAnsNum)} ${origAnsUnit}`.trim(),
+      newAnswerLabel: `${formatVnNum(scaledAns)} ${origAnsUnit}`.trim(),
+      targetNumericAnswer: scaledAns,
+      acceptableAnswers: [Number(scaledAns.toFixed(2)), Number(scaledAns.toFixed(1)), Math.round(scaledAns)],
+      answerUnit: origAnsUnit || 'đơn vị',
+      dynamicExplanation: dynamicExp,
       extractedList: [
         { paramKey: 'param1', symbol: 'X₁', label: `Đại lượng đề bài (${p1_unit})`, value: p1_val, defaultValue: p1_base, unit: p1_unit, fromQuestionText: true },
         ...(secondary
@@ -886,31 +1068,32 @@ export function buildProblemSandboxState(
           : []),
       ],
       liveMetrics: [
-        { symbol: 'X₁', label: 'Số liệu 1 đang nạp', formula: `Gốc: ${p1_base} ${p1_unit}`, value: String(p1_val), unit: p1_unit, highlightColor: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
+        { symbol: 'X₁', label: 'Số liệu 1 đang nạp', formula: `Đề gốc: ${p1_base} ${p1_unit}`, value: String(p1_val), unit: p1_unit, highlightColor: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
         ...(secondary
-          ? [{ symbol: 'X₂', label: 'Số liệu 2 đang nạp', formula: `Gốc: ${p2_base} ${p2_unit}`, value: String(p2_val), unit: p2_unit, highlightColor: 'text-emerald-700 bg-emerald-50 border-emerald-200' }]
+          ? [{ symbol: 'X₂', label: 'Số liệu 2 đang nạp', formula: `Đề gốc: ${p2_base} ${p2_unit}`, value: String(p2_val), unit: p2_unit, highlightColor: 'text-emerald-700 bg-emerald-50 border-emerald-200' }]
           : []),
-        { symbol: 'k_tỉ_lệ', label: 'Hệ số tỉ lệ so với đề gốc', formula: '(X₁·X₂) / (X₁_gốc·X₂_gốc)', value: ratioScale.toFixed(2), unit: 'lần', highlightColor: 'text-amber-800 bg-amber-50 border-amber-200' },
+        { symbol: 'Đáp số', label: 'Kết quả theo đề hiện tại', formula: `Tỉ lệ ${ratioScale.toFixed(2)}× đề gốc`, value: formatVnNum(scaledAns), unit: origAnsUnit, highlightColor: 'text-amber-800 bg-amber-50 border-amber-200' },
       ],
-      verificationInsight: `Khi kéo thanh trượt thay đổi trực tiếp con số trong đề bài (${p1_base} ${p1_unit} → ${p1_val} ${p1_unit}), đường đồ thị thực nghiệm bên phải tách khỏi đường nét đứt (đề gốc) theo đúng tỉ lệ ${ratioScale.toFixed(2)} lần.`,
+      verificationInsight: `Với bộ số liệu hiện tại trên đề bài (${p1_val} ${p1_unit}${secondary ? `, ${p2_val} ${p2_unit}` : ''}), đáp số của bài toán là ${formatVnNum(scaledAns)} ${origAnsUnit}.`,
       problemGraph: {
-        title: `Đồ thị Tương quan Đại lượng của Đề bài (${p1_unit})`,
+        title: `Đồ thị Phụ thuộc Kết quả (${origAnsUnit || 'Y'}) theo Biến số Đề bài (${p1_unit})`,
         xLabel: `Biến số (${p1_unit})`,
         xUnit: p1_unit,
-        yLabel: 'Đại lượng phụ thuộc Y',
-        yUnit: 'đơn vị',
+        yLabel: `Kết quả (${origAnsUnit || 'Y'})`,
+        yUnit: origAnsUnit || '',
         points: graphPoints,
-        markerOrig: { x: p1_base, y: p1_base * p2_base, label: `Đề gốc: X₁ = ${p1_base} ${p1_unit}` },
-        markerNew: { x: p1_val, y: p1_val * p2_val, label: `Đề mới: X₁ = ${p1_val} ${p1_unit}` },
+        markerOrig: { x: p1_base, y: origAnsNum, label: `Đề gốc: (${p1_base} ${p1_unit} → ${formatVnNum(origAnsNum)} ${origAnsUnit})` },
+        markerNew: { x: p1_val, y: scaledAns, label: `Đề hiện tại: (${p1_val} ${p1_unit} → ${formatVnNum(scaledAns)} ${origAnsUnit})` },
       },
     };
   }
 
-  // Fallback for pure conceptual questions (no numbers in question stem)
+  // Fallback for pure conceptual questions
   const v0_base = 5;
   const a_base = 2;
   const v0_val = getVal('v0', v0_base);
   const a_val = getVal('acceleration', a_base);
+  const ansVal = origAnsNum !== 1 ? origAnsNum : v0_val + a_val * 3;
   const graphPoints: ProblemGraphPoint[] = [];
   for (let i = 0; i <= 30; i++) {
     const tx = Number(((6 * i) / 30).toFixed(2));
@@ -924,8 +1107,12 @@ export function buildProblemSandboxState(
   return {
     domainName: 'Mô phỏng Minh họa Hiện tượng Lý thuyết',
     modifiedQuestionText: stemOnly,
-    originalAnswerLabel: 'Câu hỏi lý thuyết định tính',
-    newAnswerLabel: `Mô phỏng với v₀ = ${v0_val}, a = ${a_val}`,
+    originalAnswerLabel: correctOptText || `${ansVal}`,
+    newAnswerLabel: correctOptText || `${ansVal}`,
+    targetNumericAnswer: ansVal,
+    acceptableAnswers: [ansVal],
+    answerUnit: origAnsUnit,
+    dynamicExplanation: origExplanation,
     extractedList: [
       { paramKey: 'v0', symbol: 'v₀', label: 'Thông số minh họa 1', value: v0_val, defaultValue: v0_base, unit: 'đơn vị', fromQuestionText: false },
       { paramKey: 'acceleration', symbol: 'a', label: 'Thông số minh họa 2', value: a_val, defaultValue: a_base, unit: 'đơn vị', fromQuestionText: false },
@@ -938,7 +1125,7 @@ export function buildProblemSandboxState(
     liveMetrics: [
       { symbol: 'Y(3s)', label: 'Giá trị tại t = 3s', formula: 'Y = v₀ + a·t', value: (v0_val + a_val * 3).toFixed(1), unit: 'đơn vị', highlightColor: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
     ],
-    verificationInsight: 'Câu hỏi định tính: Bạn có thể kéo thanh trượt để quan sát sự biến đổi của đường đồ thị bên phải.',
+    verificationInsight: origExplanation,
     problemGraph: {
       title: 'Đồ thị Minh họa Quy luật Vật lý',
       xLabel: 'Thời gian t',
@@ -947,7 +1134,7 @@ export function buildProblemSandboxState(
       yUnit: 'đơn vị',
       points: graphPoints,
       markerOrig: { x: 3, y: v0_base + a_base * 3, label: 'Chuẩn gốc' },
-      markerNew: { x: 3, y: v0_val + a_val * 3, label: 'Giá trị mới' },
+      markerNew: { x: 3, y: v0_val + a_val * 3, label: 'Giá trị hiện tại' },
     },
   };
 }
