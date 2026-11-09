@@ -35,7 +35,9 @@ import {
   CheckSquare,
   Award,
   GitBranch,
+  Brain,
 } from 'lucide-react';
+import { detectCognitiveTrap, COGNITIVE_TRAP_REGISTRY } from '@/lib/cognitive-traps';
 
 const DIFF_LABELS: Record<string, string> = {
   nhan_biet: 'Nhận biết',
@@ -933,6 +935,14 @@ export function MistakeNotebookClient({
               >
                 Luyện 4 lựa chọn
               </button>
+
+              <Link
+                href="/cognitive-traps"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-800 transition hover:bg-rose-100 shadow-2xs"
+              >
+                <Brain className="h-4 w-4 text-rose-600" />
+                <span>Ma trận Bẫy Nhận thức</span>
+              </Link>
             </div>
           )}
         </div>
@@ -1323,6 +1333,8 @@ export function MistakeNotebookClient({
                             ? ['A', 'B', 'C', 'D'][q.last_wrong_option]
                             : 'Bỏ trống';
                         const rightLetter = ['A', 'B', 'C', 'D'][q.correct_index] || 'A';
+                        const trap = detectCognitiveTrap(q, q.last_wrong_option);
+                        const trapMeta = COGNITIVE_TRAP_REGISTRY[trap.trapType];
 
                         return (
                           <div key={q.id} className="space-y-3.5 p-5">
@@ -1355,6 +1367,10 @@ export function MistakeNotebookClient({
 
                                 <span className="rounded-md bg-rose-50 px-2 py-0.5 font-bold text-rose-700">
                                   Sai {q.wrong_count} lần (Đã chọn: {wrongLetter})
+                                </span>
+
+                                <span className={`rounded-md border px-2 py-0.5 font-bold text-xs ${trapMeta.badgeCls}`}>
+                                  {trapMeta.icon} {trapMeta.name}
                                 </span>
                               </div>
 
@@ -1516,6 +1532,17 @@ export function MistakeNotebookClient({
                                   <div>
                                     <strong className="text-slate-900">Giải thích / Lời giải chi tiết: </strong>
                                     <RichPhysicsText text={q.explanation} />
+                                  </div>
+
+                                  <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/80 p-3 space-y-1 text-xs text-indigo-950">
+                                    <div className="flex items-center gap-1.5 font-black text-indigo-900">
+                                      <Brain className="h-4 w-4 text-indigo-600" />
+                                      <span>🩺 Chẩn đoán Bẫy Nhận thức:</span>
+                                    </div>
+                                    <p className="leading-relaxed">{trap.diagnosis}</p>
+                                    <div className="text-[11px] text-indigo-800 font-medium pt-1.5 border-t border-indigo-200/50">
+                                      💡 <strong>Bí kíp né bẫy:</strong> {trap.remedyTip}
+                                    </div>
                                   </div>
                                 </div>
                               )}

@@ -243,3 +243,45 @@ export interface CheatsheetGradeData {
   totalFormulas: number;
   totalQuantities: number;
 }
+
+// ============================================================================
+// FEATURE 4: COGNITIVE TRAP & MISCONCEPTION TAXONOMY MATRIX
+// ============================================================================
+export type CognitiveTrapType =
+  | 'TRAP_UNIT'
+  | 'TRAP_SIGN'
+  | 'TRAP_INTUITION'
+  | 'TRAP_FORMULA_CONFUSION'
+  | 'TRAP_CONDITION'
+  | 'TRAP_KEYWORD';
+
+export interface CognitiveTrapMeta {
+  id: CognitiveTrapType;
+  name: string;
+  shortDesc: string;
+  icon: string;
+  color: string;
+  badgeCls: string;
+  bgCls: string;
+  borderCls: string;
+  examplesSummary: string;
+  remedyTip: string;
+}
+
+export interface TrapAnalysisResult {
+  trapType: CognitiveTrapType;
+  trapName: string;
+  severity: 'Cao' | 'Trung bình' | 'Thường gặp';
+  diagnosis: string;
+  remedyTip: string;
+  confidence: number;
+}
+
+export interface TrapMatrixStats {
+  trapCounts: Record<CognitiveTrapType, number>;
+  trapPercentages: Record<CognitiveTrapType, number>;
+  totalAnalyzed: number;
+  dominantTrap: CognitiveTrapType | null;
+  immunityScore: number; // 0 - 100
+  radarValues: { axis: string; trapType: CognitiveTrapType; value: number }[];
+}

@@ -618,6 +618,78 @@ export function getMistakeNotebookData(gradeFilter?: number, showMastered = fals
   };
 }
 
+export function getCognitiveTrapMatrixData(gradeFilter?: number): { mistakes: MistakeQuestionItem[] } {
+  const notebookData = getMistakeNotebookData(gradeFilter, false);
+  const mistakes = [...notebookData.mistakes];
+
+  // If student hasn't accumulated enough mistakes yet, load curated representative trap questions from question bank
+  if (mistakes.length < 12) {
+    const db = getDb();
+    const curatedQuestions = db.query<any>(`
+      SELECT 
+        0 as mistake_id,
+        (q.correct_index + 1) % 4 as last_wrong_option,
+        1 as wrong_count,
+        0 as mastered,
+        datetime('now') as updated_at,
+        q.*,
+        g.grade_number,
+        c.code as chapter_code,
+        c.title as chapter_title,
+        t.code as topic_code,
+        t.title as topic_title
+      FROM questions q
+      JOIN chapters c ON c.id = q.chapter_id
+      JOIN grades g ON g.id = c.grade_id
+      LEFT JOIN topics t ON t.id = q.topic_id
+      WHERE (
+        q.question_text LIKE '%không đúng%' OR
+        q.question_text LIKE '%công%' OR
+        q.question_text LIKE '%nhiệt lượng%' OR
+        q.question_text LIKE '%km/h%' OR
+        q.question_text LIKE '%cm%' OR
+        q.question_text LIKE '%chu kỳ%' OR
+        q.question_text LIKE '%rơi tự do%'
+      )
+      LIMIT 24
+    `);
+
+    const mappedCurated: MistakeQuestionItem[] = curatedQuestions.map((r) => ({
+      id: r.id,
+      scope_type: r.scope_type,
+      topic_id: r.topic_id,
+      chapter_id: r.chapter_id,
+      order_index: r.order_index,
+      difficulty: r.difficulty,
+      question_text: r.question_text,
+      options: safeJsonParse<string[]>(r.options_json, ['', '', '', '']),
+      correct_index: r.correct_index,
+      explanation: r.explanation,
+      tf_stem: r.tf_stem || undefined,
+      tf_statements: r.tf_statements_json ? safeJsonParse<TrueFalseStatement[]>(r.tf_statements_json, []) : undefined,
+      mistake_id: r.mistake_id,
+      last_wrong_option: r.last_wrong_option,
+      wrong_count: r.wrong_count,
+      mastered: r.mastered,
+      updated_at: r.updated_at,
+      grade_number: r.grade_number,
+      chapter_code: r.chapter_code,
+      chapter_title: r.chapter_title,
+      topic_code: r.topic_code || null,
+      topic_title: r.topic_title || null,
+    }));
+
+    const existingIds = new Set(mistakes.map((m) => m.id));
+    for (const c of mappedCurated) {
+      if (!existingIds.has(c.id)) {
+        mistakes.push(c);
+      }
+    }
+  }
+
+  return { mistakes };
+}
+
 export function searchKnowledgeBase(term: string, gradeFilter?: number): import('@/types/cms').SearchResults {
   ensureDatabaseSeeded(false);
   const db = getDb();

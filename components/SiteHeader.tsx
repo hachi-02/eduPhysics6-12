@@ -14,6 +14,7 @@ import {
   GitBranch,
   Target,
   FlaskConical,
+  Brain,
   Menu,
   X,
 } from 'lucide-react';
@@ -31,6 +32,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const isHome = pathname === '/' || pathname.startsWith('/?');
   const isKnowledgeGraph = pathname.startsWith('/knowledge-graph');
   const isAdaptiveTest = pathname.startsWith('/adaptive-test');
+  const isCognitiveTraps = pathname.startsWith('/cognitive-traps');
   const isMistakes = pathname.startsWith('/mistakes');
   const isCheatsheet = pathname.startsWith('/cheatsheet');
   const isAdmin = pathname.startsWith('/admin');
@@ -38,6 +40,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const isAnyUtilityActive =
     isKnowledgeGraph ||
     isAdaptiveTest ||
+    isCognitiveTraps ||
     isMistakes ||
     isCheatsheet ||
     isAdmin;
@@ -84,6 +87,16 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
       active: isAdaptiveTest,
       badge: 'IRT 3PL',
       badgeCls: 'bg-indigo-100 text-indigo-800',
+    },
+    {
+      href: '/cognitive-traps',
+      title: 'Ma Trận Bẫy Nhận Thức',
+      desc: 'Chẩn đoán 6 loại bẫy kinh điển: đổi đơn vị, nhầm dấu, ngụy biện trực giác',
+      icon: <Brain className="h-5 w-5 text-rose-600" />,
+      iconBg: 'bg-rose-50 border-rose-200/80',
+      active: isCognitiveTraps,
+      badge: 'Bẫy 2025',
+      badgeCls: 'bg-rose-100 text-rose-800',
     },
     {
       href: '/mistakes',
