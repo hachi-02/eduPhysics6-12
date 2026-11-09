@@ -14,18 +14,14 @@ import { buildProblemSandboxState } from '@/lib/problem-sandbox';
 import {
   FlaskConical,
   Sliders,
-  Sparkles,
   CheckCircle2,
   XCircle,
   RotateCcw,
-  Zap,
   Eye,
   BookOpen,
   Calculator,
-  ArrowRight,
   Activity,
-  Compass,
-  HelpCircle,
+  TrendingUp,
 } from 'lucide-react';
 
 interface ChapterOption {
@@ -87,7 +83,6 @@ export function ProblemSandboxClient({
   initialTopicId = null,
   initialQuestionId = null,
 }: ProblemSandboxClientProps) {
-  // Resolve initial topic & grade
   const startTopic = useMemo(() => {
     if (initialTopicId) {
       const found = topics.find((t) => t.id === initialTopicId);
@@ -109,13 +104,10 @@ export function ProblemSandboxClient({
     initialQuestionId
   );
 
-  // User interaction state for the current problem
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [showSolution, setShowSolution] = useState<boolean>(false);
   const [overrideParams, setOverrideParams] = useState<Record<string, number>>({});
-  const [syncPulse, setSyncPulse] = useState<boolean>(false);
 
-  // Grade -> Chapters -> Topics cascade
   const gradeChapters = useMemo(
     () => chapters.filter((c) => c.grade_number === selectedGrade),
     [chapters, selectedGrade]
@@ -155,7 +147,6 @@ export function ProblemSandboxClient({
     return topicQuestions[0] || null;
   }, [topicQuestions, selectedQuestionId]);
 
-  // Reset answer & What-If overrides when question changes
   useEffect(() => {
     setSelectedOption(null);
     setShowSolution(false);
@@ -174,8 +165,8 @@ export function ProblemSandboxClient({
       description: 'Thực hành quan sát hiện tượng và đồ thị động lực học thời gian thực.',
       parameters: {},
       guide_steps: [
-        'Quan sát thông số trích xuất từ đề bài bên trái.',
-        'Thử kéo thanh trượt What-If để xem sự thay đổi của đồ thị.',
+        'Kéo thanh trượt What-If bên trái để đổi số liệu trong đề bài.',
+        'Quan sát đường đồ thị mới (nét liền) tách khỏi đường đề gốc (nét đứt).',
       ],
       physics_insight:
         'Kết hợp giải toán với mô phỏng trực quan giúp hiểu sâu bản chất quy luật Vật lý.',
@@ -189,11 +180,11 @@ export function ProblemSandboxClient({
 
   // Compute synchronized Problem-to-Sim Sandbox state
   const sandboxState = useMemo(() => {
-    const qText = activeQuestion
-      ? `${activeQuestion.question_text} ${activeQuestion.explanation || ''}`
+    const combinedText = activeQuestion
+      ? `${activeQuestion.question_text}|||${activeQuestion.explanation || ''}`
       : '';
     return buildProblemSandboxState(
-      qText,
+      combinedText,
       baseSimulation.sim_key,
       baseSimulation.parameters,
       overrideParams
@@ -209,11 +200,49 @@ export function ProblemSandboxClient({
 
   const hasCustomOverrides = Object.keys(overrideParams).length > 0;
 
-  const handleSyncToSim = () => {
-    setOverrideParams({});
-    setSyncPulse(true);
-    setTimeout(() => setSyncPulse(false), 900);
-  };
+  // SVG coordinates for the Live Problem Comparison Graph
+  const pg = sandboxState.problemGraph;
+  const svgW = 640;
+  const svgH = 230;
+  const padL = 54;
+  const padR = 24;
+  const padT = 24;
+  const padB = 36;
+  const plotW = svgW - padL - padR;
+  const plotH = svgH - padT - padB;
+
+  const { xMin, xMax, yMin, yMax } = useMemo(() => {
+    const xs = pg.points.map((p) => p.x).concat([pg.markerOrig.x, pg.markerNew.x]);
+    const ys = pg.points
+      .flatMap((p) => [p.yOrig, p.yNew])
+      .concat([pg.markerOrig.y, pg.markerNew.y]);
+
+    let minX = Math.min(...xs);
+    let maxX = Math.max(...xs);
+    if (Math.abs(maxX - minX) < 1e-6) maxX = minX + 1;
+
+    let minY = Math.min(...ys, 0);
+    let maxY = Math.max(...ys);
+    if (Math.abs(maxY - minY) < 1e-6) maxY = minY + 1;
+    const padY = (maxY - minY) * 0.12;
+    return {
+      xMin: minX,
+      xMax: maxX,
+      yMin: minY,
+      yMax: maxY + padY,
+    };
+  }, [pg]);
+
+  const toSvgX = (x: number) => padL + ((x - xMin) / (xMax - xMin || 1)) * plotW;
+  const toSvgY = (y: number) =>
+    padT + plotH - ((clampVal(y, yMin, yMax) - yMin) / (yMax - yMin || 1)) * plotH;
+
+  const origPolyline = pg.points
+    .map((p) => `${toSvgX(p.x).toFixed(1)},${toSvgY(p.yOrig).toFixed(1)}`)
+    .join(' ');
+  const newPolyline = pg.points
+    .map((p) => `${toSvgX(p.x).toFixed(1)},${toSvgY(p.yNew).toFixed(1)}`)
+    .join(' ');
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -229,10 +258,10 @@ export function ProblemSandboxClient({
               Phòng Thí nghiệm Giải Bài tập &amp; Kiểm chứng Mô phỏng
             </h1>
             <p className="text-sm leading-relaxed text-slate-600">
-              Kết nối trực tiếp <strong>bài tập Vật lý trong ngân hàng đề</strong> với{' '}
-              <strong>mô phỏng động lực học &amp; đồ thị thời gian thực</strong>. Hệ thống tự động bóc tách
-              dữ kiện từ đề bài, cho phép bạn kiểm chứng đáp án bằng mắt thường và kéo thanh trượt{' '}
-              <strong>&ldquo;Điều gì xảy ra nếu...?&rdquo; (What-If)</strong> để làm chủ bản chất công thức.
+              Kết nối trực tiếp <strong>đề bài Vật lý</strong> với{' '}
+              <strong>đồ thị thực nghiệm &amp; mô phỏng</strong>. Khi bạn kéo thanh trượt{' '}
+              <strong>&ldquo;Điều gì xảy ra nếu...?&rdquo; (What-If)</strong>, con số ngay trong đề bài sẽ
+              thay đổi trực tiếp, tự động giải lại đáp án mới và vẽ đường đồ thị mới đối chiếu với đề gốc.
             </p>
           </div>
 
@@ -240,7 +269,7 @@ export function ProblemSandboxClient({
             {activeTopic && (
               <Link
                 href={`/topic/${activeTopic.id}`}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-extrabold text-slate-700 shadow-2xs transition hover:border-teal-300 hover:text-teal-800"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-extrabold text-slate-700 shadow-2xs transition hover:border-teal-300 hover:bg-teal-800"
               >
                 <BookOpen className="h-4 w-4 text-teal-600" />
                 <span>Mở Bài học {activeTopic.code}</span>
@@ -251,7 +280,6 @@ export function ProblemSandboxClient({
 
         {/* Grade & Topic Selector Bar */}
         <div className="mt-6 space-y-4 border-t border-slate-200/80 pt-5">
-          {/* Grade Pills */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="mr-1 text-xs font-extrabold uppercase tracking-wider text-slate-500">
               Khối lớp:
@@ -284,7 +312,6 @@ export function ProblemSandboxClient({
             })}
           </div>
 
-          {/* Chapter & Topic Dropdowns */}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
@@ -332,13 +359,13 @@ export function ProblemSandboxClient({
         </div>
       </div>
 
-      {/* 2. SPLIT-SCREEN WORKBENCH: PROBLEM & WHAT-IF (LEFT 5 COLS) <-> LIVE SIM & GRAPH (RIGHT 7 COLS) */}
+      {/* 2. SPLIT-SCREEN WORKBENCH */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* ================================================================ */}
-        {/* LEFT COLUMN (5 COLS): QUESTION CARD, PARAMETER EXTRACTOR & SLIDERS */}
+        {/* LEFT COLUMN (5 COLS): QUESTION CARD & WHAT-IF SLIDERS */}
         {/* ================================================================ */}
         <div className="space-y-5 lg:col-span-5">
-          {/* Problem Switcher Tabs inside Topic */}
+          {/* Problem Switcher & Question Stem */}
           <div className="edu-card space-y-4 p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <div>
@@ -351,7 +378,6 @@ export function ProblemSandboxClient({
               </div>
             </div>
 
-            {/* Numbered Question Pills */}
             <div className="flex flex-wrap gap-1.5">
               {topicQuestions.map((q, idx) => {
                 const isSelected = activeQuestion?.id === q.id;
@@ -372,7 +398,6 @@ export function ProblemSandboxClient({
               })}
             </div>
 
-            {/* Active Question Content */}
             {activeQuestion ? (
               <div className="space-y-4 pt-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -383,59 +408,77 @@ export function ProblemSandboxClient({
                   >
                     {DIFF_BADGES[activeQuestion.difficulty].label}
                   </span>
-                  <span className="font-mono text-[11px] font-semibold text-slate-400">
-                    ID #{activeQuestion.id}
-                  </span>
+                  {hasCustomOverrides ? (
+                    <span className="rounded-full bg-indigo-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
+                      ⚡ Đề bài đang áp dụng số liệu giả định What-If
+                    </span>
+                  ) : (
+                    <span className="font-mono text-[11px] font-semibold text-slate-400">
+                      Đề gốc • ID #{activeQuestion.id}
+                    </span>
+                  )}
                 </div>
 
-                {/* Question Text */}
-                <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 text-sm font-semibold leading-relaxed text-slate-900">
-                  <RichPhysicsText text={activeQuestion.question_text} />
+                {/* Dynamic Question Text (Updates directly when What-If sliders move!) */}
+                <div
+                  className={`rounded-2xl border p-4 text-sm font-semibold leading-relaxed transition ${
+                    hasCustomOverrides
+                      ? 'border-indigo-400 bg-indigo-50/50 text-slate-900 ring-2 ring-indigo-500/15'
+                      : 'border-slate-200/90 bg-slate-50/70 text-slate-900'
+                  }`}
+                >
+                  <RichPhysicsText text={sandboxState.modifiedQuestionText} />
                 </div>
 
-                {/* Extracted Parameters Chips */}
-                <div className="rounded-2xl border border-teal-200/90 bg-teal-50/60 p-3.5 space-y-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-xs font-extrabold text-teal-900">
-                      <Zap className="h-4 w-4 text-teal-600" />
-                      <span>Tóm tắt Dữ kiện Bóc tách từ Đề bài:</span>
-                    </div>
+                {/* Live Recalculated Answer Box when What-If Sliders are dragged */}
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-indigo-950">
+                      🎯 Kết quả Giải Tự động theo Số liệu Đề bài:
+                    </span>
                     {hasCustomOverrides && (
                       <button
                         type="button"
-                        onClick={handleSyncToSim}
-                        className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2.5 py-1 text-[11px] font-extrabold text-white shadow-2xs transition hover:bg-teal-500"
+                        onClick={() => setOverrideParams({})}
+                        className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-0.5 text-[10px] font-extrabold text-white hover:bg-indigo-500"
                       >
                         <RotateCcw className="h-3 w-3" />
-                        <span>Khôi phục theo đề</span>
+                        <span>Trả về đề gốc</span>
                       </button>
                     )}
                   </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {sandboxState.extractedList.map((item) => (
-                      <div
-                        key={item.paramKey}
-                        className="flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-2.5 py-1.5 text-xs shadow-2xs"
-                      >
-                        <span className="font-mono font-extrabold text-teal-700">
-                          {item.symbol} = {item.value} {item.unit}
-                        </span>
-                        <span className="text-[10px] text-slate-500">({item.label})</span>
-                        {item.fromQuestionText && (
-                          <span className="rounded bg-emerald-100 px-1.5 py-0.2 text-[9px] font-extrabold text-emerald-800">
-                            Từ đề bài
-                          </span>
-                        )}
+                  <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                      <div className="text-[10px] font-bold text-slate-400">ĐÁP ÁN ĐỀ GỐC</div>
+                      <div className="mt-0.5 font-mono text-xs font-extrabold text-slate-800">
+                        {sandboxState.originalAnswerLabel}
                       </div>
-                    ))}
+                    </div>
+                    <div
+                      className={`rounded-xl border p-2.5 ${
+                        hasCustomOverrides
+                          ? 'border-indigo-400 bg-indigo-600 text-white shadow-soft'
+                          : 'border-emerald-200 bg-emerald-50/80 text-emerald-950'
+                      }`}
+                    >
+                      <div
+                        className={`text-[10px] font-bold ${
+                          hasCustomOverrides ? 'text-indigo-200' : 'text-emerald-700'
+                        }`}
+                      >
+                        {hasCustomOverrides ? 'ĐÁP ÁN MỚI (KHI ĐỔI ĐỀ)' : 'ĐÁP ÁN HIỆN TẠI'}
+                      </div>
+                      <div className="mt-0.5 font-mono text-xs font-extrabold">
+                        {sandboxState.newAnswerLabel}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* 4 Answer Options */}
+                {/* 4 Answer Options (for Original Problem) */}
                 <div className="space-y-2">
                   <div className="text-xs font-bold text-slate-600">
-                    Chọn đáp án của bạn hoặc đối chiếu với mô phỏng bên phải:
+                    Chọn đáp án cho đề gốc (A, B, C, D):
                   </div>
                   <div className="grid grid-cols-1 gap-2">
                     {activeQuestion.options.map((opt, oIdx) => {
@@ -484,7 +527,7 @@ export function ProblemSandboxClient({
                   </div>
                 </div>
 
-                {/* Toggle Solution & Experimental Verification */}
+                {/* Toggle Solution */}
                 <div className="pt-1">
                   <button
                     type="button"
@@ -494,8 +537,8 @@ export function ProblemSandboxClient({
                     <Eye className="h-4 w-4" />
                     <span>
                       {showSolution
-                        ? 'Ẩn Lời giải & Phân tích Đồ thị'
-                        : 'Xem Lời giải & Kiểm chứng trên Đồ thị'}
+                        ? 'Ẩn Lời giải Chi tiết'
+                        : 'Xem Lời giải & Công thức của Đề gốc'}
                     </span>
                   </button>
                 </div>
@@ -518,25 +561,13 @@ export function ProblemSandboxClient({
                     )}
 
                     <div className="leading-relaxed text-slate-800">
-                      <strong className="text-emerald-800">Lời giải chi tiết: </strong>
+                      <strong className="text-emerald-800">Lời giải đề gốc: </strong>
                       <RichPhysicsText text={activeQuestion.explanation} />
-                    </div>
-
-                    <div className="rounded-xl border border-teal-200 bg-white p-3 text-slate-700">
-                      <div className="mb-1 flex items-center gap-1.5 font-extrabold text-teal-800">
-                        <FlaskConical className="h-3.5 w-3.5 text-teal-600" />
-                        <span>Đối chiếu Thực nghiệm trên Đồ thị bên phải:</span>
-                      </div>
-                      <p className="leading-relaxed">{sandboxState.verificationInsight}</p>
                     </div>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="p-6 text-center text-xs text-slate-500">
-                Chưa có bài toán trong chủ đề này.
-              </div>
-            )}
+            ) : null}
           </div>
 
           {/* "WHAT-IF" INTERACTIVE PARAMETER SLIDERS */}
@@ -551,7 +582,7 @@ export function ProblemSandboxClient({
                     🎛️ Giả định &ldquo;Điều gì xảy ra nếu...?&rdquo; (What-If)
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Kéo thanh trượt để thay đổi đề bài và xem Đồ thị bên phải biến đổi tức thì
+                    Kéo thanh trượt để sửa trực tiếp số trong đề bài ở trên &amp; xem Đồ thị bên phải tách nhánh
                   </p>
                 </div>
               </div>
@@ -578,15 +609,33 @@ export function ProblemSandboxClient({
                   extractedItem?.value ??
                   sandboxState.simParameters[slider.paramKey] ??
                   slider.defaultValue;
+                const isModified = Math.abs(currentVal - slider.defaultValue) > 1e-6;
                 return (
                   <div key={slider.paramKey} className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-800">
-                        {slider.label} (<span className="font-mono font-extrabold text-indigo-700">{slider.symbol}</span>)
+                        {slider.label} (
+                        <span className="font-mono font-extrabold text-indigo-700">
+                          {slider.symbol}
+                        </span>
+                        )
                       </span>
-                      <span className="rounded-lg bg-indigo-50 px-2.5 py-0.5 font-mono text-xs font-extrabold text-indigo-800">
-                        {currentVal} {slider.unit}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {isModified && (
+                          <span className="text-[10px] font-semibold text-slate-400 line-through">
+                            Gốc: {slider.defaultValue} {slider.unit}
+                          </span>
+                        )}
+                        <span
+                          className={`rounded-lg px-2.5 py-0.5 font-mono text-xs font-extrabold ${
+                            isModified
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-indigo-50 text-indigo-800'
+                          }`}
+                        >
+                          {currentVal} {slider.unit}
+                        </span>
+                      </div>
                     </div>
                     <input
                       type="range"
@@ -608,6 +657,9 @@ export function ProblemSandboxClient({
                         Min: {slider.min} {slider.unit}
                       </span>
                       <span>
+                        Đề gốc: {slider.defaultValue} {slider.unit}
+                      </span>
+                      <span>
                         Max: {slider.max} {slider.unit}
                       </span>
                     </div>
@@ -617,35 +669,157 @@ export function ProblemSandboxClient({
             </div>
 
             <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-xs leading-relaxed text-indigo-950">
-              <strong className="font-extrabold text-indigo-800">💡 Phân tích trực thời: </strong>
+              <strong className="font-extrabold text-indigo-800">💡 Giải thích biến thiên: </strong>
               {sandboxState.verificationInsight}
             </div>
           </div>
         </div>
 
         {/* ================================================================ */}
-        {/* RIGHT COLUMN (7 COLS): LIVE TELEMETRY, SIMULATION & REALTIME GRAPH */}
+        {/* RIGHT COLUMN (7 COLS): LIVE PROBLEM GRAPH, TELEMETRY & SIMULATION */}
         {/* ================================================================ */}
         <div className="space-y-5 lg:col-span-7">
-          {/* Live Derived Telemetry Cards */}
-          <div
-            className={`edu-card space-y-3 p-5 transition duration-300 ${
-              syncPulse ? 'ring-2 ring-teal-500 shadow-lg' : ''
-            }`}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+          {/* 1. DEDICATED PROBLEM COMPARATIVE GRAPH (ORIGINAL VS WHAT-IF) */}
+          <div className="edu-card space-y-4 border-2 border-teal-200/80 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-teal-600" />
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
-                  ⚡ Kết quả Tính toán Động lực học Thời gian thực
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
+                  <TrendingUp className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">{pg.title}</h3>
+                  <p className="text-[11px] text-slate-500">
+                    Đối chiếu trực tiếp đường cong của <strong>Đề bài gốc (nét đứt)</strong> và{' '}
+                    <strong>Đề bài sau khi kéo thanh trượt What-If (nét liền đậm)</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold">
+                <span className="flex items-center gap-1.5 text-slate-500">
+                  <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-slate-400" />
+                  Đường Đề gốc
+                </span>
+                <span className="flex items-center gap-1.5 text-indigo-700">
+                  <span className="inline-block h-1 w-4 rounded bg-indigo-600" />
+                  Đường Đề mới (What-If)
                 </span>
               </div>
-              <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[11px] font-bold text-teal-800">
-                Tự động cập nhật theo thông số đề &amp; thanh trượt
-              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-950 p-3 text-white">
+              <svg viewBox={`0 0 ${svgW} ${svgH}`} className="mx-auto h-56 w-full min-w-[480px]">
+                {/* Grid lines */}
+                {[0, 0.25, 0.5, 0.75, 1].map((r) => {
+                  const yVal = yMin + (1 - r) * (yMax - yMin);
+                  const yPos = padT + r * plotH;
+                  return (
+                    <g key={r}>
+                      <line
+                        x1={padL}
+                        y1={yPos}
+                        x2={svgW - padR}
+                        y2={yPos}
+                        stroke="#1e293b"
+                        strokeDasharray="4 4"
+                      />
+                      <text
+                        x={padL - 8}
+                        y={yPos + 3}
+                        textAnchor="end"
+                        className="fill-slate-400 font-mono text-[9px]"
+                      >
+                        {Number(yVal.toFixed(1))}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* X-axis labels */}
+                {[0, 0.25, 0.5, 0.75, 1].map((r) => {
+                  const xVal = xMin + r * (xMax - xMin);
+                  const xPos = padL + r * plotW;
+                  return (
+                    <text
+                      key={r}
+                      x={xPos}
+                      y={svgH - 10}
+                      textAnchor="middle"
+                      className="fill-slate-400 font-mono text-[9px]"
+                    >
+                      {Number(xVal.toFixed(1))} {pg.xUnit}
+                    </text>
+                  );
+                })}
+
+                {/* Dashed curve: Original Question */}
+                <polyline
+                  fill="none"
+                  stroke="#94a3b8"
+                  strokeWidth={2}
+                  strokeDasharray="5 4"
+                  points={origPolyline}
+                />
+
+                {/* Solid curve: Current / What-If Modified Question */}
+                <polyline
+                  fill="none"
+                  stroke="#38bdf8"
+                  strokeWidth={3}
+                  points={newPolyline}
+                />
+
+                {/* Marker for Original Answer */}
+                <circle
+                  cx={toSvgX(pg.markerOrig.x)}
+                  cy={toSvgY(pg.markerOrig.y)}
+                  r={5}
+                  fill="#64748b"
+                  stroke="#ffffff"
+                  strokeWidth={1.5}
+                />
+
+                {/* Crosshair & Glowing Marker for New Answer */}
+                <line
+                  x1={toSvgX(pg.markerNew.x)}
+                  y1={padT}
+                  x2={toSvgX(pg.markerNew.x)}
+                  y2={padT + plotH}
+                  stroke="#f59e0b"
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                />
+                <line
+                  x1={padL}
+                  y1={toSvgY(pg.markerNew.y)}
+                  x2={svgW - padR}
+                  y2={toSvgY(pg.markerNew.y)}
+                  stroke="#f59e0b"
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                />
+                <circle
+                  cx={toSvgX(pg.markerNew.x)}
+                  cy={toSvgY(pg.markerNew.y)}
+                  r={6.5}
+                  fill="#f59e0b"
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                />
+              </svg>
+
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2 text-[11px]">
+                <span className="text-slate-400">
+                  ⚪ Điểm đáp án đề gốc: <strong className="text-slate-200">{pg.markerOrig.label}</strong>
+                </span>
+                <span className="text-amber-300">
+                  🟠 Điểm đáp án đang khảo sát: <strong>{pg.markerNew.label}</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Live Derived Telemetry Cards */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {sandboxState.liveMetrics.map((m, i) => (
                 <div
                   key={i}
@@ -667,10 +841,10 @@ export function ProblemSandboxClient({
             </div>
           </div>
 
-          {/* Synchronized Interactive Physics Lab & Real-Time Graph */}
+          {/* 2. Synchronized Interactive Physics Lab */}
           <InteractivePhysicsLab simulation={syncedSimulation} />
 
-          {/* Topic Formulas Reference Card */}
+          {/* 3. Topic Formulas Reference Card */}
           {topicFormulas.length > 0 && (
             <div className="edu-card space-y-3 p-5">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
@@ -703,4 +877,8 @@ export function ProblemSandboxClient({
       </div>
     </div>
   );
+}
+
+function clampVal(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v));
 }
