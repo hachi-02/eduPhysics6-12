@@ -159,10 +159,9 @@ export function ProblemSandboxClient({
   }, [activeQuestion?.id]);
 
   // Whenever the user drags a What-If slider to change the problem numbers,
-  // reset the check banner and hide the previous answer so they can solve the new problem
+  // reset the old input check banner, but KEEP showSolution open if the user is viewing the solution!
   useEffect(() => {
     setSubmittedStatus('idle');
-    setShowSolution(false);
   }, [overrideParams]);
 
   const baseSimulation = useMemo<SimulationItem>(() => {
@@ -574,7 +573,6 @@ export function ProblemSandboxClient({
                           <button
                             type="button"
                             onClick={() => {
-                              setShowSolution(false);
                               setSubmittedStatus('idle');
                               setOverrideParams({});
                             }}
@@ -668,7 +666,6 @@ export function ProblemSandboxClient({
                 <button
                   type="button"
                   onClick={() => {
-                    setShowSolution(false);
                     setSubmittedStatus('idle');
                     setOverrideParams({});
                   }}
@@ -726,7 +723,6 @@ export function ProblemSandboxClient({
                       value={currentVal}
                       onChange={(e) => {
                         const val = Number(e.target.value);
-                        setShowSolution(false);
                         setSubmittedStatus('idle');
                         setOverrideParams((prev) => ({
                           ...prev,
