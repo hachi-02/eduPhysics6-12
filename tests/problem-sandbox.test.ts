@@ -129,4 +129,22 @@ describe('Problem-to-Sim Sandbox unit tests', () => {
     expect(firstLawState.simParameters._bounds.workA.min).toBeLessThan(0);
     expect(firstLawState.simParameters._bounds.heatQ.min).toBeLessThan(0);
   });
+
+  it('guarantees 1:1 Exemplar Problem at index 0 for all 92 topics in getProblemSandboxData', async () => {
+    const { getProblemSandboxData } = await import('../lib/cms-service');
+    const sandboxData = getProblemSandboxData();
+    expect(sandboxData.topics.length).toBe(92);
+    expect(sandboxData.initialQuestion).toBeDefined();
+    expect(sandboxData.initialQuestion?.is_exemplar).toBe(true);
+
+    for (const t of sandboxData.topics) {
+      const qList = sandboxData.questionsByTopicId[t.id];
+      expect(qList).toBeDefined();
+      expect(qList.length).toBeGreaterThanOrEqual(1);
+      const exemplar = qList[0];
+      expect(exemplar.is_exemplar).toBe(true);
+      expect(exemplar.question_text.length).toBeGreaterThan(10);
+      expect(exemplar.options.length).toBe(4);
+    }
+  });
 });

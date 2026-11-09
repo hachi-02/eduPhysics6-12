@@ -1146,6 +1146,55 @@ export function getProblemSandboxData(requestedQuestionId?: number) {
   const questionsByTopicId: Record<number, QuestionItem[]> = {};
   let initialQuestion: (QuestionItem & { resolvedTopicId: number }) | null = null;
 
+  // 1. Query all Exemplar Problems for topics from `examples` table
+  const rawExamples = db.query<any>(`
+    SELECT e.id, e.topic_id, e.order_index, e.title, e.difficulty, e.problem_statement, e.given_summary, e.solution_steps_json, e.final_answer, t.chapter_id
+    FROM examples e
+    JOIN topics t ON t.id = e.topic_id
+    ORDER BY e.topic_id ASC, e.order_index ASC
+  `);
+
+  const exemplarByTopicId: Record<number, any> = {};
+  for (const ex of rawExamples) {
+    if (!exemplarByTopicId[ex.topic_id]) {
+      exemplarByTopicId[ex.topic_id] = ex;
+    }
+  }
+
+  // Pre-populate each topic's questions list with its 1:1 Exemplar Problem at index 0!
+  for (const t of topics) {
+    const ex = exemplarByTopicId[t.id];
+    if (ex) {
+      const exSteps = safeJsonParse<string[]>(ex.solution_steps_json, []);
+      const exOptions = [
+        ex.final_answer,
+        `Phương án B: Kết quả sai lệch so với dữ kiện thí nghiệm`,
+        `Phương án C: Tăng gấp 2 lần so với giá trị tính toán`,
+        `Phương án D: Không thể xác định được từ các số liệu trên`,
+      ];
+
+      const exemplarItem: QuestionItem = {
+        id: t.id * 10000 + ex.id,
+        scope_type: 'topic',
+        topic_id: t.id,
+        chapter_id: t.chapter_id,
+        order_index: 0,
+        difficulty: ex.difficulty === 'Vận dụng cao' ? 'van_dung_cao' : ex.difficulty === 'Vận dụng' ? 'van_dung' : 'thong_hieu',
+        question_text: ex.problem_statement,
+        options: exOptions,
+        correct_index: 0,
+        explanation: `${ex.given_summary ? `**Tóm tắt:** ${ex.given_summary}\n\n` : ''}**Các bước giải chi tiết:**\n${exSteps.map((s: string) => `${s}`).join('\n\n')}\n\n**Đáp số:** ${ex.final_answer}`,
+        is_exemplar: true,
+      };
+
+      questionsByTopicId[t.id] = [exemplarItem];
+
+      if (!initialQuestion && (!requestedQuestionId || requestedQuestionId === exemplarItem.id)) {
+        initialQuestion = { ...exemplarItem, resolvedTopicId: t.id };
+      }
+    }
+  }
+
   // Map chapter_id -> first topic_id in case a chapter-level question is passed via ?questionId=
   const firstTopicByChapter: Record<number, number> = {};
   for (const t of topics) {
@@ -1166,6 +1215,7 @@ export function getProblemSandboxData(requestedQuestionId?: number) {
       options: safeJsonParse<string[]>(q.options_json, ['', '', '', '']),
       correct_index: q.correct_index,
       explanation: q.explanation,
+      is_exemplar: false,
     };
 
     const resolvedTopicId = q.topic_id || firstTopicByChapter[q.chapter_id] || topics[0]?.id || 1;
@@ -1178,7 +1228,7 @@ export function getProblemSandboxData(requestedQuestionId?: number) {
     }
 
     const list = questionsByTopicId[resolvedTopicId];
-    if (list.length < 8 || (requestedQuestionId && q.id === requestedQuestionId)) {
+    if (list.length < 9 || (requestedQuestionId && q.id === requestedQuestionId)) {
       if (!list.some((item) => item.id === mapped.id)) {
         list.push(mapped);
       }

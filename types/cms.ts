@@ -158,6 +158,7 @@ export interface QuestionItem {
   tf_stem?: string;
   tf_statements?: TrueFalseStatement[];
   short_answer?: ShortAnswerConfig;
+  is_exemplar?: boolean;
 }
 
 export interface TopicDetail extends TopicSummaryItem {

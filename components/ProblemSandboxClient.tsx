@@ -480,18 +480,30 @@ export function ProblemSandboxClient({
             <div className="flex flex-wrap gap-1.5">
               {topicQuestions.map((q, idx) => {
                 const isSelected = activeQuestion?.id === q.id;
+                const isExemplar = q.is_exemplar || idx === 0;
                 return (
                   <button
                     key={q.id}
                     type="button"
                     onClick={() => setSelectedQuestionId(q.id)}
-                    className={`rounded-xl border px-3 py-1.5 text-xs font-extrabold transition ${
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-extrabold transition ${
                       isSelected
-                        ? 'border-teal-600 bg-teal-600 text-white shadow-soft'
+                        ? isExemplar
+                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-soft ring-2 ring-indigo-500/25'
+                          : 'border-teal-600 bg-teal-600 text-white shadow-soft'
+                        : isExemplar
+                        ? 'border-indigo-200 bg-indigo-50/90 text-indigo-900 hover:border-indigo-400 hover:bg-indigo-100/60'
                         : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-teal-300 hover:bg-white'
                     }`}
                   >
-                    Bài #{idx + 1}
+                    {isExemplar ? (
+                      <>
+                        <FlaskConical className={`h-3.5 w-3.5 ${isSelected ? 'text-amber-300' : 'text-indigo-600'}`} />
+                        <span>Bài Thực Nghiệm 1:1</span>
+                      </>
+                    ) : (
+                      <span>Bài tập #{idx}</span>
+                    )}
                   </button>
                 );
               })}
@@ -500,13 +512,21 @@ export function ProblemSandboxClient({
             {activeQuestion ? (
               <div className="space-y-4 pt-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span
-                    className={`rounded-lg border px-2.5 py-0.5 text-[11px] font-bold ${
-                      DIFF_BADGES[activeQuestion.difficulty].cls
-                    }`}
-                  >
-                    {DIFF_BADGES[activeQuestion.difficulty].label}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(activeQuestion.is_exemplar || topicQuestions[0]?.id === activeQuestion.id) && (
+                      <span className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-[11px] font-extrabold text-indigo-800 shadow-2xs">
+                        <FlaskConical className="h-3 w-3 text-indigo-600" />
+                        <span>BÀI TOÁN THỰC NGHIỆM MÔ PHỎNG 1:1</span>
+                      </span>
+                    )}
+                    <span
+                      className={`rounded-lg border px-2.5 py-0.5 text-[11px] font-bold ${
+                        DIFF_BADGES[activeQuestion.difficulty].cls
+                      }`}
+                    >
+                      {DIFF_BADGES[activeQuestion.difficulty].label}
+                    </span>
+                  </div>
                   {hasCustomOverrides ? (
                     <span className="rounded-full bg-indigo-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white">
                       ⚡ Đề bài đang áp dụng số liệu giả định What-If
