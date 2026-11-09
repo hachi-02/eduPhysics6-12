@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Sparkles,
   GitBranch,
+  Target,
 } from 'lucide-react';
 import { GlobalSearchModal } from './GlobalSearchModal';
 import { DropdownMenu, DropdownItem } from './ui/DropdownMenu';
@@ -26,10 +27,16 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
 
   const isHome = pathname === '/' || pathname.startsWith('/?');
   const isKnowledgeGraph = pathname.startsWith('/knowledge-graph');
+  const isAdaptiveTest = pathname.startsWith('/adaptive-test');
   const isMistakes = pathname.startsWith('/mistakes');
   const isCheatsheet = pathname.startsWith('/cheatsheet');
 
   const utilityMenuItems: DropdownItem[] = [
+    {
+      label: 'Phòng Khảo thí Thích ứng (CAT • IRT 3PL)',
+      icon: <Target className="w-4 h-4 text-indigo-600" />,
+      href: '/adaptive-test',
+    },
     {
       label: 'Đồ thị Tri thức & Truy vết lỗ hổng (DAG 6–12)',
       icon: <GitBranch className="w-4 h-4 text-purple-600" />,
@@ -102,6 +109,19 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
           >
             <GitBranch className="h-3.5 w-3.5 text-purple-600" />
             <span className="hidden md:inline">Đồ thị Tri thức</span>
+          </Link>
+
+          {/* Main Link: Adaptive CAT Exam */}
+          <Link
+            href="/adaptive-test"
+            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition duration-150 ease-snap ${
+              isAdaptiveTest
+                ? 'bg-indigo-50 text-indigo-700 shadow-soft ring-1 ring-indigo-200/80'
+                : 'text-slate-600 hover:bg-indigo-50/70 hover:text-indigo-700'
+            }`}
+          >
+            <Target className="h-3.5 w-3.5 text-indigo-600" />
+            <span className="hidden lg:inline">Thi Thích ứng</span>
           </Link>
 
           {/* Quick Link: Mistakes (if any) */}

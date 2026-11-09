@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QuestionItem } from '@/types/cms';
 import { RichPhysicsText } from './KatexRenderer';
+import { AdaptiveCatRunner } from './AdaptiveCatRunner';
 import {
   adaptToFormat2025,
   calculateExamScore,
@@ -80,8 +81,8 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
   const [viewMode, setViewMode] = useState<'single' | 'list'>('single');
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
-  // Exam format: 'standard' (25 multiple choice) vs 'format2025' (Part I, II, III)
-  const [examFormat, setExamFormat] = useState<'format2025' | 'standard'>('format2025');
+  // Exam format: 'standard' (25 multiple choice) vs 'format2025' (Part I, II, III) vs 'adaptive_cat' (IRT 3PL CAT)
+  const [examFormat, setExamFormat] = useState<'format2025' | 'adaptive_cat' | 'standard'>('format2025');
 
   // Custom quiz settings
   const [shuffleQuestionsSetting, setShuffleQuestionsSetting] = useState(false);
@@ -338,10 +339,10 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
           </div>
 
           <div className="space-y-5 p-6 sm:p-7">
-            {/* Format Selection (2025 vs Standard) */}
+            {/* Format Selection (2025 vs Adaptive CAT vs Standard) */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700">Chọn cấu trúc đề thi</label>
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <label className="text-xs font-bold text-slate-700">Chọn chế độ khảo thí</label>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setExamFormat('format2025')}
@@ -351,17 +352,40 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
                       : 'border-slate-200 bg-white hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-1">
                     <span className="flex items-center gap-1.5 text-xs font-bold text-brand-900">
-                      <Sparkles className="h-4 w-4 text-brand-600" />
-                      Chuẩn Format Mới 2025
+                      <Sparkles className="h-4 w-4 shrink-0 text-brand-600" />
+                      Format Mới 2025
                     </span>
                     <span className="rounded-md bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      Khuyên dùng
+                      Chuẩn thi
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-600">
-                    Gồm 3 phần: I (4 Lựa chọn) + II (Đúng/Sai) + III (Điền số ngắn) theo chuẩn Bộ GD&ĐT.
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                    Gồm 3 phần: I (4 Lựa chọn) + II (Đúng/Sai) + III (Điền số ngắn) chuẩn Bộ GD&amp;ĐT.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setExamFormat('adaptive_cat')}
+                  className={`flex flex-col rounded-2xl border p-3.5 text-left transition ${
+                    examFormat === 'adaptive_cat'
+                      ? 'border-purple-500 bg-purple-50/80 shadow-soft ring-2 ring-purple-500/25'
+                      : 'border-slate-200 bg-white hover:bg-purple-50/30'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-purple-950">
+                      <Target className="h-4 w-4 shrink-0 text-purple-600" />
+                      Thi Thích ứng (CAT)
+                    </span>
+                    <span className="rounded-md bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      IRT 3PL
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                    Đề tự động tăng/giảm độ khó sau từng câu trả lời, đo năng lực θ &amp; dự báo điểm với 10 câu.
                   </p>
                 </button>
 
@@ -374,14 +398,14 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
                       : 'border-slate-200 bg-white hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-1">
                     <span className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                      <Layers className="h-4 w-4 text-slate-500" />
-                      Trắc nghiệm Truyền thống
+                      <Layers className="h-4 w-4 shrink-0 text-slate-500" />
+                      Trắc nghiệm 4 Đáp án
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-600">
-                    25 câu trắc nghiệm chọn 1 trong 4 đáp án (A, B, C, D) đơn thuần.
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                    25 câu trắc nghiệm chọn 1 trong 4 đáp án (A, B, C, D) truyền thống.
                   </p>
                 </button>
               </div>
@@ -468,7 +492,13 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
               <button type="button" onClick={handleStartQuiz} className="edu-btn-primary px-8 py-3.5">
                 <Play className="h-4 w-4 fill-current" />
                 <span>
-                  Bắt đầu làm bài ({examFormat === 'format2025' ? 'Format 2025' : 'Tiêu chuẩn'})
+                  Bắt đầu làm bài (
+                  {examFormat === 'format2025'
+                    ? 'Format 2025'
+                    : examFormat === 'adaptive_cat'
+                      ? 'Thích ứng CAT • 10 câu'
+                      : 'Tiêu chuẩn'}
+                  )
                 </span>
               </button>
             </div>
@@ -614,6 +644,19 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
           </div>
         )}
       </div>
+    );
+  }
+
+  if (examFormat === 'adaptive_cat') {
+    return (
+      <AdaptiveCatRunner
+        title={title}
+        scopeType={scopeType}
+        scopeId={scopeId}
+        questions={questions}
+        targetLength={10}
+        onExitMode={handleReset}
+      />
     );
   }
 

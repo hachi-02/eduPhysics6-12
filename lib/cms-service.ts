@@ -960,3 +960,87 @@ export function getKnowledgeGraphRuntimeData(): {
     diagnosticQuestionsByCode,
   };
 }
+
+export function getAdaptiveTestCenterData() {
+  ensureDatabaseSeeded(false);
+  const db = getDb();
+
+  const chapters = db.query<{
+    id: number;
+    code: string;
+    title: string;
+    grade_number: number;
+    order_index: number;
+  }>(`
+    SELECT c.id, c.code, c.title, g.grade_number, c.order_index
+    FROM chapters c
+    JOIN grades g ON g.id = c.grade_id
+    ORDER BY g.grade_number ASC, c.order_index ASC
+  `);
+
+  const topics = db.query<{
+    id: number;
+    code: string;
+    title: string;
+    chapter_id: number;
+    grade_number: number;
+  }>(`
+    SELECT t.id, t.code, t.title, t.chapter_id, g.grade_number
+    FROM topics t
+    JOIN chapters c ON c.id = t.chapter_id
+    JOIN grades g ON g.id = c.grade_id
+    ORDER BY g.grade_number ASC, c.order_index ASC, t.order_index ASC
+  `);
+
+  const questionRows = db.query<any>(`
+    SELECT
+      q.id,
+      q.scope_type,
+      q.topic_id,
+      q.chapter_id,
+      q.order_index,
+      q.difficulty,
+      q.question_text,
+      q.options_json,
+      q.correct_index,
+      q.explanation,
+      t.code AS topic_code,
+      t.title AS topic_title,
+      c.code AS chapter_code,
+      c.title AS chapter_title,
+      g.grade_number,
+      COALESCE(qm.wrong_count, 0) AS empirical_wrong_count
+    FROM questions q
+    JOIN chapters c ON c.id = q.chapter_id
+    JOIN grades g ON g.id = c.grade_id
+    LEFT JOIN topics t ON t.id = q.topic_id
+    LEFT JOIN question_mistakes qm ON qm.question_id = q.id
+    ORDER BY g.grade_number ASC, c.order_index ASC, q.order_index ASC
+  `);
+
+  const questions = questionRows.map((q) => ({
+    id: q.id,
+    scope_type: q.scope_type as 'topic' | 'chapter',
+    topic_id: q.topic_id,
+    chapter_id: q.chapter_id,
+    order_index: q.order_index,
+    difficulty: q.difficulty,
+    question_text: q.question_text,
+    options: safeJsonParse<string[]>(q.options_json, ['', '', '', '']),
+    correct_index: q.correct_index,
+    explanation: q.explanation,
+    topic_code: q.topic_code || null,
+    topic_title: q.topic_title || null,
+    chapter_code: q.chapter_code,
+    chapter_title: q.chapter_title,
+    grade_number: q.grade_number,
+    empiricalWrongCount: Number(q.empirical_wrong_count || 0),
+  }));
+
+  return {
+    chapters,
+    topics,
+    questions,
+  };
+}
+
