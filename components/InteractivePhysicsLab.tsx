@@ -35,6 +35,14 @@ export function getSliderRange(
     for (const key of paramKeys) {
       if (bounds[key]) {
         const b = bounds[key];
+        // If currentVal is signed negative (e.g. heatQ = -670 for heat release) and b represents a non-negative magnitude (b.min >= 0)
+        if (currentVal !== undefined && Number.isFinite(currentVal) && currentVal < 0 && b.min >= 0) {
+          return {
+            min: -b.max,
+            max: -b.min,
+            step: b.step,
+          };
+        }
         const val = currentVal !== undefined && Number.isFinite(currentVal) ? currentVal : b.min;
         return {
           min: Math.min(b.min, val),
@@ -1631,7 +1639,7 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
             mode === 'depth_pressure' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
           }`}
         >
-          Áp suất chất lỏng & Áp kế ($p = \rho gh$)
+          Áp suất chất lỏng & Áp kế (p = ρ·g·h)
         </button>
         <button
           onClick={() => setMode('surface_pressure')}
@@ -1639,7 +1647,7 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
             mode === 'surface_pressure' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
           }`}
         >
-          Áp lực & Áp suất bề mặt ($p = F/S$)
+          Áp lực & Áp suất bề mặt (p = F/S)
         </button>
       </div>
 
@@ -1676,7 +1684,7 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
 
               <div>
                 <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-                  <span>Thể tích vật ($V$):</span>
+                  <span>Thể tích vật (V):</span>
                   <span className="font-semibold text-cyan-400">{volumeCm3} cm³ ({massKg.toFixed(2)} kg)</span>
                 </div>
                 <input
@@ -1693,7 +1701,7 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
               {mode === 'depth_pressure' && (
                 <div>
                   <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-                    <span>Độ sâu ngập ($h$):</span>
+                    <span>Độ sâu ngập (h):</span>
                     <span className="font-semibold text-amber-400">{depthCm} cm</span>
                   </div>
                   <input
@@ -1712,7 +1720,7 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
             <>
               <div>
                 <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-                  <span>Áp lực tác dụng ($F$):</span>
+                  <span>Áp lực tác dụng (F):</span>
                   <span className="font-semibold text-rose-400">{forceN} N</span>
                 </div>
                 <input
@@ -1728,7 +1736,7 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
 
               <div>
                 <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-                  <span>Diện tích bị ép ($S$):</span>
+                  <span>Diện tích bị ép (S):</span>
                   <span className="font-semibold text-indigo-400">{areaCm2} cm²</span>
                 </div>
                 <input
@@ -1749,15 +1757,15 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
             {mode !== 'surface_pressure' ? (
               <>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Lực đẩy Archimedes ($F_A$):</span>
+                  <span className="text-slate-400">Lực đẩy Archimedes (F_A):</span>
                   <span className="font-bold text-emerald-400">{archimedesForce.toFixed(2)} N</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Trọng lượng vật ($P$):</span>
+                  <span className="text-slate-400">Trọng lượng vật (P):</span>
                   <span className="font-bold text-rose-400">{gravityP.toFixed(2)} N</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Áp suất thủy tĩnh ($p = \rho gh$):</span>
+                  <span className="text-slate-400">Áp suất thủy tĩnh (p = ρ·g·h):</span>
                   <span className="font-bold text-cyan-400">{hydroPressurePa.toFixed(0)} Pa ({(hydroPressurePa / 1000).toFixed(2)} kPa)</span>
                 </div>
                 <div className="p-2 rounded bg-slate-900 text-[11px] text-slate-300 border border-slate-800">
@@ -1773,19 +1781,19 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
             ) : (
               <>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Áp lực $F$:</span>
+                  <span className="text-slate-400">Áp lực F:</span>
                   <span className="font-bold text-rose-400">{forceN} N</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Diện tích bị ép $S$:</span>
+                  <span className="text-slate-400">Diện tích bị ép S:</span>
                   <span className="font-bold text-indigo-400">{areaCm2} cm² ({(areaM2).toFixed(4)} m²)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Áp suất bề mặt ($p = F/S$):</span>
+                  <span className="text-slate-400">Áp suất bề mặt (p = F/S):</span>
                   <span className="font-bold text-emerald-400">{surfacePressurePa.toFixed(0)} Pa ({(surfacePressurePa / 1000).toFixed(2)} kPa)</span>
                 </div>
                 <div className="p-2 rounded bg-slate-900 text-[11px] text-slate-300 border border-slate-800">
-                  💡 Áp suất tỉ lệ thuận với áp lực $F$ và tỉ lệ nghịch với diện tích bị ép $S$. Để tăng áp suất (mũi kim, lưỡi dao), cần giảm tối đa diện tích tiếp xúc $S$.
+                  💡 Áp suất tỉ lệ thuận với áp lực F và tỉ lệ nghịch với diện tích bị ép S. Để tăng áp suất (mũi kim, lưỡi dao), cần giảm tối đa diện tích tiếp xúc S.
                 </div>
               </>
             )}
@@ -2062,7 +2070,7 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
         <div className="lg:col-span-5 space-y-3.5 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
           <div>
             <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-              <span>Lực tác dụng 1 ($F_1$):</span>
+              <span>Lực tác dụng 1 (F₁):</span>
               <span className="font-semibold text-cyan-400">{f1} N</span>
             </div>
             <input
@@ -2078,7 +2086,7 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
 
           <div>
             <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-              <span>Cánh tay đòn 1 ($d_1$):</span>
+              <span>Cánh tay đòn 1 (d₁):</span>
               <span className="font-semibold text-cyan-400">{d1} m</span>
             </div>
             <input
@@ -2094,7 +2102,7 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
 
           <div>
             <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-              <span>Lực tải / Lực 2 ($F_2$):</span>
+              <span>Lực tải / Lực 2 (F₂):</span>
               <span className="font-semibold text-rose-400">{f2} N</span>
             </div>
             <input
@@ -2110,7 +2118,7 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
 
           <div>
             <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-              <span>Cánh tay đòn 2 ($d_2$):</span>
+              <span>Cánh tay đòn 2 (d₂):</span>
               <span className="font-semibold text-rose-400">{d2} m</span>
             </div>
             <input
@@ -2129,27 +2137,27 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
             className="w-full py-2 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Tự động tìm điểm cân bằng ($F_2 = M_1 / d_2$)
+            Tự động tìm điểm cân bằng (F₂ = M₁ / d₂)
           </button>
 
           {/* Torque Calculation Metrics */}
           <div className="pt-2 border-t border-slate-800 space-y-1.5 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">Moment lực 1 ($M_1 = F_1 \cdot d_1$):</span>
+              <span className="text-slate-400">Moment lực 1 (M₁ = F₁ · d₁):</span>
               <span className="font-bold text-cyan-400">{m1.toFixed(1)} N·m</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Moment lực 2 ($M_2 = F_2 \cdot d_2$):</span>
+              <span className="text-slate-400">Moment lực 2 (M₂ = F₂ · d₂):</span>
               <span className="font-bold text-rose-400">{m2.toFixed(1)} N·m</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Độ lệch Moment ($\Delta M$):</span>
+              <span className="text-slate-400">Độ lệch Moment (ΔM):</span>
               <span className={`font-bold ${isBalanced ? 'text-emerald-400' : 'text-amber-400'}`}>
                 {deltaM.toFixed(1)} N·m ({isBalanced ? 'Cân bằng' : tiltAngle > 0 ? 'Nghiêng trái' : 'Nghiêng phải'})
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Tỉ số lợi về lực ($F_2 / F_1$):</span>
+              <span className="text-slate-400">Tỉ số lợi về lực (F₂ / F₁):</span>
               <span className="font-bold text-indigo-400">{(f2 / f1).toFixed(2)} lần (đường đi thiệt {(d1 / d2).toFixed(2)} lần)</span>
             </div>
           </div>
@@ -2813,7 +2821,7 @@ function ThermalCalorimetrySim({
             mode === 'first_law' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
           }`}
         >
-          Định luật I Nhiệt động lực học ($\Delta U = A + Q$)
+          Định luật I Nhiệt động lực học (ΔU = A + Q)
         </button>
         <button
           onClick={() => setMode('bimetallic')}
@@ -2949,8 +2957,8 @@ function ThermalCalorimetrySim({
             <>
               <div>
                 <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-                  <span>Công thực hiện lên hệ (A):</span>
-                  <span className="font-semibold text-cyan-400">{workA} J</span>
+                  <span>{workA >= 0 ? 'Công thực hiện lên hệ (A):' : 'Công hệ sinh ra (A):'}</span>
+                  <span className="font-semibold text-cyan-400">{workA >= 0 ? `+${workA}` : workA} J</span>
                 </div>
                 {(() => {
                   const r = getSliderRange(params, ['workMag', 'workA', 'inputJ', 'param1', 'param2'], -600, 600, 10, workA);
@@ -2964,7 +2972,7 @@ function ThermalCalorimetrySim({
                       onChange={(e) => {
                         const v = Number(e.target.value);
                         setWorkA(v);
-                        onParamChange?.('workMag', v);
+                        onParamChange?.('workMag', Math.abs(v));
                       }}
                       className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
                     />
@@ -2974,8 +2982,8 @@ function ThermalCalorimetrySim({
 
               <div>
                 <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-                  <span>Nhiệt lượng truyền cho hệ (Q):</span>
-                  <span className="font-semibold text-rose-400">{heatQ} J</span>
+                  <span>{heatQ >= 0 ? 'Nhiệt lượng hệ nhận (Q):' : 'Nhiệt lượng hệ tỏa ra (Q):'}</span>
+                  <span className="font-semibold text-rose-400">{heatQ >= 0 ? `+${heatQ}` : heatQ} J</span>
                 </div>
                 {(() => {
                   const r = getSliderRange(params, ['heatMag', 'heatQ', 'inputJ', 'param1', 'param2'], -600, 1000, 10, heatQ);
@@ -2989,7 +2997,7 @@ function ThermalCalorimetrySim({
                       onChange={(e) => {
                         const v = Number(e.target.value);
                         setHeatQ(v);
-                        onParamChange?.('heatMag', v);
+                        onParamChange?.('heatMag', Math.abs(v));
                       }}
                       className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
                     />
@@ -3047,9 +3055,9 @@ function ThermalCalorimetrySim({
 
             {mode === 'first_law' && (
               <>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Biến thiên nội năng ($\Delta U = A + Q$):</span>
-                  <span className="font-bold text-emerald-400">{deltaU} J</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-slate-400">Biến thiên nội năng (ΔU = A + Q):</span>
+                  <span className="font-bold text-emerald-400 shrink-0 whitespace-nowrap">{deltaU >= 0 ? `+${deltaU}` : deltaU} J</span>
                 </div>
                 <div className="p-2 rounded bg-slate-900 text-[11px] text-slate-300 border border-slate-800">
                   {deltaU > 0 ? '✓ Nội năng của khối khí tăng (ΔU > 0).' : deltaU < 0 ? '⚠ Nội năng của khối khí giảm (ΔU < 0).' : 'Nội năng của hệ không đổi (ΔU = 0).'}
@@ -3152,8 +3160,8 @@ function ThermalCalorimetrySim({
             )}
 
             {mode === 'first_law' && (
-              <g transform="translate(80, 30)">
-                <text x="150" y="15" textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="bold">
+              <g transform="translate(80, 25)">
+                <text x="150" y="10" textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="bold">
                   Mô hình Xy-lanh Piston: ΔU = A + Q
                 </text>
                 {/* Cylinder */}
@@ -3164,29 +3172,57 @@ function ThermalCalorimetrySim({
                   const pistonH = Math.min(110, Math.max(30, 75 - (workA / 300) * 35));
                   return (
                     <g>
-                      <rect x="73" y={177 - pistonH} width="154" height={pistonH} fill="rgba(244, 63, 94, 0.25)" />
+                      <rect
+                        x="73"
+                        y={177 - pistonH}
+                        width="154"
+                        height={pistonH}
+                        fill={deltaU < 0 ? "rgba(56, 189, 248, 0.25)" : "rgba(244, 63, 94, 0.28)"}
+                      />
                       {/* Piston head */}
                       <rect x="72" y={177 - pistonH - 12} width="156" height="12" rx="2" fill="#475569" stroke="#cbd5e1" strokeWidth="1.5" />
                       {/* Piston rod */}
-                      <rect x="144" y="30" width="12" height={177 - pistonH - 42} fill="#64748b" stroke="#cbd5e1" strokeWidth="1" />
+                      <rect x="144" y="25" width="12" height={177 - pistonH - 37} fill="#64748b" stroke="#cbd5e1" strokeWidth="1" />
                     </g>
                   );
                 })()}
 
-                {/* Work Arrow (Piston Compression) */}
-                <line x1="150" y1="10" x2="150" y2="40" stroke="#38bdf8" strokeWidth="3" markerEnd="url(#arrowDownRed)" />
-                <text x="165" y="25" fill="#38bdf8" fontSize="10" fontWeight="bold">A = {workA} J</text>
-
-                {/* Heat Source (Burner) */}
-                {heatQ > 0 && (
-                  <g transform="translate(130, 185)">
-                    <Flame className="w-8 h-8 text-amber-500 animate-pulse" />
-                    <text x="35" y="20" fill="#f59e0b" fontSize="10" fontWeight="bold">Q = {heatQ} J</text>
-                  </g>
+                {/* Work Arrow */}
+                {workA > 0 ? (
+                  <>
+                    <line x1="150" y1="18" x2="150" y2="38" stroke="#38bdf8" strokeWidth="3" markerEnd="url(#arrowDownRed)" />
+                    <text x="165" y="30" fill="#38bdf8" fontSize="10" fontWeight="bold">Nhận công: A = +{workA} J</text>
+                  </>
+                ) : workA < 0 ? (
+                  <>
+                    <line x1="150" y1="38" x2="150" y2="18" stroke="#a855f7" strokeWidth="3" />
+                    <text x="165" y="30" fill="#a855f7" fontSize="10" fontWeight="bold">Sinh công: A = {workA} J</text>
+                  </>
+                ) : (
+                  <text x="165" y="30" fill="#94a3b8" fontSize="10">A = 0 J (Đẳng tích)</text>
                 )}
 
-                <text x="150" y="225" textAnchor="middle" fill="#10b981" fontSize="12" fontWeight="bold">
-                  ΔU = A + Q = {deltaU} J
+                {/* Heat Source / Emission */}
+                {heatQ > 0 ? (
+                  <g transform="translate(130, 185)">
+                    <Flame className="w-7 h-7 text-amber-500 animate-pulse" />
+                    <text x="32" y="18" fill="#f59e0b" fontSize="10" fontWeight="bold">Nhận nhiệt: Q = +{heatQ} J</text>
+                  </g>
+                ) : heatQ < 0 ? (
+                  <g transform="translate(150, 195)">
+                    <text x="0" y="0" textAnchor="middle" fill="#f43f5e" fontSize="10" fontWeight="bold">
+                      Tỏa nhiệt ra môi trường: Q = {heatQ} J
+                    </text>
+                    <line x1="-50" y1="8" x2="-50" y2="16" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="2 2" />
+                    <line x1="0" y1="8" x2="0" y2="16" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="2 2" />
+                    <line x1="50" y1="8" x2="50" y2="16" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="2 2" />
+                  </g>
+                ) : (
+                  <text x="150" y="195" textAnchor="middle" fill="#94a3b8" fontSize="10">Đoạn nhiệt (Q = 0 J)</text>
+                )}
+
+                <text x="150" y="228" textAnchor="middle" fill="#10b981" fontSize="12" fontWeight="bold">
+                  ΔU = A + Q = {deltaU >= 0 ? `+${deltaU}` : deltaU} J
                 </text>
               </g>
             )}

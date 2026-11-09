@@ -539,9 +539,11 @@ export const SIM_TO_WHATIF_KEY_ALIASES: Record<string, string[]> = {
   volume: ['volume', 'V1', 'V2', 'param1', 'param2'],
 
   // Energy & Heat
-  heatQ: ['heatQ', 'inputJ', 'workA', 'param1', 'param2'],
-  workA: ['workA', 'heatQ', 'inputJ', 'param1', 'param2'],
-  inputJ: ['inputJ', 'workA', 'heatQ', 'param1', 'param2'],
+  heatQ: ['heatMag', 'heatQ', 'inputJ', 'param1', 'param2'],
+  heatMag: ['heatMag', 'heatQ', 'inputJ', 'param1', 'param2'],
+  workA: ['workMag', 'workA', 'param1', 'param2'],
+  workMag: ['workMag', 'workA', 'param1', 'param2'],
+  inputJ: ['inputJ', 'workMag', 'heatMag', 'workA', 'heatQ', 'param1', 'param2'],
 };
 
 export function buildBoundsMap(
@@ -584,8 +586,11 @@ export function buildBoundsMap(
     if (s.paramKey === 'V1' || s.paramKey === 'V2' || s.paramKey === 'volume') {
       bounds.volume = bounds.V1 = bounds.V2 = bounds.V = b;
     }
-    if (s.paramKey === 'heatQ' || s.paramKey === 'workA') {
-      bounds.heatQ = bounds.workA = bounds.inputJ = b;
+    if (s.paramKey === 'workMag' || s.paramKey === 'workA') {
+      bounds.workMag = bounds.workA = b;
+    }
+    if (s.paramKey === 'heatMag' || s.paramKey === 'heatQ' || s.paramKey === 'inputJ') {
+      bounds.heatMag = bounds.heatQ = bounds.inputJ = b;
     }
   }
   return bounds;

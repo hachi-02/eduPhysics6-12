@@ -226,9 +226,11 @@ export function ProblemSandboxClient({
         matched = sandboxState.sliders[0];
       }
       if (matched) {
+        // If matched slider in What-If has a non-negative range (min >= 0) but value passed is signed negative
+        const safeValue = matched.min >= 0 && value < 0 ? Math.abs(value) : value;
         setOverrideParams((prev) => ({
           ...prev,
-          [matched!.paramKey]: value,
+          [matched!.paramKey]: safeValue,
         }));
       }
     },
