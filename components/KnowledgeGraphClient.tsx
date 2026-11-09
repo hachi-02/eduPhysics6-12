@@ -287,13 +287,11 @@ export function KnowledgeGraphClient({
       if (r1.width === 0 || r2.width === 0) continue;
 
       const sameColumn = Math.abs(r1.left - r2.left) < 30;
-      const x1 = sameColumn
-        ? r1.left - cRect.left + container.scrollLeft + r1.width * 0.85
-        : r1.right - cRect.left + container.scrollLeft;
+      const x1 = r1.right - cRect.left + container.scrollLeft;
       const y1 = r1.top - cRect.top + container.scrollTop + r1.height / 2;
 
       const x2 = sameColumn
-        ? r2.left - cRect.left + container.scrollLeft + r2.width * 0.85
+        ? r2.right - cRect.left + container.scrollLeft
         : r2.left - cRect.left + container.scrollLeft;
       const y2 = r2.top - cRect.top + container.scrollTop + r2.height / 2;
 
@@ -754,8 +752,11 @@ export function KnowledgeGraphClient({
 
                 {svgLines.map((line) => {
                   const dx = Math.abs(line.x2 - line.x1);
-                  const cx1 = line.x1 + Math.max(28, dx * 0.42);
-                  const cx2 = line.x2 - Math.max(28, dx * 0.42);
+                  const dy = Math.abs(line.y2 - line.y1);
+                  const isSameColArc = dx < 12;
+                  const arcOut = Math.min(38, Math.max(20, dy * 0.28));
+                  const cx1 = isSameColArc ? line.x1 + arcOut : line.x1 + Math.max(32, dx * 0.42);
+                  const cx2 = isSameColArc ? line.x2 + arcOut : line.x2 - Math.max(32, dx * 0.42);
                   const pathD = `M ${line.x1} ${line.y1} C ${cx1} ${line.y1}, ${cx2} ${line.y2}, ${line.x2} ${line.y2}`;
 
                   if (line.role === 'background') {
@@ -813,7 +814,7 @@ export function KnowledgeGraphClient({
               </svg>
 
               {/* Grade Columns (Dynamic based on active filter) */}
-              <div className="relative z-10 flex gap-3.5">
+              <div className="relative z-10 flex gap-14 px-2 py-1">
                 {visibleGrades.map((gradeNum) => {
                   const list = nodesByGrade[gradeNum] || [];
                   const isTargetGrade =
@@ -821,9 +822,9 @@ export function KnowledgeGraphClient({
                     (selectedGradeFilter === 'thcs' && gradeNum <= 9) ||
                     (selectedGradeFilter === 'thpt' && gradeNum >= 10);
                   return (
-                    <div key={gradeNum} className="flex w-44 shrink-0 flex-col space-y-2.5">
+                    <div key={gradeNum} className="flex w-48 shrink-0 flex-col space-y-4">
                       <div
-                        className={`rounded-xl border px-3 py-2 text-center ${
+                        className={`rounded-xl border px-3 py-2.5 text-center ${
                           isTargetGrade
                             ? 'border-brand-500 bg-brand-600 text-white shadow-soft'
                             : gradeNum >= 10
@@ -841,7 +842,7 @@ export function KnowledgeGraphClient({
                         </div>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-3.5">
                         {list.map((node) => {
                           const isSelected = node.code === selectedCode;
                           const isRootCause = traceCodeSets.rootCauseCodes.has(node.code);
