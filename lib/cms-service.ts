@@ -760,10 +760,14 @@ export function updateMistakeStatus(questionId: number, action: 'master' | 'retr
     );
   } else if (action === 'retry_wrong') {
     db.run(
-      `UPDATE question_mistakes
-       SET mastered = 0, wrong_count = wrong_count + 1, last_wrong_option = ?, updated_at = datetime('now')
-       WHERE question_id = ?`,
-      [wrongOption, questionId]
+      `INSERT INTO question_mistakes (question_id, last_wrong_option, wrong_count, mastered, updated_at)
+       VALUES (?, ?, 1, 0, datetime('now'))
+       ON CONFLICT(question_id) DO UPDATE SET
+         mastered = 0,
+         wrong_count = question_mistakes.wrong_count + 1,
+         last_wrong_option = excluded.last_wrong_option,
+         updated_at = datetime('now')`,
+      [questionId, wrongOption]
     );
   }
 }

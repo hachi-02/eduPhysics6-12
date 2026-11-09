@@ -179,6 +179,8 @@ export function getDb(): DatabaseClient {
   if (!globalThis._physics_cms_sqlite_db) {
     const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'physics_cms.db');
     globalThis._physics_cms_sqlite_db = initDatabaseInstance(dbPath);
+  } else {
+    ensureAdaptiveCatTable(globalThis._physics_cms_sqlite_db);
   }
   return globalThis._physics_cms_sqlite_db;
 }

@@ -33,7 +33,29 @@ import {
   BarChart3,
   BookOpen,
   HelpCircle,
+  History,
+  Eye,
+  Trash2,
+  Calendar,
 } from 'lucide-react';
+
+interface SavedCatAttemptRow {
+  id: number;
+  title: string;
+  scope_type: 'grade' | 'chapter' | 'topic';
+  scope_id: number;
+  grade_number: number | null;
+  total_questions: number;
+  correct_count: number;
+  final_theta: number;
+  final_se: number;
+  confidence_pct: number;
+  predicted_score_10: number;
+  ability_tier_label: string;
+  time_spent_sec: number;
+  history_json: string;
+  created_at: string;
+}
 
 export interface CatAttemptReviewData {
   id?: number;
@@ -148,9 +170,31 @@ export function AdaptiveCatRunner({
   const [secondsElapsed, setSecondsElapsed] = useState<number>(
     initialReviewData ? initialReviewData.timeSpentSec : 0
   );
+  const [reportTitle, setReportTitle] = useState<string>(
+    initialReviewData ? initialReviewData.title : title
+  );
+  const [savedAttempts, setSavedAttempts] = useState<SavedCatAttemptRow[]>([]);
+  const [justSavedReport, setJustSavedReport] = useState<boolean>(false);
+
+  const fetchSavedAttempts = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/adaptive-cat/attempts');
+      if (res.ok) {
+        const data = await res.json();
+        setSavedAttempts(data.attempts || []);
+      }
+    } catch {
+      // Ignore network error
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSavedAttempts();
+  }, [fetchSavedAttempts]);
 
   useEffect(() => {
     if (initialReviewData) {
+      setReportTitle(initialReviewData.title);
       setHistory(initialReviewData.history);
       setCurrentTheta(initialReviewData.finalTheta);
       setCurrentSe(initialReviewData.finalSe);
@@ -305,7 +349,7 @@ export function AdaptiveCatRunner({
       const finalTier = getAbilityTier(finalThetaVal);
 
       // Save detailed CAT report to adaptive_cat_attempts table
-      await fetch('/api/adaptive-cat/attempts', {
+      const saveRes = await fetch('/api/adaptive-cat/attempts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -325,34 +369,62 @@ export function AdaptiveCatRunner({
         }),
       });
 
-      if (scopeType === 'topic' || scopeType === 'chapter') {
-        const answersMap: Record<number, number> = {};
-        for (const h of finalHistory) {
-          answersMap[h.question.id] = h.userAnswer;
-        }
-        await fetch('/api/quiz/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            scopeType,
-            scopeId,
-            studentName: 'Học sinh (CAT)',
-            score: correctCount,
-            totalQuestions: finalHistory.length,
-            timeSpentSec: secondsElapsed,
-            answers: answersMap,
-          }),
-        });
+      if (saveRes.ok) {
+        setJustSavedReport(true);
       }
 
+      await fetchSavedAttempts();
       router.refresh();
     } catch {
       // Ignore network errors
     }
   };
 
+  const handleDeleteSavedAttempt = async (id: number) => {
+    try {
+      await fetch(`/api/adaptive-cat/attempts?id=${id}`, { method: 'DELETE' });
+      setSavedAttempts((prev) => prev.filter((item) => item.id !== id));
+    } catch {
+      // Ignore network error
+    }
+  };
+
+  const handleLoadSavedAttempt = (row: SavedCatAttemptRow) => {
+    try {
+      const parsed: CatResponseStep[] = JSON.parse(row.history_json || '[]');
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+      setReportTitle(row.title);
+      setHistory(parsed);
+      setCurrentTheta(Number(row.final_theta));
+      setCurrentSe(Number(row.final_se));
+      setConfidencePct(Number(row.confidence_pct));
+      setSecondsElapsed(Number(row.time_spent_sec));
+      setFinished(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // Ignore parse error
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`);
+      return d.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   const handleRestartCat = () => {
     const first = selectNextCatQuestion(calibratedPool, new Set<number>(), 0.0, []);
+    setReportTitle(title);
+    setJustSavedReport(false);
     setHistory([]);
     setCurrentTheta(0.0);
     setCurrentSe(1.15);
@@ -455,11 +527,19 @@ export function AdaptiveCatRunner({
           <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 px-6 py-8 text-white sm:px-8">
             <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
               <div className="space-y-2">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-extrabold text-amber-300 backdrop-blur">
-                  <Target className="h-3.5 w-3.5" />
-                  <span>BÁO CÁO ĐO LƯỜNG NĂNG LỰC THÍCH ỨNG (CAT • IRT 3PL)</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-extrabold text-amber-300 backdrop-blur">
+                    <Target className="h-3.5 w-3.5" />
+                    <span>BÁO CÁO ĐO LƯỜNG NĂNG LỰC THÍCH ỨNG (CAT • IRT 3PL)</span>
+                  </div>
+                  {justSavedReport && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/25 px-3 py-1 text-xs font-extrabold text-emerald-200 ring-1 ring-emerald-400/40">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>Đã lưu vào Lịch sử Báo cáo</span>
+                    </span>
+                  )}
                 </div>
-                <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h2>
+                <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{reportTitle}</h2>
                 <p className="max-w-xl text-xs leading-relaxed text-white/80 sm:text-sm">
                   {abilityTier.description}
                 </p>
@@ -809,6 +889,75 @@ export function AdaptiveCatRunner({
             </div>
           </div>
         </div>
+
+        {/* SAVED REPORTS HISTORY LIST DIRECTLY ON REPORT VIEW */}
+        {savedAttempts.length > 0 && (
+          <div className="edu-card space-y-4 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+                  <History className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    Lịch sử Báo cáo Khảo thí Thích ứng đã lưu ({savedAttempts.length})
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Bấm vào bất kỳ báo cáo nào bên dưới để chuyển đổi xem lại biểu đồ và chi tiết câu hỏi
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {savedAttempts.map((row) => (
+                <div
+                  key={row.id}
+                  className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-purple-300"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-extrabold text-slate-900 line-clamp-1">
+                        {row.title}
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" /> {formatDate(row.created_at)}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Đúng {row.correct_count}/{row.total_questions} câu
+                        </span>
+                      </div>
+                    </div>
+                    <div className="shrink-0 rounded-xl bg-purple-50 px-2.5 py-1 text-right text-xs font-extrabold text-purple-900">
+                      {Number(row.predicted_score_10).toFixed(1)}/10
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleLoadSavedAttempt(row)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-[11px] font-extrabold text-white transition hover:bg-purple-500"
+                    >
+                      <Eye className="h-3 w-3" />
+                      <span>Xem Báo cáo này</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSavedAttempt(row.id)}
+                      className="rounded-lg p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                      title="Xóa báo cáo"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1121,6 +1270,47 @@ export function AdaptiveCatRunner({
                 </span>
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 4. SAVED REPORTS QUICK ACCESS BELOW RUNNER */}
+      {savedAttempts.length > 0 && (
+        <div className="edu-card space-y-3 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-2">
+              <History className="h-4 w-4 text-purple-600" />
+              <span className="text-xs font-extrabold text-slate-900">
+                Lịch sử Báo cáo Khảo thí Thích ứng đã lưu ({savedAttempts.length})
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-500">
+              Bấm &ldquo;Xem Báo cáo&rdquo; để mở lại kết quả các lần thi trước
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {savedAttempts.slice(0, 6).map((row) => (
+              <div
+                key={row.id}
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-slate-50/70 p-3 text-xs transition hover:border-purple-300 hover:bg-white"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-extrabold text-slate-900">{row.title}</div>
+                  <div className="mt-0.5 text-[10px] text-slate-500">
+                    {formatDate(row.created_at)} • {Number(row.predicted_score_10).toFixed(1)}/10 điểm (θ ={' '}
+                    {row.final_theta >= 0 ? `+${row.final_theta}` : row.final_theta})
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleLoadSavedAttempt(row)}
+                  className="shrink-0 rounded-lg bg-purple-600 px-2.5 py-1.5 text-[11px] font-extrabold text-white transition hover:bg-purple-500"
+                >
+                  Xem Báo cáo
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}
