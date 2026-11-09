@@ -71,7 +71,7 @@ export interface ProblemSandboxExtractionResult {
   answerUnit: string;
   dynamicExplanation: string;
   extractedList: ExtractedPhysicsParam[];
-  simParameters: Record<string, number>;
+  simParameters: Record<string, any>;
   sliders: SandboxSliderSpec[];
   liveMetrics: LiveSandboxMetric[];
   verificationInsight: string;
