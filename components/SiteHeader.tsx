@@ -31,7 +31,6 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const isHome = pathname === '/' || pathname.startsWith('/?');
   const isKnowledgeGraph = pathname.startsWith('/knowledge-graph');
   const isAdaptiveTest = pathname.startsWith('/adaptive-test');
-  const isProblemSandbox = pathname.startsWith('/problem-sandbox');
   const isMistakes = pathname.startsWith('/mistakes');
   const isCheatsheet = pathname.startsWith('/cheatsheet');
   const isAdmin = pathname.startsWith('/admin');
@@ -39,7 +38,6 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const isAnyUtilityActive =
     isKnowledgeGraph ||
     isAdaptiveTest ||
-    isProblemSandbox ||
     isMistakes ||
     isCheatsheet ||
     isAdmin;
@@ -86,16 +84,6 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
       active: isAdaptiveTest,
       badge: 'IRT 3PL',
       badgeCls: 'bg-indigo-100 text-indigo-800',
-    },
-    {
-      href: '/problem-sandbox',
-      title: 'Giải bài tập bằng Mô phỏng (Sandbox)',
-      desc: 'Bóc tách dữ kiện đề bài vào phòng thí nghiệm & kéo thanh trượt What-If',
-      icon: <FlaskConical className="h-5 w-5 text-teal-600" />,
-      iconBg: 'bg-teal-50 border-teal-200/80',
-      active: isProblemSandbox,
-      badge: 'Sim + Đồ thị',
-      badgeCls: 'bg-teal-100 text-teal-800',
     },
     {
       href: '/mistakes',

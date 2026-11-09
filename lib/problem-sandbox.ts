@@ -378,6 +378,8 @@ function mapUnitValueToSimParams(
     }
   } else if (uLower === 'km') {
     target.distKm = val;
+    target.distanceM = val * 1000;
+    target.distM = val * 1000;
   } else if (uLower === 'm/s') {
     if (!isSecondary) {
       target.v0 = val;
@@ -385,15 +387,22 @@ function mapUnitValueToSimParams(
       target.v1 = val;
       target.v = val;
       target.speed = val;
+      target.speedMs = val;
+      target.speedKmh = Number((val * 3.6).toFixed(2));
     } else {
       target.v2 = val;
       target.v = val;
+      target.speed = val;
+      target.speedMs = val;
+      target.speedKmh = Number((val * 3.6).toFixed(2));
     }
   } else if (uLower === 'km/h') {
     target.speed = val;
     target.speedKmh = val;
-    target.v0 = Number((val / 3.6).toFixed(1));
-    target.v0_1d = Number((val / 3.6).toFixed(1));
+    target.v = Number((val / 3.6).toFixed(2));
+    target.speedMs = target.v;
+    target.v0 = target.v;
+    target.v0_1d = target.v;
   } else if (uLower === 'm/s²' || uLower === 'm/s^2') {
     target.accel = val;
     target.acceleration = val;
@@ -413,13 +422,30 @@ function mapUnitValueToSimParams(
   } else if (uLower === 'hz' || uLower === 'khz') {
     target.f = val;
     target.freqHz = val;
-  } else if (uLower === 's' || uLower === 'giây' || uLower === 'phút' || uLower === 'giờ') {
+  } else if (uLower === 'phút') {
+    target.timeMin = val;
+    target.timeSec = val * 60;
+    target.t = val * 60;
+    target.time1d = val * 60;
+    target.timeH = Number((val / 60).toFixed(4));
+    target.echoTime = val * 60;
+    target.period = val * 60;
+  } else if (uLower === 'giờ' || uLower === 'h') {
+    target.timeH = val;
+    target.timeMin = val * 60;
+    target.timeSec = val * 3600;
+    target.t = val * 3600;
+    target.time1d = val * 3600;
+    target.echoTime = val * 3600;
+    target.period = val * 3600;
+  } else if (uLower === 's' || uLower === 'giây') {
     target.t = val;
     target.time1d = val;
     target.timeSec = val;
     target.echoTime = val;
     target.period = val;
-    target.timeH = val;
+    target.timeMin = Number((val / 60).toFixed(4));
+    target.timeH = Number((val / 3600).toFixed(6));
   } else if (u === '°C') {
     if (!isSecondary) {
       target.t1 = val;
@@ -468,6 +494,51 @@ function mapUnitValueToSimParams(
     target.theta = val;
     target.phi = val;
   }
+
+  // Derived Speed Calculation: When distance and time are mapped, compute derived velocity for speed/kinematics labs
+  if (target.distKm !== undefined && (target.timeH !== undefined || target.timeMin !== undefined || target.timeSec !== undefined || target.t !== undefined)) {
+    const hours = target.timeH || (target.timeMin ? target.timeMin / 60 : (target.timeSec ? target.timeSec / 3600 : target.t / 3600));
+    if (hours && hours > 0) {
+      const vKmh = Number((target.distKm / hours).toFixed(2));
+      const vMs = Number((vKmh / 3.6).toFixed(2));
+      target.speedKmh = vKmh;
+      target.speed = vMs;
+      target.speedMs = vMs;
+      target.v = vMs;
+      target.v0 = vMs;
+      target.v0_1d = vMs;
+    }
+  } else if (target.distM !== undefined && target.timeSec !== undefined && target.timeSec > 0) {
+    const vMs = Number((target.distM / target.timeSec).toFixed(2));
+    const vKmh = Number((vMs * 3.6).toFixed(2));
+    target.speedKmh = vKmh;
+    target.speed = vMs;
+    target.speedMs = vMs;
+    target.v = vMs;
+    target.v0 = vMs;
+    target.v0_1d = vMs;
+  }
+}
+
+export function getQuantityNameByUnit(unit: string): string {
+  const u = (unit || '').toLowerCase().trim();
+  if (u === 'km' || u === 'm' || u === 'cm' || u === 'mm') return 'Quãng đường';
+  if (u === 'phút' || u === 'giờ' || u === 's' || u === 'giây' || u === 'ngày' || u === 'năm') return 'Thời gian';
+  if (u === 'km/h' || u === 'm/s') return 'Tốc độ / Vận tốc';
+  if (u === 'kg' || u === 'g' || u === 'mg') return 'Khối lượng';
+  if (u === 'n') return 'Lực tác dụng';
+  if (u === 'n/m') return 'Độ cứng lò xo';
+  if (u === 'm/s²' || u === 'm/s^2') return 'Gia tốc';
+  if (u === '°c' || u === 'k') return 'Nhiệt độ';
+  if (u === 'v' || u === 'kv' || u === 'mv') return 'Hiệu điện thế';
+  if (u === 'a' || u === 'ma') return 'Cường độ dòng điện';
+  if (u === 'ω' || u === 'ohm' || u === 'ôm' || u === '\\omega') return 'Điện trở';
+  if (u === 'w' || u === 'kw') return 'Công suất';
+  if (u === 'j' || u === 'kj') return 'Nhiệt lượng / Công';
+  if (u === 'pa' || u === 'kpa' || u === 'atm') return 'Áp suất';
+  if (u === 'hz' || u === 'khz') return 'Tần số';
+  if (u === 'cm³' || u === 'ml' || u === 'l' || u === 'lít') return 'Thể tích';
+  return 'Đại lượng';
 }
 
 export const SIM_TO_WHATIF_KEY_ALIASES: Record<string, string[]> = {
@@ -514,8 +585,16 @@ export const SIM_TO_WHATIF_KEY_ALIASES: Record<string, string[]> = {
   // Radioactive
   halfLife: ['halfLife', 'tHalf', 'param1', 'param2'],
   targetRatio: ['targetRatio', 'ratio', 'param1', 'param2'],
-  elapsedTime: ['elapsedTime', 'timeSec', 'param1', 'param2'],
-  t: ['elapsedTime', 'timeSec', 'param1', 'param2'],
+  elapsedTime: ['elapsedTime', 'timeSec', 't', 'param1', 'param2'],
+  t: ['elapsedTime', 'timeSec', 't', 'timeMin', 'timeH', 'param2', 'param1'],
+  timeSec: ['timeSec', 't', 'timeMin', 'timeH', 'elapsedTime', 'param2', 'param1'],
+  timeMin: ['timeMin', 'timeSec', 't', 'timeH', 'param2', 'param1'],
+  timeH: ['timeH', 'timeMin', 'timeSec', 't', 'param2', 'param1'],
+
+  // Distance
+  distKm: ['distKm', 'distM', 'distanceM', 'L', 'param1', 'param2'],
+  distM: ['distM', 'distKm', 'distanceM', 'L', 'param1', 'param2'],
+  distanceM: ['distanceM', 'distM', 'distKm', 'L', 'param1', 'param2'],
 
   // Electromagnetism & Magnetic Force
   fieldB: ['fieldB', 'B', 'param1', 'param2'],
@@ -527,9 +606,10 @@ export const SIM_TO_WHATIF_KEY_ALIASES: Record<string, string[]> = {
   lengthCm: ['lengthCm', 'L', 'wireLengthL', 'param1', 'param2'],
 
   // Motion / Velocity
-  v0: ['v0', 'speed', 'v', 'v0_1d', 'v1', 'v2', 'param1', 'param2'],
-  speed: ['v0', 'speed', 'v', 'param1', 'param2'],
-  v: ['v0', 'speed', 'v', 'param1', 'param2'],
+  speedKmh: ['speedKmh', 'speed', 'v', 'v0', 'param1', 'param2'],
+  speed: ['speed', 'v', 'v0', 'speedKmh', 'param1', 'param2'],
+  v: ['v', 'speed', 'v0', 'speedKmh', 'param1', 'param2'],
+  v0: ['v0', 'speed', 'v', 'v0_1d', 'v1', 'v2', 'speedKmh', 'param1', 'param2'],
   accel: ['accel', 'acceleration', 'a', 'param1', 'param2'],
   acceleration: ['accel', 'acceleration', 'a', 'param1', 'param2'],
 
@@ -1686,6 +1766,16 @@ export function buildProblemSandboxState(
       mapUnitBounds(p2_unit, b2, extraBounds);
     }
 
+    if (mappedSimParams.speedKmh !== undefined) {
+      const sb = makeSliderBounds(mappedSimParams.speedKmh);
+      extraBounds.speedKmh = sb;
+      extraBounds.speed = { min: Number((sb.min / 3.6).toFixed(1)), max: Number((sb.max / 3.6).toFixed(1)), step: 0.1 };
+      extraBounds.v = extraBounds.speed;
+    }
+
+    const qName1 = getQuantityNameByUnit(p1_unit);
+    const qName2 = secondary ? getQuantityNameByUnit(p2_unit) : '';
+
     return finalizeSandboxResult({
       domainName: 'Mô phỏng Thực nghiệm & Giải tự động theo Đề bài',
       modifiedQuestionText,
@@ -1696,9 +1786,9 @@ export function buildProblemSandboxState(
       answerUnit: origAnsUnit || 'đơn vị',
       dynamicExplanation: dynamicExp,
       extractedList: [
-        { paramKey: 'param1', symbol: 'X₁', label: `Đại lượng đề bài (${p1_unit})`, value: p1_val, defaultValue: p1_base, unit: p1_unit, fromQuestionText: true },
+        { paramKey: 'param1', symbol: 'X₁', label: `${qName1} (${p1_unit})`, value: p1_val, defaultValue: p1_base, unit: p1_unit, fromQuestionText: true },
         ...(secondary
-          ? [{ paramKey: 'param2', symbol: 'X₂', label: `Đại lượng đề bài (${p2_unit})`, value: p2_val, defaultValue: p2_base, unit: p2_unit, fromQuestionText: true }]
+          ? [{ paramKey: 'param2', symbol: 'X₂', label: `${qName2} (${p2_unit})`, value: p2_val, defaultValue: p2_base, unit: p2_unit, fromQuestionText: true }]
           : []),
       ],
       simParameters: {
@@ -1706,15 +1796,15 @@ export function buildProblemSandboxState(
         _bounds: extraBounds,
       },
       sliders: [
-        { paramKey: 'param1', symbol: 'X₁', label: `Số liệu thứ 1 trong đề (${p1_unit})`, unit: p1_unit, min: b1.min, max: b1.max, step: b1.step, defaultValue: p1_base },
+        { paramKey: 'param1', symbol: 'X₁', label: `${qName1} trong đề (${p1_unit})`, unit: p1_unit, min: b1.min, max: b1.max, step: b1.step, defaultValue: p1_base },
         ...(secondary
-          ? [{ paramKey: 'param2', symbol: 'X₂', label: `Số liệu thứ 2 trong đề (${p2_unit})`, unit: p2_unit, min: b2.min, max: b2.max, step: b2.step, defaultValue: p2_base }]
+          ? [{ paramKey: 'param2', symbol: 'X₂', label: `${qName2} trong đề (${p2_unit})`, unit: p2_unit, min: b2.min, max: b2.max, step: b2.step, defaultValue: p2_base }]
           : []),
       ],
       liveMetrics: [
-        { symbol: 'X₁', label: 'Số liệu 1 đang nạp', formula: `Đề gốc: ${p1_base} ${p1_unit}`, value: String(p1_val), unit: p1_unit, highlightColor: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
+        { symbol: 'X₁', label: qName1, formula: `Đề gốc: ${p1_base} ${p1_unit}`, value: String(p1_val), unit: p1_unit, highlightColor: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
         ...(secondary
-          ? [{ symbol: 'X₂', label: 'Số liệu 2 đang nạp', formula: `Đề gốc: ${p2_base} ${p2_unit}`, value: String(p2_val), unit: p2_unit, highlightColor: 'text-emerald-700 bg-emerald-50 border-emerald-200' }]
+          ? [{ symbol: 'X₂', label: qName2, formula: `Đề gốc: ${p2_base} ${p2_unit}`, value: String(p2_val), unit: p2_unit, highlightColor: 'text-emerald-700 bg-emerald-50 border-emerald-200' }]
           : []),
         { symbol: 'Đáp số', label: 'Kết quả theo đề hiện tại', formula: `Tỉ lệ ${ratioScale.toFixed(2)}× đề gốc`, value: formatVnNum(scaledAns), unit: origAnsUnit, highlightColor: 'text-amber-800 bg-amber-50 border-amber-200' },
       ],

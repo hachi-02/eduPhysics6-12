@@ -854,14 +854,14 @@ export function AdaptiveCatRunner({
                           <strong className="text-emerald-700">Giải thích: </strong>
                           <RichPhysicsText text={h.question.explanation} />
                         </div>
-                        <Link
-                          href={`/problem-sandbox?questionId=${h.question.id}${
-                            h.question.topic_id ? `&topicId=${h.question.topic_id}` : ''
-                          }`}
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[11px] font-extrabold text-teal-800 transition hover:bg-teal-100"
-                        >
-                          <span>🔬 Kiểm chứng bằng Mô phỏng</span>
-                        </Link>
+                        {h.question.topic_id && (
+                          <Link
+                            href={`/topic/${h.question.topic_id}`}
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[11px] font-extrabold text-indigo-800 transition hover:bg-indigo-100"
+                          >
+                            <span>🔬 Xem bài học & Mô phỏng</span>
+                          </Link>
+                        )}
                       </div>
                     </div>
                   );
