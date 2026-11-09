@@ -70,4 +70,17 @@ assert.strictEqual(
 );
 assert.ok(heatMod.dynamicExplanation.includes('940,5 kJ'));
 
+// 6. Test General Archetype 8 exact unit-to-simulation slider sync & LaTeX cleaning
+const sampleNewton =
+  'Một lực $F = 35\\,\\text{N}$ tác dụng lên vật có khối lượng $m = 7\\,\\text{kg}$. Tính gia tốc của vật.|||a = F / m = 35 / 7 = 5 m/s²|||5 m/s²';
+const newtonOrig = buildProblemSandboxState(sampleNewton, 'newton_second_law_lab');
+assert.strictEqual(newtonOrig.simParameters.force, 35);
+assert.strictEqual(newtonOrig.simParameters.pull, 35);
+assert.strictEqual(newtonOrig.simParameters.m2, 7);
+const newtonMod = buildProblemSandboxState(sampleNewton, 'newton_second_law_lab', {}, { param1: 70, param2: 10 });
+assert.strictEqual(newtonMod.simParameters.force, 70);
+assert.strictEqual(newtonMod.simParameters.pull, 70);
+assert.strictEqual(newtonMod.simParameters.m2, 10);
+assert.strictEqual(newtonMod.targetNumericAnswer, 7);
+
 console.log('✅ All Problem-to-Sim Sandbox tests passed!');

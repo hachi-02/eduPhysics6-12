@@ -127,43 +127,43 @@ export function InteractivePhysicsLab({ simulation }: { simulation: SimulationIt
 
 function renderSimByKey(simKey: string, params: Record<string, any> = {}) {
   switch (simKey) {
-    // Existing Grade 6 & 7 simulations (backward-compatible)
+    // Existing Grade 6 & 7 simulations (synchronized with What-If params)
     case 'length_volume_lab':
-      return <LengthVolumeSim />;
+      return <LengthVolumeSim params={params} />;
     case 'mass_time_lab':
-      return <MassTimeSim />;
+      return <MassTimeSim params={params} />;
     case 'temperature_scales_lab':
-      return <TemperatureScalesSim />;
+      return <TemperatureScalesSim params={params} />;
     case 'force_effects_lab':
     case 'force_vector_lab':
-      return <ForceVectorAndEffectsSim />;
+      return <ForceVectorAndEffectsSim params={params} />;
     case 'gravity_weight_lab':
-      return <GravityWeightSim />;
+      return <GravityWeightSim params={params} />;
     case 'contact_noncontact_lab':
-      return <MagnetNonContactSim />;
+      return <MagnetNonContactSim params={params} />;
     case 'spring_hooke_lab':
-      return <SpringHookeSim />;
+      return <SpringHookeSim params={params} />;
     case 'friction_lab':
-      return <FrictionSim />;
+      return <FrictionSim params={params} />;
     case 'energy_forms_skate_lab':
-      return <EnergySkateSim />;
+      return <EnergySkateSim params={params} />;
     case 'energy_efficiency_sankey_lab':
     case 'renewable_energy_lab':
-      return <EnergyEfficiencyAndRenewableSim simKey={simKey} />;
+      return <EnergyEfficiencyAndRenewableSim simKey={simKey} params={params} />;
     case 'earth_day_night_lab':
-      return <EarthDayNightSim />;
+      return <EarthDayNightSim params={params} />;
     case 'moon_phases_lab':
-      return <MoonPhasesSim />;
+      return <MoonPhasesSim params={params} />;
     case 'solar_system_lab':
-      return <SolarSystemSim />;
+      return <SolarSystemSim params={params} />;
     case 'speed_graph_lab':
-      return <SpeedGraphSim />;
+      return <SpeedGraphSim params={params} />;
     case 'sound_wave_echo_lab':
-      return <SoundWaveEchoSim />;
+      return <SoundWaveEchoSim params={params} />;
     case 'light_reflection_mirror_lab':
-      return <LightReflectionMirrorSim />;
+      return <LightReflectionMirrorSim params={params} />;
     case 'magnetism_electromagnet_lab':
-      return <MagnetismElectromagnetSim />;
+      return <MagnetismElectromagnetSim params={params} />;
 
     // --- Domain Engine 1: Fluid Pressure & Archimedes (Grade 8) ---
     case 'fluid_pressure_archimedes_lab':
@@ -302,15 +302,15 @@ function renderSimByKey(simKey: string, params: Record<string, any> = {}) {
       return <NuclearDecaySim simKey={simKey} params={params} />;
 
     default:
-      return <SpringHookeSim />;
+      return <SpringHookeSim params={params} />;
   }
 }
 
 /* --- 1. Length & Volume Lab --- */
-function LengthVolumeSim() {
-  const [eyeAngle, setEyeAngle] = useState(0);
-  const [waterV1, setWaterV1] = useState(50);
-  const [stoneV, setStoneV] = useState(28);
+function LengthVolumeSim({ params = {} }: { params?: Record<string, any> }) {
+  const [eyeAngle, setEyeAngle] = useState(Number(params.eyeAngle ?? params.angle ?? 0));
+  const [waterV1, setWaterV1] = useState(Number(params.waterV1 ?? params.V1 ?? 50));
+  const [stoneV, setStoneV] = useState(Number(params.stoneV ?? params.volume ?? 28));
   const [submerged, setSubmerged] = useState(true);
 
   const trueLength = 7.5;
@@ -333,8 +333,8 @@ function LengthVolumeSim() {
           </label>
           <input
             type="range"
-            min={-30}
-            max={30}
+            min={Math.min(-30, eyeAngle)}
+            max={Math.max(30, eyeAngle)}
             step={5}
             value={eyeAngle}
             onChange={(e) => setEyeAngle(Number(e.target.value))}
@@ -363,18 +363,18 @@ function LengthVolumeSim() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-slate-300 block">Mực nước ban đầu V₁: {waterV1} mL</label>
-            <input type="range" min={30} max={60} value={waterV1} onChange={(e) => setWaterV1(Number(e.target.value))} className="w-full accent-indigo-400" />
+            <input type="range" min={Math.min(30, waterV1)} max={Math.max(60, waterV1)} value={waterV1} onChange={(e) => setWaterV1(Number(e.target.value))} className="w-full accent-indigo-400" />
           </div>
           <div>
             <label className="text-xs text-slate-300 block">Thể tích hòn đá: {stoneV} cm³</label>
-            <input type="range" min={10} max={35} value={stoneV} onChange={(e) => setStoneV(Number(e.target.value))} className="w-full accent-emerald-400" />
+            <input type="range" min={Math.min(10, stoneV)} max={Math.max(35, stoneV)} value={stoneV} onChange={(e) => setStoneV(Number(e.target.value))} className="w-full accent-emerald-400" />
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="w-20 h-32 border-2 border-slate-400 rounded-b-xl relative overflow-hidden bg-slate-950 flex flex-col justify-end">
             <div
               className="w-full bg-cyan-500/50 border-t-2 border-cyan-300 transition-all duration-300 flex items-end justify-center pb-1"
-              style={{ height: `${currentV2}%` }}
+              style={{ height: `${Math.min(100, currentV2)}%` }}
             >
               {submerged && (
                 <div className="w-8 h-6 rounded-full bg-amber-600 border border-amber-300 text-[9px] flex items-center justify-center font-bold">
@@ -404,10 +404,12 @@ function LengthVolumeSim() {
 }
 
 /* --- 2. Mass & Time Lab --- */
-function MassTimeSim() {
-  const [trueMass, setTrueMass] = useState(650);
-  const [zeroOffset, setZeroOffset] = useState(100);
-  const [oscCount, setOscCount] = useState(10);
+function MassTimeSim({ params = {} }: { params?: Record<string, any> }) {
+  const [trueMass, setTrueMass] = useState(
+    Number(params.trueMass ?? (params.mass ? (params.mass < 20 ? params.mass * 1000 : params.mass) : 650))
+  );
+  const [zeroOffset, setZeroOffset] = useState(Number(params.zeroOffset ?? 100));
+  const [oscCount, setOscCount] = useState(Number(params.oscCount ?? 10));
 
   const displayedMass = trueMass + zeroOffset;
   const singlePeriod = 1.6;
@@ -422,7 +424,7 @@ function MassTimeSim() {
             <span>Khối lượng thật của vật (m_thật):</span>
             <strong className="text-white">{trueMass} g ({(trueMass / 1000).toFixed(2)} kg)</strong>
           </label>
-          <input type="range" min={100} max={1500} step={50} value={trueMass} onChange={(e) => setTrueMass(Number(e.target.value))} className="w-full accent-amber-400" />
+          <input type="range" min={Math.min(100, trueMass)} max={Math.max(1500, trueMass)} step={50} value={trueMass} onChange={(e) => setTrueMass(Number(e.target.value))} className="w-full accent-amber-400" />
         </div>
         <div>
           <label className="text-xs text-slate-300 flex justify-between">
@@ -453,7 +455,7 @@ function MassTimeSim() {
             <span>Số dao động liên tiếp dùng để bấm giờ (N):</span>
             <strong className="text-cyan-300">{oscCount} dao động</strong>
           </label>
-          <input type="range" min={1} max={25} value={oscCount} onChange={(e) => setOscCount(Number(e.target.value))} className="w-full accent-cyan-400" />
+          <input type="range" min={1} max={Math.max(25, oscCount)} value={oscCount} onChange={(e) => setOscCount(Number(e.target.value))} className="w-full accent-cyan-400" />
         </div>
         <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5 text-xs">
           <div>Tổng thời gian đồng hồ bấm giây đo được: <strong className="text-white">{totalTime} s</strong></div>
@@ -468,8 +470,10 @@ function MassTimeSim() {
 }
 
 /* --- 3. Temperature Scales (°C - K - °F) --- */
-function TemperatureScalesSim() {
-  const [tempC, setTempC] = useState(37);
+function TemperatureScalesSim({ params = {} }: { params?: Record<string, any> }) {
+  const [tempC, setTempC] = useState(
+    Number(params.tempC ?? params.celsius ?? params.stripTemp ?? params.t1 ?? 37)
+  );
   const tempK = Number((tempC + 273).toFixed(1));
   const tempF = Number((1.8 * tempC + 32).toFixed(1));
 
@@ -507,8 +511,8 @@ function TemperatureScalesSim() {
 
       <input
         type="range"
-        min={-40}
-        max={120}
+        min={Math.min(-40, tempC)}
+        max={Math.max(120, tempC)}
         step={1}
         value={tempC}
         onChange={(e) => setTempC(Number(e.target.value))}
@@ -548,8 +552,8 @@ function TemperatureScalesSim() {
 }
 
 /* --- 4. Force Vector & Effects --- */
-function ForceVectorAndEffectsSim() {
-  const [forceN, setForceN] = useState(40);
+function ForceVectorAndEffectsSim({ params = {} }: { params?: Record<string, any> }) {
+  const [forceN, setForceN] = useState(Number(params.forceN ?? params.force ?? 40));
   const [scalePerSegment, setScalePerSegment] = useState(10);
   const [direction, setDirection] = useState<'right' | 'left'>('right');
 
@@ -560,7 +564,7 @@ function ForceVectorAndEffectsSim() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="text-xs text-slate-300 block">Độ lớn lực F: <strong className="text-cyan-300">{forceN} N</strong></label>
-          <input type="range" min={10} max={100} step={10} value={forceN} onChange={(e) => setForceN(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
+          <input type="range" min={Math.min(10, forceN)} max={Math.max(100, forceN)} step={5} value={forceN} onChange={(e) => setForceN(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
         </div>
         <div>
           <label className="text-xs text-slate-300 block">Tỉ xích 1 đoạn: <strong className="text-amber-300">{scalePerSegment} N/đoạn</strong></label>
@@ -600,7 +604,7 @@ function ForceVectorAndEffectsSim() {
           {direction === 'left' && (
             <div className="flex items-center">
               <span className="text-amber-400 font-bold text-lg mr-0.5">◀</span>
-              {Array.from({ length: segments }).map((_, idx) => (
+              {Array.from({ length: Math.min(12, segments) }).map((_, idx) => (
                 <div key={idx} className="w-7 h-2 bg-amber-400 border-r border-slate-950" />
               ))}
             </div>
@@ -611,7 +615,7 @@ function ForceVectorAndEffectsSim() {
           </div>
           {direction === 'right' && (
             <div className="flex items-center">
-              {Array.from({ length: segments }).map((_, idx) => (
+              {Array.from({ length: Math.min(12, segments) }).map((_, idx) => (
                 <div key={idx} className="w-7 h-2 bg-emerald-400 border-r border-slate-950" />
               ))}
               <span className="text-emerald-400 font-bold text-lg ml-0.5">▶</span>
@@ -619,7 +623,7 @@ function ForceVectorAndEffectsSim() {
           )}
         </div>
         <div className="mt-3 text-xs text-slate-300">
-          Mũi tên gồm <strong className="text-emerald-300">{segments} đoạn</strong> × <strong className="text-amber-300">{scalePerSegment} N/đoạn</strong> = <strong className="text-white">{segments * scalePerSegment} N</strong> (Phương nằm ngang, chiều {direction === 'right' ? 'Trái sang Phải' : 'Phải sang Trái'})
+          Mũi tên gồm <strong className="text-emerald-300">{segments} đoạn</strong> × <strong className="text-amber-300">{scalePerSegment} N/đoạn</strong> = <strong className="text-white">{forceN} N</strong> (Phương nằm ngang, chiều {direction === 'right' ? 'Trái sang Phải' : 'Phải sang Trái'})
         </div>
       </div>
     </div>
@@ -627,8 +631,8 @@ function ForceVectorAndEffectsSim() {
 }
 
 /* --- 5. Gravity & Weight (Earth / Moon / Mars) --- */
-function GravityWeightSim() {
-  const [massKg, setMassKg] = useState(15);
+function GravityWeightSim({ params = {} }: { params?: Record<string, any> }) {
+  const [massKg, setMassKg] = useState(Number(params.massKg ?? params.mass ?? 15));
   const [planet, setPlanet] = useState<'earth' | 'moon' | 'mars'>('earth');
 
   const planetData = {
@@ -647,7 +651,7 @@ function GravityWeightSim() {
             <span>Khối lượng của vật (m):</span>
             <strong className="text-cyan-300">{massKg} kg ({massKg * 1000} g)</strong>
           </label>
-          <input type="range" min={1} max={60} value={massKg} onChange={(e) => setMassKg(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
+          <input type="range" min={Math.min(1, massKg)} max={Math.max(60, massKg)} value={massKg} onChange={(e) => setMassKg(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
         </div>
         <div className="flex gap-2 items-end">
           {(['earth', 'moon', 'mars'] as const).map((key) => (
@@ -684,8 +688,8 @@ function GravityWeightSim() {
 }
 
 /* --- 6. Non-Contact Magnet Force --- */
-function MagnetNonContactSim() {
-  const [distanceCm, setDistanceCm] = useState(3);
+function MagnetNonContactSim({ params = {} }: { params?: Record<string, any> }) {
+  const [distanceCm, setDistanceCm] = useState(Number(params.distanceCm ?? params.d ?? 3));
   const [samePole, setSamePole] = useState(false);
 
   const magneticForceN = Number((18 / (distanceCm * distanceCm)).toFixed(2));
@@ -698,7 +702,7 @@ function MagnetNonContactSim() {
             <span>Khoảng cách không tiếp xúc d (cm):</span>
             <strong className="text-cyan-300">{distanceCm} cm (Chưa chạm nhau!)</strong>
           </label>
-          <input type="range" min={1.5} max={8} step={0.5} value={distanceCm} onChange={(e) => setDistanceCm(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
+          <input type="range" min={Math.min(1.5, distanceCm)} max={Math.max(8, distanceCm)} step={0.5} value={distanceCm} onChange={(e) => setDistanceCm(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
         </div>
         <div className="flex items-end gap-2">
           <button
@@ -734,10 +738,12 @@ function MagnetNonContactSim() {
 }
 
 /* --- 7. Hooke's Law Spring Lab --- */
-function SpringHookeSim() {
-  const [l0, setL0] = useState(12);
-  const [massG, setMassG] = useState(150);
-  const [ratePer100g, setRatePer100g] = useState(3);
+function SpringHookeSim({ params = {} }: { params?: Record<string, any> }) {
+  const [l0, setL0] = useState(Number(params.l0 ?? 12));
+  const [massG, setMassG] = useState(
+    Number(params.massG ?? (params.mass ? (params.mass < 10 ? params.mass * 1000 : params.mass) : 150))
+  );
+  const [ratePer100g, setRatePer100g] = useState(Number(params.ratePer100g ?? 3));
 
   const deltaL = Number(((massG / 100) * ratePer100g).toFixed(2));
   const totalL = Number((l0 + deltaL).toFixed(2));
@@ -751,21 +757,21 @@ function SpringHookeSim() {
             <span>Chiều dài tự nhiên l₀:</span>
             <strong className="text-slate-200">{l0} cm</strong>
           </label>
-          <input type="range" min={8} max={18} value={l0} onChange={(e) => setL0(Number(e.target.value))} className="w-full accent-slate-400" />
+          <input type="range" min={Math.min(8, l0)} max={Math.max(18, l0)} value={l0} onChange={(e) => setL0(Number(e.target.value))} className="w-full accent-slate-400" />
         </div>
         <div>
           <label className="text-xs text-slate-300 flex justify-between">
             <span>Khối lượng quả nặng treo vào (m):</span>
             <strong className="text-cyan-300">{massG} g (Trọng lượng P = {weightP} N)</strong>
           </label>
-          <input type="range" min={0} max={400} step={25} value={massG} onChange={(e) => setMassG(Number(e.target.value))} className="w-full accent-cyan-400" />
+          <input type="range" min={0} max={Math.max(400, massG)} step={25} value={massG} onChange={(e) => setMassG(Number(e.target.value))} className="w-full accent-cyan-400" />
         </div>
         <div>
           <label className="text-xs text-slate-300 flex justify-between">
             <span>Độ dãn ứng với mỗi 100 g (1 N):</span>
             <strong className="text-amber-300">{ratePer100g} cm / 100g</strong>
           </label>
-          <input type="range" min={1} max={5} step={0.5} value={ratePer100g} onChange={(e) => setRatePer100g(Number(e.target.value))} className="w-full accent-amber-400" />
+          <input type="range" min={1} max={Math.max(5, ratePer100g)} step={0.5} value={ratePer100g} onChange={(e) => setRatePer100g(Number(e.target.value))} className="w-full accent-amber-400" />
         </div>
       </div>
 
@@ -791,10 +797,10 @@ function SpringHookeSim() {
 }
 
 /* --- 8. Friction Lab --- */
-function FrictionSim() {
+function FrictionSim({ params = {} }: { params?: Record<string, any> }) {
   const [surface, setSurface] = useState<'ice' | 'wood' | 'sandpaper'>('wood');
-  const [massKg, setMassKg] = useState(2);
-  const [pullForce, setPullForce] = useState(6);
+  const [massKg, setMassKg] = useState(Number(params.massKg ?? params.mass ?? 2));
+  const [pullForce, setPullForce] = useState(Number(params.pullForce ?? params.force ?? 6));
 
   const coeff = { ice: 0.1, wood: 0.4, sandpaper: 0.75 }[surface];
   const weightP = massKg * 10;
@@ -822,14 +828,14 @@ function FrictionSim() {
             <span>Khối lượng hộp gỗ (m):</span>
             <strong className="text-cyan-300">{massKg} kg (P = {weightP} N)</strong>
           </label>
-          <input type="range" min={1} max={5} step={0.5} value={massKg} onChange={(e) => setMassKg(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
+          <input type="range" min={Math.min(1, massKg)} max={Math.max(5, massKg)} step={0.5} value={massKg} onChange={(e) => setMassKg(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
         </div>
         <div>
           <label className="text-xs text-slate-300 flex justify-between">
             <span>Lực kéo nằm ngang (F_kéo):</span>
             <strong className="text-emerald-300">{pullForce} N</strong>
           </label>
-          <input type="range" min={0} max={35} step={1} value={pullForce} onChange={(e) => setPullForce(Number(e.target.value))} className="w-full accent-emerald-400 mt-1" />
+          <input type="range" min={0} max={Math.max(35, pullForce)} step={1} value={pullForce} onChange={(e) => setPullForce(Number(e.target.value))} className="w-full accent-emerald-400 mt-1" />
         </div>
       </div>
 
@@ -854,9 +860,9 @@ function FrictionSim() {
 }
 
 /* --- 9. Energy Skate / Pendulum Bar Chart --- */
-function EnergySkateSim() {
-  const [heightRatio, setHeightRatio] = useState(0.75);
-  const [thermalLossPct, setThermalLossPct] = useState(10);
+function EnergySkateSim({ params = {} }: { params?: Record<string, any> }) {
+  const [heightRatio, setHeightRatio] = useState(Number(params.heightRatio ?? 0.75));
+  const [thermalLossPct, setThermalLossPct] = useState(Number(params.thermalLossPct ?? 10));
 
   const totalEnergyJ = 1000;
   const thermalJ = Math.round((thermalLossPct / 100) * totalEnergyJ);
@@ -872,14 +878,14 @@ function EnergySkateSim() {
             <span>Độ cao hiện tại của vật trên dốc trượt:</span>
             <strong className="text-cyan-300">{Math.round(heightRatio * 10)} m / 10 m</strong>
           </label>
-          <input type="range" min={0} max={1} step={0.05} value={heightRatio} onChange={(e) => setHeightRatio(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
+          <input type="range" min={0} max={Math.max(1, heightRatio)} step={0.05} value={heightRatio} onChange={(e) => setHeightRatio(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
         </div>
         <div>
           <label className="text-xs text-slate-300 flex justify-between">
             <span>Tỉ lệ ma sát chuyển thành Nhiệt năng hao phí:</span>
             <strong className="text-rose-300">{thermalLossPct}%</strong>
           </label>
-          <input type="range" min={0} max={50} step={5} value={thermalLossPct} onChange={(e) => setThermalLossPct(Number(e.target.value))} className="w-full accent-rose-400 mt-1" />
+          <input type="range" min={0} max={Math.max(50, thermalLossPct)} step={5} value={thermalLossPct} onChange={(e) => setThermalLossPct(Number(e.target.value))} className="w-full accent-rose-400 mt-1" />
         </div>
       </div>
 
@@ -906,9 +912,9 @@ function EnergySkateSim() {
 }
 
 /* --- 10. Energy Efficiency & Renewable --- */
-function EnergyEfficiencyAndRenewableSim({ simKey }: { simKey: string }) {
+function EnergyEfficiencyAndRenewableSim({ simKey, params = {} }: { simKey: string; params?: Record<string, any> }) {
   const [device, setDevice] = useState<'led' | 'incandescent' | 'fan'>('led');
-  const [inputJ, setInputJ] = useState(1000);
+  const [inputJ, setInputJ] = useState(Number(params.inputJ ?? params.power ?? 1000));
 
   const specs = {
     led: { name: 'Bóng đèn LED tiết kiệm điện', eff: 85, usefulType: 'Quang năng (Ánh sáng)', wasteType: 'Nhiệt năng' },
@@ -941,7 +947,7 @@ function EnergyEfficiencyAndRenewableSim({ simKey }: { simKey: string }) {
             <span>Năng lượng toàn phần đầu vào (W_tp):</span>
             <strong className="text-cyan-300">{inputJ} J</strong>
           </label>
-          <input type="range" min={200} max={2000} step={100} value={inputJ} onChange={(e) => setInputJ(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
+          <input type="range" min={Math.min(200, inputJ)} max={Math.max(2000, inputJ)} step={50} value={inputJ} onChange={(e) => setInputJ(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
         </div>
       </div>
 
@@ -962,8 +968,8 @@ function EnergyEfficiencyAndRenewableSim({ simKey }: { simKey: string }) {
 }
 
 /* --- 11. Earth Day/Night & Flagpole Shadow --- */
-function EarthDayNightSim() {
-  const [hour, setHour] = useState(9);
+function EarthDayNightSim({ params = {} }: { params?: Record<string, any> }) {
+  const [hour, setHour] = useState(Number(params.hour ?? 9));
 
   const isDay = hour >= 6 && hour <= 18;
   const sunPositionDesc =
@@ -1015,8 +1021,8 @@ function EarthDayNightSim() {
 }
 
 /* --- 12. Moon Phases (1 -> 30 Lunar Day) --- */
-function MoonPhasesSim() {
-  const [lunarDay, setLunarDay] = useState(15);
+function MoonPhasesSim({ params = {} }: { params?: Record<string, any> }) {
+  const [lunarDay, setLunarDay] = useState(Number(params.lunarDay ?? 15));
 
   const getPhaseInfo = (d: number) => {
     if (d === 1 || d === 30) return { name: 'Không trăng (Tân nguyệt / Sóc)', icon: '🌑', pos: 'Mặt Trăng nằm giữa Mặt Trời và Trái Đất' };
@@ -1054,7 +1060,7 @@ function MoonPhasesSim() {
 }
 
 /* --- 13. Solar System 8 Planets --- */
-function SolarSystemSim() {
+function SolarSystemSim({ params = {} }: { params?: Record<string, any> }) {
   const planets = [
     { order: 1, name: 'Thủy tinh (Mercury)', group: 'Hành tinh đất đá', distAU: 0.39, period: '88 ngày', temp: '167°C', note: 'Gần Mặt Trời nhất & nhỏ nhất' },
     { order: 2, name: 'Kim tinh (Venus / Sao Mai - Sao Hôm)', group: 'Hành tinh đất đá', distAU: 0.72, period: '225 ngày', temp: '465°C', note: 'Nóng nhất Hệ Mặt Trời do hiệu ứng nhà kính CO₂' },
@@ -1066,8 +1072,8 @@ function SolarSystemSim() {
     { order: 8, name: 'Hải Vương tinh (Neptune)', group: 'Hành tinh băng khổng lồ', distAU: 30.1, period: '165 năm', temp: '-200°C', note: 'Xa Mặt Trời nhất, có những cơn bão gió siêu thanh' },
   ];
 
-  const [selectedIdx, setSelectedIdx] = useState(2);
-  const p = planets[selectedIdx];
+  const [selectedIdx, setSelectedIdx] = useState(Number(params.selectedIdx ?? 2));
+  const p = planets[selectedIdx] || planets[2];
 
   return (
     <div className="space-y-4">
@@ -1114,9 +1120,11 @@ function SolarSystemSim() {
 }
 
 /* --- 14. Grade 7: Speed, Safe Distance & s-t Graph Lab --- */
-function SpeedGraphSim() {
-  const [speedKmh, setSpeedKmh] = useState(72);
-  const [timeSec, setTimeSec] = useState(10);
+function SpeedGraphSim({ params = {} }: { params?: Record<string, any> }) {
+  const [speedKmh, setSpeedKmh] = useState(
+    Number(params.speedKmh ?? (params.speed ? params.speed * 3.6 : 72))
+  );
+  const [timeSec, setTimeSec] = useState(Number(params.timeSec ?? params.t ?? 10));
   const [wetRoad, setWetRoad] = useState(false);
 
   const speedMs = Number((speedKmh / 3.6).toFixed(2));
@@ -1136,9 +1144,9 @@ function SpeedGraphSim() {
           </label>
           <input
             type="range"
-            min={18}
-            max={126}
-            step={9}
+            min={Math.min(18, speedKmh)}
+            max={Math.max(126, speedKmh)}
+            step={1}
             value={speedKmh}
             onChange={(e) => setSpeedKmh(Number(e.target.value))}
             className="w-full accent-amber-400 mt-1"
@@ -1152,7 +1160,7 @@ function SpeedGraphSim() {
           <input
             type="range"
             min={1}
-            max={30}
+            max={Math.max(30, timeSec)}
             step={1}
             value={timeSec}
             onChange={(e) => setTimeSec(Number(e.target.value))}
@@ -1200,10 +1208,10 @@ function SpeedGraphSim() {
 }
 
 /* --- 15. Grade 7: Sound Wave Frequency, Amplitude & Sonar Echo Lab --- */
-function SoundWaveEchoSim() {
-  const [freqHz, setFreqHz] = useState(440);
-  const [ampDb, setAmpDb] = useState(60);
-  const [echoTime, setEchoTime] = useState(0.8);
+function SoundWaveEchoSim({ params = {} }: { params?: Record<string, any> }) {
+  const [freqHz, setFreqHz] = useState(Number(params.freqHz ?? params.f ?? 440));
+  const [ampDb, setAmpDb] = useState(Number(params.ampDb ?? 60));
+  const [echoTime, setEchoTime] = useState(Number(params.echoTime ?? params.t ?? 0.8));
   const [medium, setMedium] = useState<'air' | 'water'>('water');
 
   const waveSpeed = medium === 'water' ? 1500 : 340;
@@ -1221,14 +1229,14 @@ function SoundWaveEchoSim() {
             <span>Tần số sóng âm (f):</span>
             <strong className="text-indigo-300">{freqHz} Hz ({pitchDesc})</strong>
           </label>
-          <input type="range" min={100} max={1000} step={20} value={freqHz} onChange={(e) => setFreqHz(Number(e.target.value))} className="w-full accent-indigo-400 mt-1" />
+          <input type="range" min={Math.min(100, freqHz)} max={Math.max(1000, freqHz)} step={10} value={freqHz} onChange={(e) => setFreqHz(Number(e.target.value))} className="w-full accent-indigo-400 mt-1" />
         </div>
         <div>
           <label className="text-xs text-slate-300 flex justify-between">
             <span>Biên độ / Độ to của âm (L):</span>
             <strong className="text-amber-300">{ampDb} dB</strong>
           </label>
-          <input type="range" min={20} max={100} step={5} value={ampDb} onChange={(e) => setAmpDb(Number(e.target.value))} className="w-full accent-amber-400 mt-1" />
+          <input type="range" min={Math.min(20, ampDb)} max={Math.max(100, ampDb)} step={5} value={ampDb} onChange={(e) => setAmpDb(Number(e.target.value))} className="w-full accent-amber-400 mt-1" />
         </div>
         <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs space-y-1">
           <div>Số dao động trong 1 giây: <strong className="text-white">{freqHz} dao động/s</strong></div>
@@ -1261,7 +1269,7 @@ function SoundWaveEchoSim() {
             <span>Thời gian thu âm phản xạ (t):</span>
             <strong className="text-cyan-300">{echoTime} s</strong>
           </label>
-          <input type="range" min={0.1} max={3.0} step={0.1} value={echoTime} onChange={(e) => setEchoTime(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
+          <input type="range" min={Math.min(0.1, echoTime)} max={Math.max(3.0, echoTime)} step={0.1} value={echoTime} onChange={(e) => setEchoTime(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
         </div>
         <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs space-y-1">
           <div>Tổng quãng đường âm đi và về (2d): <strong>{(obstacleDist * 2).toFixed(1)} m</strong></div>
@@ -1275,9 +1283,9 @@ function SoundWaveEchoSim() {
 }
 
 /* --- 16. Grade 7: Light Reflection & Plane Mirror Lab --- */
-function LightReflectionMirrorSim() {
-  const [incidentAngle, setIncidentAngle] = useState(40);
-  const [objectDist, setObjectDist] = useState(25);
+function LightReflectionMirrorSim({ params = {} }: { params?: Record<string, any> }) {
+  const [incidentAngle, setIncidentAngle] = useState(Number(params.incidentAngle ?? params.angle ?? 40));
+  const [objectDist, setObjectDist] = useState(Number(params.objectDist ?? params.d ?? 25));
 
   const reflectedAngle = incidentAngle;
   const mirrorAngleAlpha = 90 - incidentAngle;
@@ -1296,7 +1304,7 @@ function LightReflectionMirrorSim() {
             <span>Góc tới (i = ∠SIN so với pháp tuyến):</span>
             <strong className="text-amber-300">{incidentAngle}°</strong>
           </label>
-          <input type="range" min={0} max={85} step={5} value={incidentAngle} onChange={(e) => setIncidentAngle(Number(e.target.value))} className="w-full accent-amber-400 mt-1" />
+          <input type="range" min={0} max={Math.max(85, incidentAngle)} step={5} value={incidentAngle} onChange={(e) => setIncidentAngle(Number(e.target.value))} className="w-full accent-amber-400 mt-1" />
         </div>
         <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5 text-xs">
           <div>Góc phản xạ (i' = ∠NIR): <strong className="text-emerald-300">{reflectedAngle}° (Luôn bằng góc tới i)</strong></div>
@@ -1314,7 +1322,7 @@ function LightReflectionMirrorSim() {
             <span>Khoảng cách từ vật AB đến gương (d):</span>
             <strong className="text-indigo-300">{objectDist} cm</strong>
           </label>
-          <input type="range" min={5} max={60} step={5} value={objectDist} onChange={(e) => setObjectDist(Number(e.target.value))} className="w-full accent-indigo-400 mt-1" />
+          <input type="range" min={Math.min(5, objectDist)} max={Math.max(60, objectDist)} step={5} value={objectDist} onChange={(e) => setObjectDist(Number(e.target.value))} className="w-full accent-indigo-400 mt-1" />
         </div>
         <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5 text-xs">
           <div>Tính chất ảnh A'B': <strong className="text-amber-300">Ảnh ảo, cùng chiều, lớn bằng vật (h' = h)</strong></div>
@@ -1329,9 +1337,9 @@ function LightReflectionMirrorSim() {
 }
 
 /* --- 17. Grade 7: Magnetism, Electromagnet & Earth Compass Lab --- */
-function MagnetismElectromagnetSim() {
-  const [turnsN, setTurnsN] = useState(200);
-  const [currentI, setCurrentI] = useState(1.5);
+function MagnetismElectromagnetSim({ params = {} }: { params?: Record<string, any> }) {
+  const [turnsN, setTurnsN] = useState(Number(params.turnsN ?? params.N ?? 200));
+  const [currentI, setCurrentI] = useState(Number(params.currentI ?? params.I ?? 1.5));
   const [reversedPolarity, setReversedPolarity] = useState(false);
   const [hasIronCore, setHasIronCore] = useState(true);
 
@@ -1349,14 +1357,14 @@ function MagnetismElectromagnetSim() {
             <span>Số vòng dây (N):</span>
             <strong className="text-amber-300">{turnsN} vòng</strong>
           </label>
-          <input type="range" min={50} max={400} step={50} value={turnsN} onChange={(e) => setTurnsN(Number(e.target.value))} className="w-full accent-amber-400 mt-1" />
+          <input type="range" min={Math.min(50, turnsN)} max={Math.max(400, turnsN)} step={25} value={turnsN} onChange={(e) => setTurnsN(Number(e.target.value))} className="w-full accent-amber-400 mt-1" />
         </div>
         <div>
           <label className="text-xs text-slate-300 flex justify-between">
             <span>Cường độ dòng điện (I):</span>
             <strong className="text-cyan-300">{currentI} A</strong>
           </label>
-          <input type="range" min={0} max={3.0} step={0.5} value={currentI} onChange={(e) => setCurrentI(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
+          <input type="range" min={0} max={Math.max(3.0, currentI)} step={0.5} value={currentI} onChange={(e) => setCurrentI(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
         </div>
         <div className="flex flex-wrap gap-2 pt-1">
           <button
@@ -1453,10 +1461,10 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
   const rhoObj = currentMaterial.density;
 
   // Controls
-  const [volumeCm3, setVolumeCm3] = useState<number>(params.volume || 600); // cm³
-  const [depthCm, setDepthCm] = useState<number>(params.depth || 18); // cm
-  const [forceN, setForceN] = useState<number>(params.force || 120); // N
-  const [areaCm2, setAreaCm2] = useState<number>(params.area || 30); // cm²
+  const [volumeCm3, setVolumeCm3] = useState<number>(params.volume ?? 600); // cm³
+  const [depthCm, setDepthCm] = useState<number>(params.depth ?? 18); // cm
+  const [forceN, setForceN] = useState<number>(params.force ?? 120); // N
+  const [areaCm2, setAreaCm2] = useState<number>(params.area ?? 30); // cm²
 
   // Physics calculations
   const g = 9.8;
@@ -1577,9 +1585,9 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
                 </div>
                 <input
                   type="range"
-                  min="200"
-                  max="1200"
-                  step="50"
+                  min={Math.min(10, volumeCm3)}
+                  max={Math.max(1200, volumeCm3)}
+                  step={volumeCm3 < 100 ? 5 : 50}
                   value={volumeCm3}
                   onChange={(e) => setVolumeCm3(Number(e.target.value))}
                   className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -1594,8 +1602,8 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
                   </div>
                   <input
                     type="range"
-                    min="5"
-                    max="35"
+                    min={Math.min(1, depthCm)}
+                    max={Math.max(35, depthCm)}
                     step="1"
                     value={depthCm}
                     onChange={(e) => setDepthCm(Number(e.target.value))}
@@ -1613,9 +1621,9 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
                 </div>
                 <input
                   type="range"
-                  min="20"
-                  max="500"
-                  step="10"
+                  min={Math.min(1, forceN)}
+                  max={Math.max(500, forceN)}
+                  step={forceN < 20 ? 1 : 10}
                   value={forceN}
                   onChange={(e) => setForceN(Number(e.target.value))}
                   className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -1629,9 +1637,9 @@ function FluidPressureArchimedesSim({ simKey, params = {} }: { simKey: string; p
                 </div>
                 <input
                   type="range"
-                  min="5"
-                  max="100"
-                  step="5"
+                  min={Math.min(1, areaCm2)}
+                  max={Math.max(100, areaCm2)}
+                  step={areaCm2 < 10 ? 0.5 : 5}
                   value={areaCm2}
                   onChange={(e) => setAreaCm2(Number(e.target.value))}
                   className="w-full accent-indigo-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -1893,10 +1901,10 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
     params.type || (simKey.includes('crane') ? 'crane' : 'class1')
   );
 
-  const [f1, setF1] = useState<number>(params.f1 || 40); // Force 1 (N)
-  const [d1, setD1] = useState<number>(params.d1 || 1.2); // Distance 1 (m)
-  const [f2, setF2] = useState<number>(params.f2 || 60); // Force 2 (N)
-  const [d2, setD2] = useState<number>(params.d2 || 0.8); // Distance 2 (m)
+  const [f1, setF1] = useState<number>(params.f1 ?? params.force ?? 40); // Force 1 (N)
+  const [d1, setD1] = useState<number>(params.d1 ?? 1.2); // Distance 1 (m)
+  const [f2, setF2] = useState<number>(params.f2 ?? 60); // Force 2 (N)
+  const [d2, setD2] = useState<number>(params.d2 ?? 0.8); // Distance 2 (m)
 
   // Torque physics
   const m1 = f1 * d1; // N.m (counter-clockwise)
@@ -1963,9 +1971,9 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
             </div>
             <input
               type="range"
-              min="10"
-              max="120"
-              step="5"
+              min={Math.min(1, f1)}
+              max={Math.max(120, f1)}
+              step={f1 < 10 ? 0.5 : 5}
               value={f1}
               onChange={(e) => setF1(Number(e.target.value))}
               className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -1979,9 +1987,9 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
             </div>
             <input
               type="range"
-              min="0.2"
-              max="2.0"
-              step="0.1"
+              min={Math.min(0.1, d1)}
+              max={Math.max(2.0, d1)}
+              step="0.05"
               value={d1}
               onChange={(e) => setD1(Number(e.target.value))}
               className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -1995,9 +2003,9 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
             </div>
             <input
               type="range"
-              min="10"
-              max="150"
-              step="5"
+              min={Math.min(1, f2)}
+              max={Math.max(150, f2)}
+              step={f2 < 10 ? 0.5 : 5}
               value={f2}
               onChange={(e) => setF2(Number(e.target.value))}
               className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -2011,9 +2019,9 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
             </div>
             <input
               type="range"
-              min="0.2"
-              max="2.0"
-              step="0.1"
+              min={Math.min(0.1, d2)}
+              max={Math.max(2.0, d2)}
+              step="0.05"
               value={d2}
               onChange={(e) => setD2(Number(e.target.value))}
               className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -2163,12 +2171,12 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
   const [switchClosed, setSwitchClosed] = useState<boolean>(true);
 
   // Electrical parameters
-  const [voltage, setVoltage] = useState<number>(params.voltage || 12); // V or EMF
-  const [internalR, setInternalR] = useState<number>(params.internalR || 1.5); // ohm
-  const [r1, setR1] = useState<number>(params.r1 || 10); // ohm
-  const [r2, setR2] = useState<number>(params.r2 || 15); // ohm
-  const [n1, setN1] = useState<number>(params.n1 || 200); // primary turns
-  const [n2, setN2] = useState<number>(params.n2 || 800); // secondary turns
+  const [voltage, setVoltage] = useState<number>(params.voltage ?? 12); // V or EMF
+  const [internalR, setInternalR] = useState<number>(params.internalR ?? 1.5); // ohm
+  const [r1, setR1] = useState<number>(params.r1 ?? params.resistance ?? 10); // ohm
+  const [r2, setR2] = useState<number>(params.r2 ?? 15); // ohm
+  const [n1, setN1] = useState<number>(params.n1 ?? 200); // primary turns
+  const [n2, setN2] = useState<number>(params.n2 ?? 800); // secondary turns
 
   // Physics calculations
   let req = 0;
@@ -2288,8 +2296,8 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
             </div>
             <input
               type="range"
-              min="2"
-              max="36"
+              min={Math.min(1, voltage)}
+              max={Math.max(48, voltage)}
               step="1"
               value={voltage}
               onChange={(e) => setVoltage(Number(e.target.value))}
@@ -2305,8 +2313,8 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
               </div>
               <input
                 type="range"
-                min="0.2"
-                max="5.0"
+                min={Math.min(0.1, internalR)}
+                max={Math.max(10.0, internalR)}
                 step="0.2"
                 value={internalR}
                 onChange={(e) => setInternalR(Number(e.target.value))}
@@ -2322,9 +2330,9 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
             </div>
             <input
               type="range"
-              min="1"
-              max="50"
-              step="1"
+              min={Math.min(0.5, r1)}
+              max={Math.max(60, r1)}
+              step={r1 < 5 ? 0.5 : 1}
               value={r1}
               onChange={(e) => setR1(Number(e.target.value))}
               className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -2339,9 +2347,9 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
               </div>
               <input
                 type="range"
-                min="1"
-                max="50"
-                step="1"
+                min={Math.min(0.5, r2)}
+                max={Math.max(60, r2)}
+                step={r2 < 5 ? 0.5 : 1}
                 value={r2}
                 onChange={(e) => setR2(Number(e.target.value))}
                 className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -2358,9 +2366,9 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
                 </div>
                 <input
                   type="range"
-                  min="50"
-                  max="600"
-                  step="25"
+                  min={Math.min(10, n1)}
+                  max={Math.max(1000, n1)}
+                  step="10"
                   value={n1}
                   onChange={(e) => setN1(Number(e.target.value))}
                   className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -2373,9 +2381,9 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
                 </div>
                 <input
                   type="range"
-                  min="50"
-                  max="1200"
-                  step="25"
+                  min={Math.min(10, n2)}
+                  max={Math.max(2000, n2)}
+                  step="10"
                   value={n2}
                   onChange={(e) => setN2(Number(e.target.value))}
                   className="w-full accent-indigo-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -2607,18 +2615,18 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
     lead: { name: 'Chì (c = 130 J/kg·K)', c: 130, color: '#64748b' },
   };
   const metal = metals[metalKey] || metals.copper;
-  const [m1, setM1] = useState<number>(params.m1 || 0.3); // kg metal
-  const [t1, setT1] = useState<number>(params.t1 || 90); // deg C
-  const [m2, setM2] = useState<number>(params.m2 || 0.5); // kg water
-  const [t2, setT2] = useState<number>(params.t2 || 20); // deg C
+  const [m1, setM1] = useState<number>(params.m1 ?? 0.3); // kg metal
+  const [t1, setT1] = useState<number>(params.t1 ?? 90); // deg C
+  const [m2, setM2] = useState<number>(params.m2 ?? params.mass ?? 0.5); // kg water
+  const [t2, setT2] = useState<number>(params.t2 ?? 20); // deg C
   const cWater = 4200;
 
   // 1st Law: Delta U = A + Q
-  const [workA, setWorkA] = useState<number>(params.workA || 100); // J
-  const [heatQ, setHeatQ] = useState<number>(params.heatQ || 250); // J
+  const [workA, setWorkA] = useState<number>(params.workA ?? 100); // J
+  const [heatQ, setHeatQ] = useState<number>(params.heatQ ?? 250); // J
 
   // Bimetallic strip
-  const [stripTemp, setStripTemp] = useState<number>(params.stripTemp || 75); // deg C
+  const [stripTemp, setStripTemp] = useState<number>(params.stripTemp ?? params.tempC ?? 75); // deg C
 
   // Physics calculations
   // Equilibrium temperature: T_cb = (m1*c1*t1 + m2*c2*t2) / (m1*c1 + m2*c2)
@@ -2694,8 +2702,8 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                 </div>
                 <input
                   type="range"
-                  min="0.05"
-                  max="1.0"
+                  min={Math.min(0.05, m1)}
+                  max={Math.max(5.0, m1)}
                   step="0.05"
                   value={m1}
                   onChange={(e) => setM1(Number(e.target.value))}
@@ -2705,14 +2713,14 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
 
               <div>
                 <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-                  <span>Nhiệt độ kim loại ban đầu (t₁):</span>
+                  <span>Nhiệt độ kim loại / Nhiệt độ cao (t₁):</span>
                   <span className="font-semibold text-rose-400">{t1} °C</span>
                 </div>
                 <input
                   type="range"
-                  min="40"
-                  max="100"
-                  step="5"
+                  min={Math.min(10, t1)}
+                  max={Math.max(150, t1)}
+                  step="1"
                   value={t1}
                   onChange={(e) => setT1(Number(e.target.value))}
                   className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -2726,8 +2734,8 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                 </div>
                 <input
                   type="range"
-                  min="0.1"
-                  max="1.5"
+                  min={Math.min(0.1, m2)}
+                  max={Math.max(10.0, m2)}
                   step="0.1"
                   value={m2}
                   onChange={(e) => setM2(Number(e.target.value))}
@@ -2742,8 +2750,8 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                 </div>
                 <input
                   type="range"
-                  min="5"
-                  max="35"
+                  min={Math.min(0, t2)}
+                  max={Math.max(80, t2)}
                   step="1"
                   value={t2}
                   onChange={(e) => setT2(Number(e.target.value))}
@@ -2762,8 +2770,8 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                 </div>
                 <input
                   type="range"
-                  min="-300"
-                  max="300"
+                  min={Math.min(-600, workA)}
+                  max={Math.max(600, workA)}
                   step="10"
                   value={workA}
                   onChange={(e) => setWorkA(Number(e.target.value))}
@@ -2778,8 +2786,8 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                 </div>
                 <input
                   type="range"
-                  min="-300"
-                  max="400"
+                  min={Math.min(-600, heatQ)}
+                  max={Math.max(1000, heatQ)}
                   step="10"
                   value={heatQ}
                   onChange={(e) => setHeatQ(Number(e.target.value))}
@@ -2797,8 +2805,8 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
               </div>
               <input
                 type="range"
-                min="-20"
-                max="140"
+                min={Math.min(-50, stripTemp)}
+                max={Math.max(200, stripTemp)}
                 step="5"
                 value={stripTemp}
                 onChange={(e) => setStripTemp(Number(e.target.value))}
@@ -3039,14 +3047,14 @@ function OpticsRayLensSim({ simKey, params = {} }: { simKey: string; params?: Re
   const [lensType, setLensType] = useState<'convex' | 'concave'>(params.lensType || 'convex');
 
   // Lens parameters (in cm)
-  const [focalLength, setFocalLength] = useState<number>(params.f || 15);
-  const [objectDist, setObjectDist] = useState<number>(params.d || 30);
-  const [objectHeight, setObjectHeight] = useState<number>(params.h || 4);
+  const [focalLength, setFocalLength] = useState<number>(params.focalLength ?? params.f ?? 15);
+  const [objectDist, setObjectDist] = useState<number>(params.d ?? 30);
+  const [objectHeight, setObjectHeight] = useState<number>(params.h ?? 4);
 
   // Snell / TIR parameters
-  const [n1, setN1] = useState<number>(params.n1 || 1.5); // medium 1
-  const [n2, setN2] = useState<number>(params.n2 || 1.0); // medium 2
-  const [incidentAngleDeg, setIncidentAngleDeg] = useState<number>(params.angle || 35);
+  const [n1, setN1] = useState<number>(params.n1 ?? 1.5); // medium 1
+  const [n2, setN2] = useState<number>(params.n2 ?? 1.0); // medium 2
+  const [incidentAngleDeg, setIncidentAngleDeg] = useState<number>(params.angle ?? 35);
 
   // Physics calculations for Thin Lens
   const signedF = lensType === 'convex' ? focalLength : -focalLength;
@@ -3143,8 +3151,8 @@ function OpticsRayLensSim({ simKey, params = {} }: { simKey: string; params?: Re
                 </div>
                 <input
                   type="range"
-                  min="8"
-                  max="24"
+                  min={Math.min(4, focalLength)}
+                  max={Math.max(40, focalLength)}
                   step="1"
                   value={focalLength}
                   onChange={(e) => setFocalLength(Number(e.target.value))}
@@ -3159,8 +3167,8 @@ function OpticsRayLensSim({ simKey, params = {} }: { simKey: string; params?: Re
                 </div>
                 <input
                   type="range"
-                  min="5"
-                  max="45"
+                  min={Math.min(2, objectDist)}
+                  max={Math.max(60, objectDist)}
                   step="1"
                   value={objectDist}
                   onChange={(e) => setObjectDist(Number(e.target.value))}
@@ -3175,8 +3183,8 @@ function OpticsRayLensSim({ simKey, params = {} }: { simKey: string; params?: Re
                 </div>
                 <input
                   type="range"
-                  min="1"
-                  max="6"
+                  min={Math.min(1, objectHeight)}
+                  max={Math.max(10, objectHeight)}
                   step="0.5"
                   value={objectHeight}
                   onChange={(e) => setObjectHeight(Number(e.target.value))}
@@ -3193,8 +3201,8 @@ function OpticsRayLensSim({ simKey, params = {} }: { simKey: string; params?: Re
                 </div>
                 <input
                   type="range"
-                  min="1.0"
-                  max="2.2"
+                  min={Math.min(1.0, n1)}
+                  max={Math.max(2.5, n1)}
                   step="0.05"
                   value={n1}
                   onChange={(e) => setN1(Number(e.target.value))}
@@ -3209,8 +3217,8 @@ function OpticsRayLensSim({ simKey, params = {} }: { simKey: string; params?: Re
                 </div>
                 <input
                   type="range"
-                  min="1.0"
-                  max="2.0"
+                  min={Math.min(1.0, n2)}
+                  max={Math.max(2.5, n2)}
                   step="0.05"
                   value={n2}
                   onChange={(e) => setN2(Number(e.target.value))}
@@ -3225,8 +3233,8 @@ function OpticsRayLensSim({ simKey, params = {} }: { simKey: string; params?: Re
                 </div>
                 <input
                   type="range"
-                  min="0"
-                  max="85"
+                  min={Math.min(0, incidentAngleDeg)}
+                  max={Math.max(85, incidentAngleDeg)}
                   step="1"
                   value={incidentAngleDeg}
                   onChange={(e) => setIncidentAngleDeg(Number(e.target.value))}
@@ -3516,18 +3524,18 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
   const [mode, setMode] = useState<'projectile' | 'accelerated_1d' | 'measurement'>(initialMode);
 
   // Projectile Motion Parameters
-  const [v0, setV0] = useState<number>(params.v0 || 22); // m/s
-  const [angleDeg, setAngleDeg] = useState<number>(params.angle || 45); // deg
-  const [h0, setH0] = useState<number>(params.h0 || 4); // m
-  const [simTime, setSimTime] = useState<number>(params.t || 1.4); // s
+  const [v0, setV0] = useState<number>(params.v0 ?? 22); // m/s
+  const [angleDeg, setAngleDeg] = useState<number>(params.angle ?? 45); // deg
+  const [h0, setH0] = useState<number>(params.h0 ?? 4); // m
+  const [simTime, setSimTime] = useState<number>(params.t ?? 1.4); // s
 
   // 1D Motion Parameters
-  const [v0_1d, setV0_1d] = useState<number>(params.v0_1d || 4); // m/s
-  const [accel1d, setAccel1d] = useState<number>(params.accel || 2.5); // m/s^2
-  const [time1d, setTime1d] = useState<number>(3.0); // s
+  const [v0_1d, setV0_1d] = useState<number>(params.v0_1d ?? params.v0 ?? 4); // m/s
+  const [accel1d, setAccel1d] = useState<number>(params.accel ?? params.acceleration ?? 2.5); // m/s^2
+  const [time1d, setTime1d] = useState<number>(params.time1d ?? params.t ?? 3.0); // s
 
   // Vernier measurement
-  const [vernierMm, setVernierMm] = useState<number>(14.65);
+  const [vernierMm, setVernierMm] = useState<number>(params.vernierMm ?? 14.65);
 
   // Projectile Physics
   const g = 9.8;
@@ -3593,8 +3601,8 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
                 </div>
                 <input
                   type="range"
-                  min="5"
-                  max="35"
+                  min={Math.min(1, v0)}
+                  max={Math.max(40, v0)}
                   step="1"
                   value={v0}
                   onChange={(e) => setV0(Number(e.target.value))}
@@ -3609,8 +3617,8 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
                 </div>
                 <input
                   type="range"
-                  min="0"
-                  max="85"
+                  min={Math.min(0, angleDeg)}
+                  max={Math.max(85, angleDeg)}
                   step="1"
                   value={angleDeg}
                   onChange={(e) => setAngleDeg(Number(e.target.value))}
@@ -3625,8 +3633,8 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
                 </div>
                 <input
                   type="range"
-                  min="0"
-                  max="25"
+                  min={Math.min(0, h0)}
+                  max={Math.max(30, h0)}
                   step="1"
                   value={h0}
                   onChange={(e) => setH0(Number(e.target.value))}
@@ -3642,7 +3650,7 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
                 <input
                   type="range"
                   min="0"
-                  max={Number(tFlight.toFixed(2))}
+                  max={Math.max(Number(tFlight.toFixed(2)), simTime)}
                   step="0.05"
                   value={simTime}
                   onChange={(e) => setSimTime(Number(e.target.value))}
@@ -3661,8 +3669,8 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
                 </div>
                 <input
                   type="range"
-                  min="0"
-                  max="20"
+                  min={Math.min(0, v0_1d)}
+                  max={Math.max(30, v0_1d)}
                   step="1"
                   value={v0_1d}
                   onChange={(e) => setV0_1d(Number(e.target.value))}
@@ -3677,8 +3685,8 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
                 </div>
                 <input
                   type="range"
-                  min="-4"
-                  max="6"
+                  min={Math.min(-6, accel1d)}
+                  max={Math.max(10, accel1d)}
                   step="0.5"
                   value={accel1d}
                   onChange={(e) => setAccel1d(Number(e.target.value))}
@@ -3693,8 +3701,8 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
                 </div>
                 <input
                   type="range"
-                  min="0.5"
-                  max="8"
+                  min={Math.min(0.5, time1d)}
+                  max={Math.max(15, time1d)}
                   step="0.5"
                   value={time1d}
                   onChange={(e) => setTime1d(Number(e.target.value))}
@@ -3712,8 +3720,8 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
               </div>
               <input
                 type="range"
-                min="0"
-                max="30"
+                min={Math.min(0, vernierMm)}
+                max={Math.max(30, vernierMm)}
                 step="0.05"
                 value={vernierMm}
                 onChange={(e) => setVernierMm(Number(e.target.value))}
@@ -3961,21 +3969,21 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
   const [mode, setMode] = useState<'incline' | 'collision' | 'energy' | 'circular'>(initialMode);
 
   // Incline parameters
-  const [angleDeg, setAngleDeg] = useState<number>(params.angle || 30);
-  const [mass, setMass] = useState<number>(params.mass || 4); // kg
-  const [mu, setMu] = useState<number>(params.mu || 0.2); // friction
-  const [pullForce, setPullForce] = useState<number>(params.pull || 35); // N
+  const [angleDeg, setAngleDeg] = useState<number>(params.angle ?? 30);
+  const [mass, setMass] = useState<number>(params.mass ?? 4); // kg
+  const [mu, setMu] = useState<number>(params.mu ?? 0.2); // friction
+  const [pullForce, setPullForce] = useState<number>(params.pull ?? params.force ?? 35); // N
 
   // Collision parameters
-  const [m1, setM1] = useState<number>(params.m1 || 3);
-  const [v1, setV1] = useState<number>(params.v1 || 4);
-  const [m2, setM2] = useState<number>(params.m2 || 2);
-  const [v2, setV2] = useState<number>(params.v2 || -2);
+  const [m1, setM1] = useState<number>(params.m1 ?? 3);
+  const [v1, setV1] = useState<number>(params.v1 ?? 4);
+  const [m2, setM2] = useState<number>(params.m2 ?? 2);
+  const [v2, setV2] = useState<number>(params.v2 ?? -2);
   const [isElastic, setIsElastic] = useState<boolean>(true);
 
   // Circular motion parameters
-  const [radiusR, setRadiusR] = useState<number>(params.radius || 50); // m
-  const [carSpeedKmh, setCarSpeedKmh] = useState<number>(params.speed || 60); // km/h
+  const [radiusR, setRadiusR] = useState<number>(params.radius ?? 50); // m
+  const [carSpeedKmh, setCarSpeedKmh] = useState<number>(params.speed ?? 60); // km/h
 
   // Physics Calculations
   const g = 9.8;
@@ -4056,8 +4064,8 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                 </div>
                 <input
                   type="range"
-                  min="0"
-                  max="60"
+                  min={Math.min(0, angleDeg)}
+                  max={Math.max(60, angleDeg)}
                   step="1"
                   value={angleDeg}
                   onChange={(e) => setAngleDeg(Number(e.target.value))}
@@ -4072,8 +4080,8 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                 </div>
                 <input
                   type="range"
-                  min="1"
-                  max="15"
+                  min={Math.min(0.2, mass)}
+                  max={Math.max(20, mass)}
                   step="0.5"
                   value={mass}
                   onChange={(e) => setMass(Number(e.target.value))}
@@ -4088,8 +4096,8 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                 </div>
                 <input
                   type="range"
-                  min="0.0"
-                  max="0.8"
+                  min={Math.min(0.0, mu)}
+                  max={Math.max(0.8, mu)}
                   step="0.05"
                   value={mu}
                   onChange={(e) => setMu(Number(e.target.value))}
@@ -4104,9 +4112,9 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                 </div>
                 <input
                   type="range"
-                  min="0"
-                  max="120"
-                  step="5"
+                  min={Math.min(0, pullForce)}
+                  max={Math.max(150, pullForce)}
+                  step={pullForce < 15 ? 1 : 5}
                   value={pullForce}
                   onChange={(e) => setPullForce(Number(e.target.value))}
                   className="w-full accent-emerald-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -4140,8 +4148,8 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                 </div>
                 <input
                   type="range"
-                  min="1"
-                  max="8"
+                  min={Math.min(0.5, m1)}
+                  max={Math.max(15, m1)}
                   step="0.5"
                   value={m1}
                   onChange={(e) => setM1(Number(e.target.value))}
@@ -4156,8 +4164,8 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                 </div>
                 <input
                   type="range"
-                  min="1"
-                  max="8"
+                  min={Math.min(0.5, m2)}
+                  max={Math.max(15, m2)}
                   step="0.5"
                   value={m2}
                   onChange={(e) => setM2(Number(e.target.value))}
@@ -4176,8 +4184,8 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                 </div>
                 <input
                   type="range"
-                  min="20"
-                  max="120"
+                  min={Math.min(5, radiusR)}
+                  max={Math.max(150, radiusR)}
                   step="5"
                   value={radiusR}
                   onChange={(e) => setRadiusR(Number(e.target.value))}
@@ -4192,8 +4200,8 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                 </div>
                 <input
                   type="range"
-                  min="20"
-                  max="120"
+                  min={Math.min(10, carSpeedKmh)}
+                  max={Math.max(150, carSpeedKmh)}
                   step="5"
                   value={carSpeedKmh}
                   onChange={(e) => setCarSpeedKmh(Number(e.target.value))}
@@ -4435,14 +4443,14 @@ function OscillationsWavesSim({ simKey, params = {} }: { simKey: string; params?
   const [mode, setMode] = useState<'shm' | 'wave_interference' | 'standing_wave' | 'em_spectrum'>(initialMode);
 
   // SHM Parameters
-  const [amplitudeCm, setAmplitudeCm] = useState<number>(params.A || 5); // cm
-  const [frequencyHz, setFrequencyHz] = useState<number>(params.f || 1.5); // Hz
-  const [phaseDeg, setPhaseDeg] = useState<number>(params.phi || 0); // deg
-  const [timeT, setTimeT] = useState<number>(0);
+  const [amplitudeCm, setAmplitudeCm] = useState<number>(params.A ?? params.amplitude ?? 5); // cm
+  const [frequencyHz, setFrequencyHz] = useState<number>(params.f ?? params.freqHz ?? 1.5); // Hz
+  const [phaseDeg, setPhaseDeg] = useState<number>(params.phi ?? 0); // deg
+  const [timeT, setTimeT] = useState<number>(params.t ?? 0);
 
   // Standing Wave / Interference
-  const [waveSpeed, setWaveSpeed] = useState<number>(params.v || 8); // m/s
-  const [harmonicsK, setHarmonicsK] = useState<number>(params.k || 3); // loops
+  const [waveSpeed, setWaveSpeed] = useState<number>(params.v ?? 8); // m/s
+  const [harmonicsK, setHarmonicsK] = useState<number>(params.k ?? 3); // loops
 
   // Physics calculations
   const omega = 2 * Math.PI * frequencyHz;
@@ -4506,8 +4514,8 @@ function OscillationsWavesSim({ simKey, params = {} }: { simKey: string; params?
             </div>
             <input
               type="range"
-              min="2"
-              max="8"
+              min={Math.min(0.5, amplitudeCm)}
+              max={Math.max(12, amplitudeCm)}
               step="0.5"
               value={amplitudeCm}
               onChange={(e) => setAmplitudeCm(Number(e.target.value))}
@@ -4522,8 +4530,8 @@ function OscillationsWavesSim({ simKey, params = {} }: { simKey: string; params?
             </div>
             <input
               type="range"
-              min="0.5"
-              max="4.0"
+              min={Math.min(0.2, frequencyHz)}
+              max={Math.max(10.0, frequencyHz)}
               step="0.1"
               value={frequencyHz}
               onChange={(e) => setFrequencyHz(Number(e.target.value))}
@@ -4539,8 +4547,8 @@ function OscillationsWavesSim({ simKey, params = {} }: { simKey: string; params?
               </div>
               <input
                 type="range"
-                min="-180"
-                max="180"
+                min={Math.min(-180, phaseDeg)}
+                max={Math.max(180, phaseDeg)}
                 step="15"
                 value={phaseDeg}
                 onChange={(e) => setPhaseDeg(Number(e.target.value))}
@@ -4557,8 +4565,8 @@ function OscillationsWavesSim({ simKey, params = {} }: { simKey: string; params?
               </div>
               <input
                 type="range"
-                min="1"
-                max="5"
+                min={Math.min(1, harmonicsK)}
+                max={Math.max(8, harmonicsK)}
                 step="1"
                 value={harmonicsK}
                 onChange={(e) => setHarmonicsK(Number(e.target.value))}
@@ -4574,8 +4582,8 @@ function OscillationsWavesSim({ simKey, params = {} }: { simKey: string; params?
             </div>
             <input
               type="range"
-              min="0"
-              max="3"
+              min={Math.min(0, timeT)}
+              max={Math.max(5, timeT)}
               step="0.02"
               value={timeT}
               onChange={(e) => setTimeT(Number(e.target.value))}
@@ -4818,20 +4826,20 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
   const [mode, setMode] = useState<'ampere_force' | 'coulomb_field' | 'faraday_induction' | 'lorentz_deflection'>(initialMode);
 
   // Ampere Force parameters
-  const [currentI, setCurrentI] = useState<number>(params.I || 6); // A
-  const [magFieldB, setMagFieldB] = useState<number>(params.B || 0.8); // T
-  const [wireLengthL, setWireLengthL] = useState<number>(params.L || 0.4); // m
-  const [angleTheta, setAngleTheta] = useState<number>(params.theta || 90); // deg
+  const [currentI, setCurrentI] = useState<number>(params.I ?? params.current ?? 6); // A
+  const [magFieldB, setMagFieldB] = useState<number>(params.B ?? 0.8); // T
+  const [wireLengthL, setWireLengthL] = useState<number>(params.L ?? 0.4); // m
+  const [angleTheta, setAngleTheta] = useState<number>(params.theta ?? params.angle ?? 90); // deg
 
   // Coulomb / Capacitor parameters
-  const [q1MicroC, setQ1MicroC] = useState<number>(params.q1 || 4);
-  const [q2MicroC, setQ2MicroC] = useState<number>(params.q2 || -4);
-  const [distR, setDistR] = useState<number>(params.r || 0.2); // m
+  const [q1MicroC, setQ1MicroC] = useState<number>(params.q1 ?? 4);
+  const [q2MicroC, setQ2MicroC] = useState<number>(params.q2 ?? -4);
+  const [distR, setDistR] = useState<number>(params.r ?? 0.2); // m
 
   // Faraday / Generator parameters
-  const [turnsN, setTurnsN] = useState<number>(params.N || 300);
-  const [areaCm2, setAreaCm2] = useState<number>(params.S || 50);
-  const [rotFreqHz, setRotFreqHz] = useState<number>(params.f || 2);
+  const [turnsN, setTurnsN] = useState<number>(params.N ?? 300);
+  const [areaCm2, setAreaCm2] = useState<number>(params.S ?? 50);
+  const [rotFreqHz, setRotFreqHz] = useState<number>(params.f ?? 2);
 
   // Physics Calculations
   const thetaRad = (angleTheta * Math.PI) / 180;
@@ -4904,8 +4912,8 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
                 </div>
                 <input
                   type="range"
-                  min="1"
-                  max="15"
+                  min={Math.min(0.5, currentI)}
+                  max={Math.max(20, currentI)}
                   step="0.5"
                   value={currentI}
                   onChange={(e) => setCurrentI(Number(e.target.value))}
@@ -4920,9 +4928,9 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
                 </div>
                 <input
                   type="range"
-                  min="0.1"
-                  max="2.0"
-                  step="0.1"
+                  min={Math.min(0.05, magFieldB)}
+                  max={Math.max(3.0, magFieldB)}
+                  step="0.05"
                   value={magFieldB}
                   onChange={(e) => setMagFieldB(Number(e.target.value))}
                   className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -4936,8 +4944,8 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
                 </div>
                 <input
                   type="range"
-                  min="0.1"
-                  max="1.0"
+                  min={Math.min(0.05, wireLengthL)}
+                  max={Math.max(2.0, wireLengthL)}
                   step="0.05"
                   value={wireLengthL}
                   onChange={(e) => setWireLengthL(Number(e.target.value))}
@@ -4952,8 +4960,8 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
                 </div>
                 <input
                   type="range"
-                  min="0"
-                  max="180"
+                  min={Math.min(0, angleTheta)}
+                  max={Math.max(180, angleTheta)}
                   step="5"
                   value={angleTheta}
                   onChange={(e) => setAngleTheta(Number(e.target.value))}
@@ -4972,8 +4980,8 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
                 </div>
                 <input
                   type="range"
-                  min="-8"
-                  max="8"
+                  min={Math.min(-15, q1MicroC)}
+                  max={Math.max(15, q1MicroC)}
                   step="1"
                   value={q1MicroC}
                   onChange={(e) => setQ1MicroC(Number(e.target.value))}
@@ -4988,8 +4996,8 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
                 </div>
                 <input
                   type="range"
-                  min="-8"
-                  max="8"
+                  min={Math.min(-15, q2MicroC)}
+                  max={Math.max(15, q2MicroC)}
                   step="1"
                   value={q2MicroC}
                   onChange={(e) => setQ2MicroC(Number(e.target.value))}
@@ -5004,8 +5012,8 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
                 </div>
                 <input
                   type="range"
-                  min="0.05"
-                  max="0.5"
+                  min={Math.min(0.02, distR)}
+                  max={Math.max(1.0, distR)}
                   step="0.02"
                   value={distR}
                   onChange={(e) => setDistR(Number(e.target.value))}
@@ -5024,9 +5032,9 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
                 </div>
                 <input
                   type="range"
-                  min="50"
-                  max="800"
-                  step="25"
+                  min={Math.min(10, turnsN)}
+                  max={Math.max(1000, turnsN)}
+                  step="10"
                   value={turnsN}
                   onChange={(e) => setTurnsN(Number(e.target.value))}
                   className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
@@ -5040,8 +5048,8 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
                 </div>
                 <input
                   type="range"
-                  min="0.5"
-                  max="5.0"
+                  min={Math.min(0.5, rotFreqHz)}
+                  max={Math.max(10.0, rotFreqHz)}
                   step="0.5"
                   value={rotFreqHz}
                   onChange={(e) => setRotFreqHz(Number(e.target.value))}
@@ -5230,9 +5238,9 @@ function IdealGasLawsSim({ simKey, params = {} }: { simKey: string; params?: Rec
   );
   const [mode, setMode] = useState<'isothermal' | 'isobaric' | 'isochoric' | 'pv_cycle' | 'kinetic_theory'>(initialMode);
 
-  const [tempK, setTempK] = useState<number>(params.T || 300); // K (27 C)
-  const [volumeL, setVolumeL] = useState<number>(params.V || 4.0); // Liters
-  const [molesN, setMolesN] = useState<number>(params.n || 0.16); // moles
+  const [tempK, setTempK] = useState<number>(params.T ?? params.temperature ?? 300); // K (27 C)
+  const [volumeL, setVolumeL] = useState<number>(params.V ?? params.V1 ?? 4.0); // Liters
+  const [molesN, setMolesN] = useState<number>(params.n ?? 0.16); // moles
   const [gasType, setGasType] = useState<string>(params.gas || 'N2');
 
   const gasMolarMass: Record<string, { name: string; M: number }> = {
@@ -5316,13 +5324,12 @@ function IdealGasLawsSim({ simKey, params = {} }: { simKey: string; params?: Rec
             </div>
             <input
               type="range"
-              min="150"
-              max="550"
-              step="10"
+              min={Math.min(100, tempK)}
+              max={Math.max(1000, tempK)}
+              step="5"
               value={tempK}
               onChange={(e) => setTempK(Number(e.target.value))}
-              disabled={mode === 'isothermal'}
-              className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer disabled:opacity-40"
+              className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
             />
           </div>
 
@@ -5333,13 +5340,12 @@ function IdealGasLawsSim({ simKey, params = {} }: { simKey: string; params?: Rec
             </div>
             <input
               type="range"
-              min="1.0"
-              max="8.0"
+              min={Math.min(0.5, volumeL)}
+              max={Math.max(15.0, volumeL)}
               step="0.2"
               value={volumeL}
               onChange={(e) => setVolumeL(Number(e.target.value))}
-              disabled={mode === 'isochoric'}
-              className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer disabled:opacity-40"
+              className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
             />
           </div>
 
@@ -5350,8 +5356,8 @@ function IdealGasLawsSim({ simKey, params = {} }: { simKey: string; params?: Rec
             </div>
             <input
               type="range"
-              min="0.05"
-              max="0.5"
+              min={Math.min(0.01, molesN)}
+              max={Math.max(2.0, molesN)}
               step="0.01"
               value={molesN}
               onChange={(e) => setMolesN(Number(e.target.value))}
@@ -5543,13 +5549,29 @@ function NuclearDecaySim({ simKey, params = {} }: { simKey: string; params?: Rec
 
           <div>
             <div className="flex justify-between text-[11px] text-slate-300 mb-1">
+              <span>Lượng phóng xạ ban đầu (N₀ / m₀):</span>
+              <span className="font-semibold text-amber-400">{n0} (hạt / g)</span>
+            </div>
+            <input
+              type="range"
+              min={Math.min(10, n0)}
+              max={Math.max(5000, n0)}
+              step={n0 < 200 ? 5 : 50}
+              value={n0}
+              onChange={(e) => setN0(Number(e.target.value))}
+              className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+            />
+          </div>
+
+          <div>
+            <div className="flex justify-between text-[11px] text-slate-300 mb-1">
               <span>Thời gian trôi qua theo chu kỳ bán rã (t / T):</span>
               <span className="font-semibold text-cyan-400">{timeT.toFixed(2)} chu kỳ T</span>
             </div>
             <input
               type="range"
-              min="0.0"
-              max="5.0"
+              min={Math.min(0.0, timeT)}
+              max={Math.max(6.0, timeT)}
               step="0.1"
               value={timeT}
               onChange={(e) => setTimeT(Number(e.target.value))}

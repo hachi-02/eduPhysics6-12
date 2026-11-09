@@ -573,7 +573,11 @@ export function ProblemSandboxClient({
                         {hasCustomOverrides && (
                           <button
                             type="button"
-                            onClick={() => setOverrideParams({})}
+                            onClick={() => {
+                              setShowSolution(false);
+                              setSubmittedStatus('idle');
+                              setOverrideParams({});
+                            }}
                             className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-0.5 text-[10px] font-extrabold text-white hover:bg-indigo-500"
                           >
                             <RotateCcw className="h-3 w-3" />
@@ -663,7 +667,11 @@ export function ProblemSandboxClient({
               {hasCustomOverrides && (
                 <button
                   type="button"
-                  onClick={() => setOverrideParams({})}
+                  onClick={() => {
+                    setShowSolution(false);
+                    setSubmittedStatus('idle');
+                    setOverrideParams({});
+                  }}
                   className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100"
                 >
                   <RotateCcw className="h-3 w-3" />
@@ -718,6 +726,8 @@ export function ProblemSandboxClient({
                       value={currentVal}
                       onChange={(e) => {
                         const val = Number(e.target.value);
+                        setShowSolution(false);
+                        setSubmittedStatus('idle');
                         setOverrideParams((prev) => ({
                           ...prev,
                           [slider.paramKey]: val,

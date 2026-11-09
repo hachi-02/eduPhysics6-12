@@ -292,9 +292,181 @@ function rewriteQuestionStem(
       : `[${formatVnNum(r.newVal)} (Đề gốc: ${formatVnNum(r.oldVal)})]`;
     if (r.rawToken && out.includes(r.rawToken)) {
       out = out.replace(r.rawToken, newFormatted);
+    } else {
+      const valPattern = String(r.oldVal).replace('.', '[.,]');
+      const fallbackRe = new RegExp(
+        `(?<![\\d.,])${valPattern}(?:\\s*|\\\\,)*(?:\\\\(?:text|mathrm)\\{[^}]*\\}|${r.unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})?`
+      );
+      out = out.replace(fallbackRe, newFormatted);
     }
   }
   return out;
+}
+
+function mapUnitValueToSimParams(
+  val: number,
+  rawUnit: string,
+  target: Record<string, any>,
+  isSecondary = false
+): void {
+  const u = rawUnit.trim().replace('\\Omega', 'Ω');
+  const uLower = u.toLowerCase();
+
+  if (uLower === 'kg') {
+    if (!isSecondary) {
+      target.mass = val;
+      target.m1 = val;
+      target.m2 = val;
+      target.massG = Math.round(val * 1000);
+    } else {
+      target.m2 = val;
+    }
+  } else if (uLower === 'g' || uLower === 'mg') {
+    target.massG = val;
+    target.initialCount = val;
+    target.n0 = val;
+    target.mass = Number((val / 1000).toFixed(3));
+  } else if (u === 'N') {
+    if (!isSecondary) {
+      target.force = val;
+      target.pull = val;
+      target.f1 = val;
+    } else {
+      target.f2 = val;
+      target.friction = val;
+    }
+  } else if (uLower === 'n/m') {
+    target.k = val;
+  } else if (uLower === 'cm') {
+    if (!isSecondary) {
+      target.A = val;
+      target.amplitude = val;
+      target.d = val;
+      target.f = val;
+      target.focalLength = val;
+      target.depth = val;
+      target.l0 = val;
+      target.L = Number((val / 100).toFixed(3));
+    } else {
+      target.d = val;
+      target.h = val;
+      target.depth = val;
+    }
+  } else if (uLower === 'mm') {
+    target.vernierMm = val;
+  } else if (uLower === 'cm³' || uLower === 'ml') {
+    target.volume = val;
+    target.vObj = val;
+    target.v0 = val;
+  } else if (uLower === 'cm²') {
+    target.area = val;
+    target.S = val;
+  } else if (uLower === 'm') {
+    if (!isSecondary) {
+      target.h0 = val;
+      target.d1 = val;
+      target.L = val;
+      target.radius = val;
+      target.r = val;
+      target.d = val;
+      target.distM = val;
+    } else {
+      target.d2 = val;
+      target.h0 = val;
+      target.r = val;
+    }
+  } else if (uLower === 'km') {
+    target.distKm = val;
+  } else if (uLower === 'm/s') {
+    if (!isSecondary) {
+      target.v0 = val;
+      target.v0_1d = val;
+      target.v1 = val;
+      target.v = val;
+      target.speed = val;
+    } else {
+      target.v2 = val;
+      target.v = val;
+    }
+  } else if (uLower === 'km/h') {
+    target.speed = val;
+    target.speedKmh = val;
+    target.v0 = Number((val / 3.6).toFixed(1));
+    target.v0_1d = Number((val / 3.6).toFixed(1));
+  } else if (uLower === 'm/s²' || uLower === 'm/s^2') {
+    target.accel = val;
+    target.acceleration = val;
+  } else if (u === 'V' || uLower === 'kv' || uLower === 'mv') {
+    target.voltage = val;
+  } else if (u === 'A' || uLower === 'ma') {
+    target.I = val;
+    target.current = val;
+  } else if (u === 'Ω' || uLower === 'ôm' || uLower === 'ohm') {
+    if (!isSecondary) {
+      target.resistance = val;
+      target.r1 = val;
+    } else {
+      target.r2 = val;
+      target.internalR = val;
+    }
+  } else if (uLower === 'hz' || uLower === 'khz') {
+    target.f = val;
+    target.freqHz = val;
+  } else if (uLower === 's' || uLower === 'giây' || uLower === 'phút' || uLower === 'giờ') {
+    target.t = val;
+    target.time1d = val;
+    target.timeSec = val;
+    target.echoTime = val;
+    target.period = val;
+    target.timeH = val;
+  } else if (u === '°C') {
+    if (!isSecondary) {
+      target.t1 = val;
+      target.tempC = val;
+      target.stripTemp = val;
+      target.celsius = val;
+      target.t0 = val;
+    } else {
+      target.t2 = val;
+    }
+  } else if (u === 'K') {
+    target.T = val;
+    target.temperature = val;
+  } else if (u === 'L' || uLower === 'lít') {
+    target.V = val;
+    if (!isSecondary) target.V1 = val;
+    else target.V2 = val;
+  } else if (uLower === 'mol') {
+    target.n = val;
+    target.moles = val;
+  } else if (uLower === 'vòng') {
+    target.N = val;
+    target.turns = val;
+    if (!isSecondary) target.n1 = val;
+    else target.n2 = val;
+  } else if (u === 'T') {
+    target.B = val;
+    target.fieldB = val;
+  } else if (u === 'μC' || u === 'C') {
+    if (!isSecondary) target.q1 = val;
+    else target.q2 = val;
+  } else if (u === 'J' || uLower === 'kj') {
+    if (!isSecondary) {
+      target.inputJ = val;
+      target.heatQ = val;
+      target.workA = val;
+    } else {
+      target.usefulJ = val;
+      target.heatQ = val;
+    }
+  } else if (u === 'W' || uLower === 'kw') {
+    target.power = val;
+  } else if (u === '°' || uLower === 'độ') {
+    target.angle = val;
+    target.incidentAngle = val;
+    target.theta = val;
+    target.phi = val;
+  }
 }
 
 export function extractRawQuantitiesFromText(text: string): Record<string, { value: number; matched: boolean }> {
@@ -589,10 +761,12 @@ export function buildProblemSandboxState(
       simParameters: {
         ...baseSimParams,
         mode: 'bimetallic',
-        stripTemp: clamp(c_val, -20, 200),
-        t1: clamp(c_val, 0, 100),
+        stripTemp: c_val,
+        tempC: c_val,
+        t1: c_val,
         t0: clamp(c_val / 50, 5, 80),
-        temperature: clamp(k_val, 100, 1000),
+        temperature: k_val,
+        T: k_val,
         mass: 1,
         power: Math.max(200, Math.round(k_val * 0.5)),
       },
@@ -1040,12 +1214,19 @@ export function buildProblemSandboxState(
   // ARCHETYPE 8: GENERAL QUESTION WITH DYNAMIC ANSWER SCALING & EXPLANATION
   // ==========================================================================
   // Parse numerical value & unit from correctOptText (`activeQuestion.options[correct_index]`)
-  const optNumMatch = correctOptText.match(/([+-]?\d+(?:[.,]\d+)?)\s*([^\d\s(;]*)/);
+  const optClean = correctOptText
+    .replace(/\\(?:text|mathrm)\{([^}]*)\}/g, '$1')
+    .replace(/\\,/g, ' ');
+  const optNumMatch = optClean.match(/([+-]?\d+(?:[.,]\d+)?)\s*([^\d\s(;]*)/);
   const origAnsNum = optNumMatch ? parseVnNumber(optNumMatch[1]) ?? 1 : 1;
   const origAnsUnit = optNumMatch && optNumMatch[2] ? optNumMatch[2].trim() : '';
 
-  const tokenRegex = /((\d+(?:[.,]\d+)?)\s*(kg|g|cm|mm|m\/s²|m\/s\^2|m\/s|km\/h|m|N\/m|N|Hz|s|phút|giờ|ngày|năm|V|A|\\Omega|Ω|W|kW|J|kJ|°C|K|L|atm|Pa|T|H|u|MeV|vòng))\b/g;
-  const stemTokens = Array.from(stemOnly.matchAll(tokenRegex));
+  const stemClean = stemOnly
+    .replace(/\\(?:text|mathrm)\{([^}]*)\}/g, '$1')
+    .replace(/\\,/g, ' ');
+  const tokenRegex =
+    /((\d+(?:[.,]\d+)?)\s*(kg|g|mg|cm³|cm²|cm|mm|m\/s²|m\/s\^2|m\/s|km\/h|km|m|N\/m|N|kHz|Hz|s|phút|giờ|ngày|năm|kV|mV|V|mA|A|\\Omega|Ω|ôm|ohm|kW|W|kJ|J|°C|K|lít|ml|L|mol|atm|kPa|Pa|T|μC|C|u|MeV|vòng|°))(?=$|[\s.,;!?)\]$])/gi;
+  const stemTokens = Array.from(stemClean.matchAll(tokenRegex));
 
   if (stemTokens.length > 0) {
     const primary = stemTokens[0];
@@ -1100,6 +1281,22 @@ export function buildProblemSandboxState(
       });
     }
 
+    const mappedSimParams: Record<string, any> = {
+      ...baseSimParams,
+    };
+    // Map any additional tokens from stem first as baseline context
+    for (let idx = 2; idx < stemTokens.length; idx++) {
+      const tokVal = parseVnNumber(stemTokens[idx][2]);
+      if (tokVal !== null) {
+        mapUnitValueToSimParams(tokVal, stemTokens[idx][3], mappedSimParams, true);
+      }
+    }
+    // Map secondary and primary What-If slider values directly by unit so simulation sliders match 1:1
+    if (secondary) {
+      mapUnitValueToSimParams(p2_val, p2_unit, mappedSimParams, true);
+    }
+    mapUnitValueToSimParams(p1_val, p1_unit, mappedSimParams, false);
+
     return {
       domainName: 'Mô phỏng Thực nghiệm & Giải tự động theo Đề bài',
       modifiedQuestionText,
@@ -1115,38 +1312,7 @@ export function buildProblemSandboxState(
           ? [{ paramKey: 'param2', symbol: 'X₂', label: `Đại lượng đề bài (${p2_unit})`, value: p2_val, defaultValue: p2_base, unit: p2_unit, fromQuestionText: true }]
           : []),
       ],
-      simParameters: {
-        ...baseSimParams,
-        mass: Math.max(0.2, Number((1 * ratio1).toFixed(2))),
-        power: Math.max(200, Math.round(1000 * ratioScale)),
-        t0: clamp(Math.round(20 * ratio1), 5, 80),
-        m1: clamp(Number((0.3 * ratio1).toFixed(2)), 0.05, 1.0),
-        m2: clamp(Number((0.5 * ratio2).toFixed(2)), 0.1, 1.5),
-        t1: clamp(Math.round(80 * ratio1), 40, 100),
-        t2: clamp(Math.round(20 * ratio2), 5, 35),
-        amplitude: clamp(Number((5 * ratio1).toFixed(1)), 1, 20),
-        A: clamp(Number((5 * ratio1).toFixed(1)), 1, 20),
-        period: clamp(Number((2 * ratio2).toFixed(2)), 0.4, 10),
-        f: clamp(Number((1.5 * ratio1).toFixed(2)), 0.5, 50),
-        voltage: clamp(Number((12 * ratio1).toFixed(1)), 1, 48),
-        resistance: clamp(Number((10 * ratio2).toFixed(1)), 1, 100),
-        r1: clamp(Number((10 * ratio2).toFixed(1)), 1, 100),
-        force: clamp(Number((50 * ratio1).toFixed(1)), 5, 500),
-        speed: clamp(Number((10 * ratio2).toFixed(1)), 1, 120),
-        v0: clamp(Number((4 * ratio1).toFixed(1)), 1, 50),
-        acceleration: clamp(Number((2 * ratio2).toFixed(2)), 0.5, 20),
-        accel: clamp(Number((2 * ratio2).toFixed(2)), 0.5, 20),
-        temperature: clamp(Math.round(300 * ratio1), 100, 1000),
-        T: clamp(Math.round(300 * ratio1), 100, 1000),
-        V: clamp(Number((4 * ratio2).toFixed(2)), 0.5, 20),
-        moles: clamp(Number((1 * ratioScale).toFixed(2)), 0.1, 10),
-        n: clamp(Number((0.2 * ratioScale).toFixed(2)), 0.05, 2),
-        initialCount: Math.max(100, Math.round(1000 * ratio1)),
-        halfLife: clamp(Number((2 * ratio2).toFixed(2)), 0.5, 20),
-        t: clamp(Number((1.5 * ratio1).toFixed(2)), 0.2, 5.0),
-        I: clamp(Number((5 * ratio1).toFixed(2)), 0.5, 20),
-        B: clamp(Number((0.5 * ratio2).toFixed(2)), 0.05, 2.0),
-      },
+      simParameters: mappedSimParams,
       sliders: [
         { paramKey: 'param1', symbol: 'X₁', label: `Số liệu thứ 1 trong đề (${p1_unit})`, unit: p1_unit, min: b1.min, max: b1.max, step: b1.step, defaultValue: p1_base },
         ...(secondary
