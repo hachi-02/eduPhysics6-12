@@ -260,11 +260,50 @@ export function KnowledgeGraphClient({
     }
   };
 
-  // SVG overlay coordinates measurement
+  // SVG overlay coordinates measurement & Drag-to-pan canvas state
   const boardContainerRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [svgLines, setSvgLines] = useState<SvgLineCoord[]>([]);
   const [boardSize, setBoardSize] = useState<{ width: number; height: number }>({ width: 1200, height: 700 });
+  const [isDraggingBoard, setIsDraggingBoard] = useState<boolean>(false);
+  const isMouseDownRef = useRef<boolean>(false);
+  const hasDraggedRef = useRef<boolean>(false);
+  const dragOriginRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number }>({
+    x: 0,
+    y: 0,
+    scrollLeft: 0,
+    scrollTop: 0,
+  });
+
+  const handleBoardMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || !boardContainerRef.current) return;
+    isMouseDownRef.current = true;
+    hasDraggedRef.current = false;
+    dragOriginRef.current = {
+      x: e.pageX,
+      y: e.pageY,
+      scrollLeft: boardContainerRef.current.scrollLeft,
+      scrollTop: boardContainerRef.current.scrollTop,
+    };
+  };
+
+  const handleBoardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isMouseDownRef.current || !boardContainerRef.current) return;
+    const dx = e.pageX - dragOriginRef.current.x;
+    const dy = e.pageY - dragOriginRef.current.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      e.preventDefault();
+      hasDraggedRef.current = true;
+      if (!isDraggingBoard) setIsDraggingBoard(true);
+      boardContainerRef.current.scrollLeft = dragOriginRef.current.scrollLeft - dx;
+      boardContainerRef.current.scrollTop = dragOriginRef.current.scrollTop - dy;
+    }
+  };
+
+  const handleBoardMouseUpOrLeave = () => {
+    isMouseDownRef.current = false;
+    if (isDraggingBoard) setIsDraggingBoard(false);
+  };
 
   const recomputeSvgLines = useCallback(() => {
     const container = boardContainerRef.current;
@@ -699,14 +738,20 @@ export function KnowledgeGraphClient({
                 <span>SƠ ĐỒ LIÊN KẾT BÀI HỌC TỪ LỚP 6 ĐẾN LỚP 12 (Bấm vào bài bất kỳ để xem lộ trình):</span>
               </div>
               <span className="text-[11px] font-semibold text-slate-500">
-                Cuộn ngang để xem trọn vẹn Lớp 6 → Lớp 12
+                ✋ Nhấn giữ chuột và kéo qua lại để di chuyển bản đồ (Lớp 6 ↔ Lớp 12)
               </span>
             </div>
 
             <div
               ref={boardContainerRef}
               onScroll={recomputeSvgLines}
-              className="relative overflow-x-auto pb-4 pt-1"
+              onMouseDown={handleBoardMouseDown}
+              onMouseMove={handleBoardMouseMove}
+              onMouseUp={handleBoardMouseUpOrLeave}
+              onMouseLeave={handleBoardMouseUpOrLeave}
+              className={`relative overflow-x-auto pb-4 pt-1 select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+                isDraggingBoard ? 'cursor-grabbing' : 'cursor-grab'
+              }`}
             >
               {/* SVG Directed Edges Overlay */}
               <svg
@@ -886,7 +931,10 @@ export function KnowledgeGraphClient({
                                 nodeRefs.current[node.code] = el;
                               }}
                               type="button"
-                              onClick={() => setSelectedCode(node.code)}
+                              onClick={() => {
+                                if (hasDraggedRef.current) return;
+                                setSelectedCode(node.code);
+                              }}
                               className={`group relative flex w-full flex-col rounded-xl border p-2.5 text-left transition duration-150 ${cardStyle}`}
                             >
                               {/* Top row: Code + Health dot */}
