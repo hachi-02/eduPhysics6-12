@@ -512,10 +512,19 @@ export const SIM_TO_WHATIF_KEY_ALIASES: Record<string, string[]> = {
   T: ['kelvinInput', 'celsius', 'temperature', 'param1', 'param2'],
 
   // Radioactive
-  halfLife: ['halfLife', 'T', 'tHalf', 'param1', 'param2'],
+  halfLife: ['halfLife', 'tHalf', 'param1', 'param2'],
   targetRatio: ['targetRatio', 'ratio', 'param1', 'param2'],
-  elapsedTime: ['elapsedTime', 't', 'timeSec', 'param1', 'param2'],
-  t: ['elapsedTime', 't', 'timeSec', 'param1', 'param2'],
+  elapsedTime: ['elapsedTime', 'timeSec', 'param1', 'param2'],
+  t: ['elapsedTime', 'timeSec', 'param1', 'param2'],
+
+  // Electromagnetism & Magnetic Force
+  fieldB: ['fieldB', 'B', 'param1', 'param2'],
+  B: ['fieldB', 'B', 'param1', 'param2'],
+  currentI: ['currentI', 'current', 'I', 'param1', 'param2'],
+  I: ['currentI', 'current', 'I', 'param1', 'param2'],
+  wireLengthL: ['lengthCm', 'L', 'wireLengthL', 'param1', 'param2'],
+  L: ['lengthCm', 'L', 'wireLengthL', 'param1', 'param2'],
+  lengthCm: ['lengthCm', 'L', 'wireLengthL', 'param1', 'param2'],
 
   // Motion / Velocity
   v0: ['v0', 'speed', 'v', 'v0_1d', 'v1', 'v2', 'param1', 'param2'],
@@ -554,28 +563,72 @@ export function buildBoundsMap(
     const b = { min: s.min, max: s.max, step: s.step };
     bounds[s.paramKey] = b;
     if (s.paramKey === 'mass' || s.paramKey === 'initialMass' || s.paramKey === 'm1' || s.paramKey === 'm2') {
-      bounds.mass = bounds.m0 = bounds.m1 = bounds.m2 = bounds.massKg = bounds.initialMass = bounds.massG = b;
+      if (s.unit === 'g') {
+        bounds.massG = bounds.initialCount = bounds.n0 = b;
+        bounds.mass = bounds.m0 = bounds.m1 = bounds.m2 = bounds.massKg = {
+          min: Number((s.min / 1000).toFixed(4)),
+          max: Number((s.max / 1000).toFixed(4)),
+          step: Number((s.step / 1000).toFixed(4)),
+        };
+      } else {
+        bounds.mass = bounds.m0 = bounds.m1 = bounds.m2 = bounds.massKg = b;
+        bounds.massG = bounds.initialCount = bounds.n0 = {
+          min: s.min * 1000,
+          max: s.max * 1000,
+          step: s.step * 1000,
+        };
+      }
     }
     if (s.paramKey === 'voltage' || s.paramKey === 'U') {
       bounds.voltage = bounds.U = bounds.u = bounds.volt = b;
     }
     if (s.paramKey === 'resistance' || s.paramKey === 'r1' || s.paramKey === 'r2') {
-      bounds.resistance = bounds.r1 = bounds.r2 = bounds.R = bounds.r = b;
+      bounds.resistance = bounds.r1 = bounds.r2 = bounds.R = b;
     }
     if (s.paramKey === 'force' || s.paramKey === 'pull' || s.paramKey === 'f1') {
       bounds.force = bounds.pull = bounds.f1 = bounds.f2 = bounds.pullForce = bounds.forceN = b;
     }
-    if (s.paramKey === 'celsius' || s.paramKey === 'kelvinInput') {
-      bounds.celsius = bounds.kelvinInput = bounds.tempC = bounds.stripTemp = bounds.temperature = bounds.T = bounds.t1 = bounds.t2 = bounds.t0 = b;
+    if (s.paramKey === 'lengthCm') {
+      bounds.lengthCm = bounds.d = bounds.A = b;
+      bounds.L = bounds.wireLengthL = bounds.distM = {
+        min: Number((s.min / 100).toFixed(3)),
+        max: Number((s.max / 100).toFixed(3)),
+        step: Number((s.step / 100).toFixed(3)),
+      };
+    }
+    if (s.paramKey === 'fieldB' || s.paramKey === 'B') {
+      bounds.fieldB = bounds.B = b;
+    }
+    if (s.paramKey === 'currentI' || s.paramKey === 'I') {
+      bounds.currentI = bounds.I = bounds.current = b;
+    }
+    if (s.paramKey === 'kelvinInput' || s.unit === 'K') {
+      bounds.kelvinInput = bounds.temperature = bounds.T = bounds.tempK = b;
+      const cMin = Number((s.min - 273.15).toFixed(1));
+      const cMax = Number((s.max - 273.15).toFixed(1));
+      bounds.celsius = bounds.tempC = bounds.stripTemp = bounds.t1 = bounds.t2 = bounds.t0 = {
+        min: cMin,
+        max: cMax,
+        step: s.step,
+      };
+    } else if (s.paramKey === 'celsius' || s.unit === '°C') {
+      bounds.celsius = bounds.tempC = bounds.stripTemp = bounds.t1 = bounds.t2 = bounds.t0 = b;
+      const kMin = Math.max(0, Number((s.min + 273.15).toFixed(1)));
+      const kMax = Math.max(0, Number((s.max + 273.15).toFixed(1)));
+      bounds.kelvinInput = bounds.temperature = bounds.T = bounds.tempK = {
+        min: kMin,
+        max: kMax,
+        step: s.step,
+      };
     }
     if (s.paramKey === 'halfLife') {
-      bounds.halfLife = bounds.T = bounds.tHalf = b;
+      bounds.halfLife = bounds.tHalf = b;
     }
     if (s.paramKey === 'initialCount') {
       bounds.initialCount = bounds.n0 = bounds.m0 = b;
     }
     if (s.paramKey === 'elapsedTime') {
-      bounds.elapsedTime = bounds.t = bounds.timeSec = b;
+      bounds.elapsedTime = bounds.timeSec = b;
     }
     if (s.paramKey === 'v0' || s.paramKey === 'speed' || s.paramKey === 'v') {
       bounds.v0 = bounds.speed = bounds.v = bounds.v0_1d = bounds.v1 = bounds.v2 = b;
@@ -587,10 +640,12 @@ export function buildBoundsMap(
       bounds.volume = bounds.V1 = bounds.V2 = bounds.V = b;
     }
     if (s.paramKey === 'workMag' || s.paramKey === 'workA') {
-      bounds.workMag = bounds.workA = b;
+      bounds.workMag = b;
+      bounds.workA = { min: -s.max, max: s.max, step: s.step };
     }
     if (s.paramKey === 'heatMag' || s.paramKey === 'heatQ' || s.paramKey === 'inputJ') {
-      bounds.heatMag = bounds.heatQ = bounds.inputJ = b;
+      bounds.heatMag = bounds.inputJ = b;
+      bounds.heatQ = { min: -s.max, max: s.max, step: s.step };
     }
   }
   return bounds;
@@ -606,46 +661,128 @@ export function mapUnitBounds(
 
   if (uLower === 'kg') {
     target.mass = target.m1 = target.m2 = target.massKg = bound;
+    target.massG = target.initialCount = target.n0 = {
+      min: bound.min * 1000,
+      max: bound.max * 1000,
+      step: bound.step * 1000,
+    };
   } else if (uLower === 'g' || uLower === 'mg') {
     target.massG = target.initialCount = target.n0 = bound;
+    target.mass = target.m1 = target.m2 = target.massKg = {
+      min: Number((bound.min / 1000).toFixed(4)),
+      max: Number((bound.max / 1000).toFixed(4)),
+      step: Number((bound.step / 1000).toFixed(4)),
+    };
   } else if (u === 'N') {
     target.force = target.pull = target.f1 = target.f2 = target.pullForce = target.forceN = bound;
+  } else if (uLower === 'kn') {
+    target.force = target.pull = target.f1 = target.f2 = target.pullForce = target.forceN = {
+      min: bound.min * 1000,
+      max: bound.max * 1000,
+      step: bound.step * 1000,
+    };
   } else if (uLower === 'n/m') {
     target.k = bound;
   } else if (uLower === 'cm') {
-    target.A = target.amplitude = target.d = target.f = target.focalLength = target.depth = target.l0 = target.distanceCm = bound;
+    target.A = target.amplitude = target.d = target.f = target.focalLength = target.depth = target.l0 = target.distanceCm = target.lengthCm = bound;
+    target.L = target.wireLengthL = target.distM = {
+      min: Number((bound.min / 100).toFixed(3)),
+      max: Number((bound.max / 100).toFixed(3)),
+      step: Number((bound.step / 100).toFixed(3)),
+    };
   } else if (uLower === 'mm') {
     target.vernierMm = bound;
   } else if (uLower === 'cm³' || uLower === 'ml') {
     target.volume = target.vObj = target.v0 = target.waterV1 = target.stoneV = bound;
   } else if (uLower === 'm') {
-    target.h0 = target.d1 = target.d2 = target.L = target.radius = target.r = target.d = target.distM = bound;
+    target.h0 = target.d1 = target.d2 = target.L = target.wireLengthL = target.radius = target.r = target.d = target.distM = bound;
+    target.distanceCm = target.lengthCm = target.A = {
+      min: bound.min * 100,
+      max: bound.max * 100,
+      step: bound.step * 100,
+    };
   } else if (uLower === 'km') {
     target.distKm = bound;
   } else if (uLower === 'm/s') {
     target.v0 = target.v0_1d = target.v1 = target.v2 = target.v = target.speed = bound;
+    target.speedKmh = {
+      min: Number((bound.min * 3.6).toFixed(1)),
+      max: Number((bound.max * 3.6).toFixed(1)),
+      step: Number((bound.step * 3.6).toFixed(1)),
+    };
   } else if (uLower === 'km/h') {
     target.speed = target.speedKmh = bound;
+    target.v0 = target.v0_1d = target.v = {
+      min: Number((bound.min / 3.6).toFixed(2)),
+      max: Number((bound.max / 3.6).toFixed(2)),
+      step: Number((bound.step / 3.6).toFixed(2)),
+    };
   } else if (uLower === 'm/s²' || uLower === 'm/s^2') {
     target.accel = target.acceleration = bound;
-  } else if (u === 'V' || uLower === 'kv' || uLower === 'mv') {
+  } else if (u === 'V') {
     target.voltage = target.U = bound;
-  } else if (u === 'A' || uLower === 'ma') {
-    target.I = target.current = bound;
+  } else if (uLower === 'kv') {
+    target.voltage = target.U = {
+      min: bound.min * 1000,
+      max: bound.max * 1000,
+      step: bound.step * 1000,
+    };
+  } else if (uLower === 'mv') {
+    target.voltage = target.U = {
+      min: bound.min / 1000,
+      max: bound.max / 1000,
+      step: bound.step / 1000,
+    };
+  } else if (u === 'A') {
+    target.I = target.current = target.currentI = bound;
+  } else if (uLower === 'ma') {
+    target.I = target.current = target.currentI = {
+      min: bound.min / 1000,
+      max: bound.max / 1000,
+      step: bound.step / 1000,
+    };
+  } else if (u === 'T') {
+    target.B = target.fieldB = bound;
   } else if (u === 'Ω' || uLower === 'ôm' || uLower === 'ohm') {
-    target.resistance = target.r1 = target.r2 = target.R = target.internalR = bound;
+    target.resistance = target.r1 = target.r2 = target.R = bound;
   } else if (uLower === 'hz' || uLower === 'khz') {
     target.f = target.freqHz = bound;
   } else if (uLower === 's' || uLower === 'giây' || uLower === 'phút' || uLower === 'giờ') {
     target.t = target.time1d = target.timeSec = target.echoTime = target.period = bound;
-  } else if (u === '°C' || u === 'K') {
-    target.tempC = target.celsius = target.stripTemp = target.t1 = target.t2 = target.t0 = target.temperature = target.T = bound;
+  } else if (u === 'K') {
+    target.kelvinInput = target.temperature = target.T = target.tempK = bound;
+    target.tempC = target.celsius = target.stripTemp = target.t1 = target.t2 = target.t0 = {
+      min: Number((bound.min - 273.15).toFixed(1)),
+      max: Number((bound.max - 273.15).toFixed(1)),
+      step: bound.step,
+    };
+  } else if (u === '°C') {
+    target.tempC = target.celsius = target.stripTemp = target.t1 = target.t2 = target.t0 = bound;
+    target.kelvinInput = target.temperature = target.T = target.tempK = {
+      min: Math.max(0, Number((bound.min + 273.15).toFixed(1))),
+      max: Math.max(0, Number((bound.max + 273.15).toFixed(1))),
+      step: bound.step,
+    };
   } else if (u === 'L' || uLower === 'lít') {
     target.V = target.V1 = target.V2 = bound;
-  } else if (u === 'J' || uLower === 'kj') {
+  } else if (u === 'J') {
     target.inputJ = target.heatQ = target.workA = bound;
-  } else if (u === 'W' || uLower === 'kw') {
+  } else if (uLower === 'kj') {
+    target.inputJ = target.heatQ = target.workA = {
+      min: bound.min * 1000,
+      max: bound.max * 1000,
+      step: bound.step * 1000,
+    };
+  } else if (u === 'W') {
     target.power = bound;
+  } else if (uLower === 'kw') {
+    target.power = {
+      min: bound.min * 1000,
+      max: bound.max * 1000,
+      step: bound.step * 1000,
+    };
+  } else if (uLower === 'pa' || uLower === 'kpa' || uLower === 'atm' || uLower === 'bar') {
+    target.pressure = target.p1 = target.p2 = target.p = bound;
   } else if (u === '°' || uLower === 'độ') {
     target.angle = target.incidentAngle = target.theta = target.eyeAngle = bound;
   }
@@ -963,13 +1100,15 @@ export function buildProblemSandboxState(
       ],
       simParameters: {
         ...baseSimParams,
-        mode: 'bimetallic',
-        stripTemp: c_val,
-        tempC: c_val,
-        t1: c_val,
-        t0: clamp(c_val / 50, 5, 80),
         temperature: k_val,
         T: k_val,
+        tempK: k_val,
+        initialTemperature: k_val,
+        celsius: c_val,
+        tempC: c_val,
+        stripTemp: c_val,
+        t1: c_val,
+        t0: clamp(c_val / 50, 5, 80),
         mass: 1,
         power: Math.max(200, Math.round(k_val * 0.5)),
       },
@@ -1004,10 +1143,14 @@ export function buildProblemSandboxState(
   // ARCHETYPE 3: FIRST LAW OF THERMODYNAMICS (ΔU = A + Q)
   // ==========================================================================
   if (fullClean.includes('ΔU') || fullClean.includes('nội năng')) {
-    const aUnsigned = stemOnly.match(/công\s+((\d+(?:[.,]\d+)?)\s*J)/i);
-    const qUnsigned = stemOnly.match(/(?:nhiệt lượng|Q\s*=\s*)((\d+(?:[.,]\d+)?)\s*J)/i);
+    const aUnsigned = stemOnly.match(/(?:công\s*(?:là\s*|=|:\s*)?|A\s*=\s*)((\d+(?:[.,]\d+)?)\s*J)/i);
+    const qUnsigned = stemOnly.match(/(?:nhiệt lượng\s*(?:là\s*|=|:\s*)?|Q\s*=\s*)((\d+(?:[.,]\d+)?)\s*J)/i);
 
-    const aSign = stemOnly.includes('đẳng tích') ? 0 : stemOnly.includes('thực hiện một công') || stemOnly.includes('sinh công') ? -1 : 1;
+    const aSign = stemOnly.includes('đẳng tích')
+      ? 0
+      : (stemOnly.includes('khí thực hiện') || stemOnly.includes('khí sinh công') || stemOnly.includes('hệ sinh công') || (stemOnly.includes('sinh công') && !stemOnly.includes('thực hiện công lên')))
+      ? -1
+      : 1;
     const qSign = stemOnly.includes('truyền ra') || stemOnly.includes('tỏa') ? -1 : 1;
 
     const A_mag_base = aUnsigned ? parseVnNumber(aUnsigned[2]) || 80 : 0;

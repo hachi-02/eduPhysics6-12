@@ -222,17 +222,64 @@ export function ProblemSandboxClient({
         const aliases = SIM_TO_WHATIF_KEY_ALIASES[simParamKey] || [];
         matched = sandboxState.sliders.find((s) => aliases.includes(s.paramKey));
       }
-      if (!matched && sandboxState.sliders.length > 0) {
-        matched = sandboxState.sliders[0];
+      if (!matched) {
+        // Do NOT blindly fallback to sliders[0] to prevent cross-parameter corruption
+        return;
       }
-      if (matched) {
-        // If matched slider in What-If has a non-negative range (min >= 0) but value passed is signed negative
-        const safeValue = matched.min >= 0 && value < 0 ? Math.abs(value) : value;
-        setOverrideParams((prev) => ({
-          ...prev,
-          [matched!.paramKey]: safeValue,
-        }));
+
+      let safeValue = value;
+      // Precise bidirectional unit conversions:
+      if (
+        matched.unit === 'K' &&
+        (simParamKey === 'stripTemp' ||
+          simParamKey === 'tempC' ||
+          simParamKey === 'celsius' ||
+          simParamKey === 't1' ||
+          simParamKey === 't2' ||
+          simParamKey === 't0')
+      ) {
+        // Simulation passed Celsius (°C), What-If expects Kelvin (K)
+        safeValue = value + 273.15;
+      } else if (
+        matched.unit === '°C' &&
+        (simParamKey === 'kelvinInput' ||
+          simParamKey === 'temperature' ||
+          simParamKey === 'T' ||
+          simParamKey === 'tempK' ||
+          simParamKey === 'initialTemperature')
+      ) {
+        // Simulation passed Kelvin (K), What-If expects Celsius (°C)
+        safeValue = value - 273.15;
+      } else if (matched.unit === 'kg' && (simParamKey === 'massG' || simParamKey === 'n0')) {
+        safeValue = value / 1000;
+      } else if (
+        matched.unit === 'g' &&
+        (simParamKey === 'mass' || simParamKey === 'm1' || simParamKey === 'm2' || simParamKey === 'massKg')
+      ) {
+        safeValue = value * 1000;
+      } else if (matched.unit === 'm' && (simParamKey === 'lengthCm' || simParamKey === 'd' || simParamKey === 'A')) {
+        safeValue = value / 100;
+      } else if (matched.unit === 'cm' && (simParamKey === 'L' || simParamKey === 'wireLengthL' || simParamKey === 'distM')) {
+        safeValue = value * 100;
+      } else if (matched.paramKey === 'workMag' || matched.paramKey === 'heatMag') {
+        safeValue = Math.abs(value);
       }
+
+      // Clamp within What-If slider boundary range
+      safeValue = Math.max(matched.min, Math.min(matched.max, safeValue));
+
+      // Round to step precision
+      if (matched.step >= 1) {
+        safeValue = Math.round(safeValue);
+      } else {
+        const decimals = (String(matched.step).split('.')[1] || '').length;
+        safeValue = Number(safeValue.toFixed(decimals));
+      }
+
+      setOverrideParams((prev) => ({
+        ...prev,
+        [matched!.paramKey]: safeValue,
+      }));
     },
     [sandboxState.sliders]
   );

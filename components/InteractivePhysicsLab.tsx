@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SimulationItem } from '@/types/cms';
 import {
   Sliders,
@@ -35,27 +35,37 @@ export function getSliderRange(
     for (const key of paramKeys) {
       if (bounds[key]) {
         const b = bounds[key];
-        // If currentVal is signed negative (e.g. heatQ = -670 for heat release) and b represents a non-negative magnitude (b.min >= 0)
-        if (currentVal !== undefined && Number.isFinite(currentVal) && currentVal < 0 && b.min >= 0) {
+        const bMin = Math.min(b.min, b.max);
+        const bMax = Math.max(b.min, b.max);
+
+        // If current value is signed negative (e.g. work done by system or negative temperature) but bound min >= 0,
+        // expand range symmetrically so user can drag smoothly across zero
+        if (currentVal !== undefined && Number.isFinite(currentVal) && currentVal < 0 && bMin >= 0) {
+          const symSpan = Math.max(bMax, Math.abs(currentVal));
           return {
-            min: -b.max,
-            max: -b.min,
-            step: b.step,
+            min: -symSpan,
+            max: symSpan,
+            step: b.step || fallbackStep,
           };
         }
-        const val = currentVal !== undefined && Number.isFinite(currentVal) ? currentVal : b.min;
+
+        const val = currentVal !== undefined && Number.isFinite(currentVal) ? currentVal : bMin;
         return {
-          min: Math.min(b.min, val),
-          max: Math.max(b.max, val),
-          step: b.step,
+          min: Math.min(bMin, val),
+          max: Math.max(bMax, val),
+          step: b.step || fallbackStep,
         };
       }
     }
   }
-  const val = currentVal !== undefined && Number.isFinite(currentVal) ? currentVal : fallbackMin;
-  const min = Math.min(fallbackMin, val);
-  const max = Math.max(fallbackMax, val);
-  return { min, max, step: fallbackStep };
+  const fMin = Math.min(fallbackMin, fallbackMax);
+  const fMax = Math.max(fallbackMin, fallbackMax);
+  const val = currentVal !== undefined && Number.isFinite(currentVal) ? currentVal : fMin;
+  return {
+    min: Math.min(fMin, val),
+    max: Math.max(fMax, val),
+    step: fallbackStep || 1,
+  };
 }
 
 export function useSyncState<T>(propVal: T | undefined, fallback: T): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -264,14 +274,17 @@ function renderSimByKey(
     case 'g12_ac_generator_power_lab':
       return <CircuitLabSim simKey={simKey} params={params} onParamChange={onParamChange} />;
 
+    // --- Domain Engine 4B: Molecular States & Thermal Motion (Grade 12, Grade 8) ---
+    case 'g12_molecular_states_lab':
+    case 'g8_thermal_motion_lab':
+      return <MolecularStatesSim simKey={simKey} params={params} onParamChange={onParamChange} />;
+
     // --- Domain Engine 4: Thermal Energy & Calorimetry (Grades 8, 12) ---
     case 'thermal_calorimetry_lab':
     case 'first_law_thermodynamics_lab':
     case 'latent_heat_phase_lab':
-    case 'g8_thermal_motion_lab':
     case 'g8_heat_transfer_modes_lab':
     case 'g8_bimetallic_expansion_lab':
-    case 'g12_molecular_states_lab':
     case 'g12_thermodynamics_first_law_lab':
     case 'g12_calorimetry_phase_change_lab':
       return <ThermalCalorimetrySim simKey={simKey} params={params} onParamChange={onParamChange} />;
@@ -343,7 +356,7 @@ function renderSimByKey(
     case 'g11_capacitor_dielectric_lab':
     case 'g12_ampere_left_hand_lab':
     case 'g12_faraday_self_inductance_lab':
-      return <ElectromagnetismInductionSim simKey={simKey} params={params} />;
+      return <ElectromagnetismInductionSim simKey={simKey} params={params} onParamChange={onParamChange} />;
 
     // --- Domain Engine 10: Ideal Gas Laws & Kinetic Theory (Grade 12) ---
     case 'ideal_gas_laws_lab':
@@ -352,7 +365,7 @@ function renderSimByKey(
     case 'g12_boyle_isothermal_lab':
     case 'g12_ideal_gas_equation_lab':
     case 'g12_kinetic_gas_maxwell_lab':
-      return <IdealGasLawsSim simKey={simKey} params={params} />;
+      return <IdealGasLawsSim simKey={simKey} params={params} onParamChange={onParamChange} />;
 
     // --- Domain Engine 11: Nuclear Physics & Radioactivity (Grade 12) ---
     case 'nuclear_decay_lab':
@@ -3280,6 +3293,535 @@ function ThermalCalorimetrySim({
 
 
 /* =========================================================================
+   MODULAR ENGINE 4B: MOLECULAR STATES & THERMAL MOTION
+   Supports: g12_molecular_states_lab, g8_thermal_motion_lab
+   ========================================================================= */
+function MolecularStatesSim({
+  simKey,
+  params = {},
+  onParamChange,
+}: {
+  simKey: string;
+  params?: Record<string, any>;
+  onParamChange?: (key: string, value: number) => void;
+}) {
+  const initialTempK = Number(
+    params.temperature ??
+      params.T ??
+      params.tempK ??
+      params.initialTemperature ??
+      (params.celsius !== undefined
+        ? params.celsius + 273.15
+        : params.tempC !== undefined
+        ? params.tempC + 273.15
+        : params.stripTemp !== undefined
+        ? params.stripTemp + 273.15
+        : 300)
+  );
+
+  const [tempK, setTempK] = useSyncState<number>(initialTempK, 300);
+  const [selectedMode, setSelectedMode] = useState<'auto' | 'solid' | 'liquid' | 'gas'>('auto');
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [speedMultiplier, setSpeedMultiplier] = useState<number>(1.0);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Effective state determination
+  const effectiveState: 'solid' | 'liquid' | 'gas' =
+    selectedMode === 'auto'
+      ? tempK < 273.15
+        ? 'solid'
+        : tempK <= 373.15
+        ? 'liquid'
+        : 'gas'
+      : selectedMode;
+
+  const tempC = Number((tempK - 273.15).toFixed(2));
+  const tempF = Number((tempC * 1.8 + 32).toFixed(1));
+
+  // Physics constants & Microscopic calculations
+  const kBoltzmann = 1.38e-23; // J/K
+  // Mean translation kinetic energy E_k = 3/2 k_B T (in 10^-21 J)
+  const avgKinetic1e21 = ((1.5 * kBoltzmann * Math.max(0, tempK)) * 1e21).toFixed(2);
+  // Root-mean-square speed for H2O molecule (M = 18 g/mol = 0.018 kg/mol)
+  const vRms = Math.round(Math.sqrt((3 * 8.314 * Math.max(0, tempK)) / 0.018));
+
+  // Slider bounds from params._bounds
+  const tempBounds = getSliderRange(
+    params,
+    ['kelvinInput', 'temperature', 'T', 'tempK'],
+    0,
+    600,
+    5,
+    tempK
+  );
+  const minK = Math.max(0, Math.min(tempBounds.min, tempK));
+  const maxK = Math.max(minK + 50, Math.max(tempBounds.max, tempK));
+
+  const handleTempChange = (newK: number) => {
+    setTempK(newK);
+    onParamChange?.('kelvinInput', newK);
+    onParamChange?.('temperature', newK);
+    onParamChange?.('T', newK);
+    onParamChange?.('tempK', newK);
+    const newC = Number((newK - 273.15).toFixed(2));
+    onParamChange?.('celsius', newC);
+    onParamChange?.('tempC', newC);
+    onParamChange?.('stripTemp', newC);
+  };
+
+  const presets = [
+    { label: '0 K (Độ không tuyệt đối)', k: 0 },
+    { label: '273.15 K (Nước đá tan / 0°C)', k: 273.15 },
+    { label: '298.15 K (Nhiệt độ phòng / 25°C)', k: 298.15 },
+    { label: '310.15 K (Thân nhiệt / 37°C)', k: 310.15 },
+    { label: '373.15 K (Nước sôi / 100°C)', k: 373.15 },
+    { label: '500 K (Hơi nước quá nhiệt)', k: 500 },
+  ];
+
+  // Particle simulation loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let time = 0;
+
+    // 64 particles on an 8x8 virtual lattice
+    const cols = 8;
+    const rows = 8;
+    const numParticles = cols * rows;
+
+    interface Particle {
+      origX: number;
+      origY: number;
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      phaseX: number;
+      phaseY: number;
+    }
+
+    const particles: Particle[] = [];
+    const width = canvas.width || 420;
+    const height = canvas.height || 260;
+
+    const latticeStartX = width * 0.22;
+    const latticeStartY = height * 0.28;
+    const spacingX = (width * 0.56) / (cols - 1);
+    const spacingY = (height * 0.5) / (rows - 1);
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const ox = latticeStartX + c * spacingX;
+        const oy = latticeStartY + r * spacingY;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 0.5 + Math.random() * 0.5;
+        particles.push({
+          origX: ox,
+          origY: oy,
+          x: ox,
+          y: oy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          phaseX: Math.random() * Math.PI * 2,
+          phaseY: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      // Background gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+      if (effectiveState === 'solid') {
+        bgGrad.addColorStop(0, '#03172e');
+        bgGrad.addColorStop(1, '#082f49');
+      } else if (effectiveState === 'liquid') {
+        bgGrad.addColorStop(0, '#0c1a30');
+        bgGrad.addColorStop(1, '#1e3a8a');
+      } else {
+        bgGrad.addColorStop(0, '#241008');
+        bgGrad.addColorStop(1, '#431407');
+      }
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Container bounding box border
+      ctx.strokeStyle = effectiveState === 'solid' ? '#0284c7' : effectiveState === 'liquid' ? '#3b82f6' : '#f97316';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(12, 12, width - 24, height - 24);
+
+      if (isPlaying) {
+        time += 0.05 * speedMultiplier;
+      }
+
+      // Draw depending on state
+      if (effectiveState === 'solid') {
+        // Crystalline lattice: particles oscillate around fixed points
+        const amp = tempK <= 0 ? 0 : Math.min(10, 0.35 * Math.sqrt(tempK));
+
+        // Draw lattice bonds between neighbors
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+        ctx.lineWidth = 1;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const idx = r * cols + c;
+            const p = particles[idx];
+            const px = p.origX + amp * Math.sin(time * 3 + p.phaseX);
+            const py = p.origY + amp * Math.cos(time * 3 + p.phaseY);
+
+            // Right neighbor bond
+            if (c < cols - 1) {
+              const rightIdx = r * cols + (c + 1);
+              const rp = particles[rightIdx];
+              const rpx = rp.origX + amp * Math.sin(time * 3 + rp.phaseX);
+              const rpy = rp.origY + amp * Math.cos(time * 3 + rp.phaseY);
+              ctx.beginPath();
+              ctx.moveTo(px, py);
+              ctx.lineTo(rpx, rpy);
+              ctx.stroke();
+            }
+            // Bottom neighbor bond
+            if (r < rows - 1) {
+              const downIdx = (r + 1) * cols + c;
+              const dp = particles[downIdx];
+              const dpx = dp.origX + amp * Math.sin(time * 3 + dp.phaseX);
+              const dpy = dp.origY + amp * Math.cos(time * 3 + dp.phaseY);
+              ctx.beginPath();
+              ctx.moveTo(px, py);
+              ctx.lineTo(dpx, dpy);
+              ctx.stroke();
+            }
+          }
+        }
+
+        // Draw particles
+        for (let i = 0; i < numParticles; i++) {
+          const p = particles[i];
+          const px = p.origX + amp * Math.sin(time * 3 + p.phaseX);
+          const py = p.origY + amp * Math.cos(time * 3 + p.phaseY);
+
+          // Glow
+          ctx.beginPath();
+          ctx.arc(px, py, 6, 0, Math.PI * 2);
+          ctx.fillStyle = tempK === 0 ? '#94a3b8' : '#38bdf8';
+          ctx.fill();
+
+          // Highlight center
+          ctx.beginPath();
+          ctx.arc(px - 1.5, py - 1.5, 2, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+        }
+      } else if (effectiveState === 'liquid') {
+        // Liquid state: particles slide over each other in lower 65% of container
+        const vScale = Math.sqrt(Math.max(10, tempK) / 250) * 1.5 * speedMultiplier;
+        const liquidTopY = height * 0.35;
+        const liquidBottomY = height - 22;
+        const minX = 22;
+        const maxX = width - 22;
+
+        for (let i = 0; i < numParticles; i++) {
+          const p = particles[i];
+          if (isPlaying) {
+            p.x += p.vx * vScale;
+            p.y += p.vy * vScale;
+
+            // Gravity bias towards bottom
+            p.vy += 0.04;
+
+            // Bounce off boundaries
+            if (p.x < minX) { p.x = minX; p.vx = Math.abs(p.vx); }
+            if (p.x > maxX) { p.x = maxX; p.vx = -Math.abs(p.vx); }
+            if (p.y < liquidTopY) { p.y = liquidTopY; p.vy = Math.abs(p.vy) * 0.8; }
+            if (p.y > liquidBottomY) { p.y = liquidBottomY; p.vy = -Math.abs(p.vy) * 0.8; }
+          }
+
+          // Draw liquid particle
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 6.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#60a5fa';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(p.x - 1.5, p.y - 1.5, 2, 0, Math.PI * 2);
+          ctx.fillStyle = '#e0f2fe';
+          ctx.fill();
+        }
+
+        // Draw liquid surface meniscus line
+        ctx.strokeStyle = 'rgba(96, 165, 250, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(14, liquidTopY);
+        ctx.lineTo(width - 14, liquidTopY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        // Gas state: particles move fast in 100% of container with motion streaks
+        const vScale = Math.sqrt(Math.max(20, tempK) / 80) * 2.2 * speedMultiplier;
+        const minX = 20;
+        const maxX = width - 20;
+        const minY = 20;
+        const maxY = height - 20;
+
+        for (let i = 0; i < numParticles; i++) {
+          const p = particles[i];
+          const prevX = p.x;
+          const prevY = p.y;
+
+          if (isPlaying) {
+            p.x += p.vx * vScale;
+            p.y += p.vy * vScale;
+
+            if (p.x < minX) { p.x = minX; p.vx = Math.abs(p.vx); }
+            if (p.x > maxX) { p.x = maxX; p.vx = -Math.abs(p.vx); }
+            if (p.y < minY) { p.y = minY; p.vy = Math.abs(p.vy); }
+            if (p.y > maxY) { p.y = maxY; p.vy = -Math.abs(p.vy); }
+          }
+
+          // Motion tail streak
+          ctx.strokeStyle = 'rgba(249, 115, 22, 0.35)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+
+          // Particle body
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 5.5, 0, Math.PI * 2);
+          ctx.fillStyle = tempK > 500 ? '#ef4444' : '#f59e0b';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(p.x - 1.2, p.y - 1.2, 1.8, 0, Math.PI * 2);
+          ctx.fillStyle = '#fef08a';
+          ctx.fill();
+        }
+      }
+
+      animId = requestAnimationFrame(render);
+    };
+
+    animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [effectiveState, tempK, isPlaying, speedMultiplier]);
+
+  return (
+    <div className="space-y-4">
+      {/* Mode / Phase Selector */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedMode('auto')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              selectedMode === 'auto'
+                ? 'bg-indigo-600 text-white shadow-glow'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            Tự động theo nhiệt độ (Auto)
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedMode('solid')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              effectiveState === 'solid' && selectedMode !== 'auto'
+                ? 'bg-sky-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            Thể Rắn (Solid • T &lt; 273 K)
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedMode('liquid')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              effectiveState === 'liquid' && selectedMode !== 'auto'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            Thể Lỏng (Liquid • 273 K ≤ T ≤ 373 K)
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedMode('gas')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              effectiveState === 'gas' && selectedMode !== 'auto'
+                ? 'bg-amber-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            Thể Khí (Gas • T &gt; 373 K)
+          </button>
+        </div>
+
+        {/* State Badge */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-slate-400">Trạng thái:</span>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+              effectiveState === 'solid'
+                ? 'bg-sky-950 text-sky-400 border border-sky-800'
+                : effectiveState === 'liquid'
+                ? 'bg-blue-950 text-blue-400 border border-blue-800'
+                : 'bg-amber-950 text-amber-400 border border-amber-800'
+            }`}
+          >
+            {effectiveState === 'solid'
+              ? '❄️ THỂ RẮN'
+              : effectiveState === 'liquid'
+              ? '💧 THỂ LỎNG'
+              : '💨 THỂ KHÍ'}
+          </span>
+        </div>
+      </div>
+
+      {/* Main Grid: Controls + Canvas Visualization */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Controls Column */}
+        <div className="lg:col-span-5 space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+          <div>
+            <div className="flex justify-between text-[11px] text-slate-300 mb-1">
+              <span>Nhiệt độ tuyệt đối (T) & Celsius (t):</span>
+              <span className="font-semibold text-amber-400">
+                {tempK} K ({tempC} °C • {tempF} °F)
+              </span>
+            </div>
+            <input
+              type="range"
+              min={minK}
+              max={maxK}
+              step={tempBounds.step || 5}
+              value={tempK}
+              onChange={(e) => handleTempChange(Number(e.target.value))}
+              className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+            />
+            <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+              <span>Min: {minK} K ({Number((minK - 273.15).toFixed(0))} °C)</span>
+              <span>Max: {maxK} K ({Number((maxK - 273.15).toFixed(0))} °C)</span>
+            </div>
+          </div>
+
+          {/* Quick Presets */}
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 block mb-1">Mốc nhiệt độ đặc biệt:</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {presets.map((p) => (
+                <button
+                  key={p.k}
+                  type="button"
+                  onClick={() => handleTempChange(p.k)}
+                  className={`text-[10px] px-2 py-1 rounded text-left truncate transition border ${
+                    Math.abs(tempK - p.k) < 1
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 font-bold'
+                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Animation Controls */}
+          <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition"
+              >
+                {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                <span>{isPlaying ? 'Tạm dừng' : 'Tiếp tục'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTempChange(300)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>300 K</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-1">
+              {[0.5, 1, 2].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSpeedMultiplier(s)}
+                  className={`px-1.5 py-0.5 rounded text-[10px] ${
+                    speedMultiplier === s ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-800 text-slate-400'
+                  }`}
+                >
+                  {s}x
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Microscopic Physics Telemetry */}
+          <div className="pt-2 border-t border-slate-800 space-y-1.5 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Động năng tịnh tiến TB (3/2·k_B·T):</span>
+              <span className="font-bold text-amber-400">{avgKinetic1e21} × 10⁻²¹ J</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Tốc độ căn quân phương (v_rms):</span>
+              <span className="font-bold text-cyan-400">{vRms} m/s</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-2 p-2 rounded-lg bg-slate-900 border border-slate-800">
+              <strong className="text-slate-200 block mb-0.5">Cơ chế tương tác phân tử:</strong>
+              {effectiveState === 'solid' && (
+                <span>
+                  Lực liên kết rất mạnh giữ các phân tử ở vị trí cân bằng cố định trong mạng tinh thể. Khi T = 0 K (Độ không tuyệt đối), mọi dao động nhiệt ngừng hẳn.
+                </span>
+              )}
+              {effectiveState === 'liquid' && (
+                <span>
+                  Năng lượng nhiệt đủ lớn để bẻ gãy một phần liên kết, các phân tử trượt linh hoạt quanh nhau, có thể tích xác định nhưng không có hình dạng cố định.
+                </span>
+              )}
+              {effectiveState === 'gas' && (
+                <span>
+                  Lực tương tác giữa các phân tử rất yếu (không đáng kể), các phân tử chuyển động hỗn loạn không ngừng về mọi phía và chiếm toàn bộ thể tích buồng.
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Canvas Column */}
+        <div className="lg:col-span-7 flex flex-col justify-center items-center bg-slate-950 p-3 rounded-xl border border-slate-800 relative">
+          <canvas
+            ref={canvasRef}
+            width={440}
+            height={260}
+            className="w-full h-auto max-w-full rounded-lg shadow-inner"
+          />
+          <div className="absolute top-5 left-5 text-[10px] text-slate-400 font-mono bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+            {effectiveState === 'solid'
+              ? 'Cấu trúc mạng tinh thể (64 phân tử dao động quanh VTCB)'
+              : effectiveState === 'liquid'
+              ? 'Khối chất lỏng (Trượt linh hoạt & chảy tự do)'
+              : 'Khí lý tưởng vi mô (Chuyển động nhiệt hỗn loạn Maxwell)'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/* =========================================================================
    MODULAR ENGINE 5: GEOMETRIC OPTICS & LENSES
    Supports: optics_ray_lens_lab, refraction_snell_lab, total_internal_reflection_lab,
              convex_concave_lens_lab, g9_refraction_tir_lab, g9_thin_lens_lab, g9_eye_magnifier_lab
@@ -5089,7 +5631,15 @@ function OscillationsWavesSim({ simKey, params = {} }: { simKey: string; params?
              g11_capacitor_dielectric_lab, g12_ampere_left_hand_lab,
              g12_faraday_self_inductance_lab
    ========================================================================= */
-function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string; params?: Record<string, any> }) {
+function ElectromagnetismInductionSim({
+  simKey,
+  params = {},
+  onParamChange,
+}: {
+  simKey: string;
+  params?: Record<string, any>;
+  onParamChange?: (key: string, value: number) => void;
+}) {
   const initialMode = params.mode || (
     simKey.includes('coulomb') || simKey.includes('equipotential') || simKey.includes('capacitor') ? 'coulomb_field' :
     simKey.includes('faraday') || simKey.includes('induction') || simKey.includes('self_inductance') ? 'faraday_induction' :
@@ -5501,7 +6051,15 @@ function ElectromagnetismInductionSim({ simKey, params = {} }: { simKey: string;
              thermodynamic_pv_cycle_lab, g12_boyle_isothermal_lab,
              g12_ideal_gas_equation_lab, g12_kinetic_gas_maxwell_lab
    ========================================================================= */
-function IdealGasLawsSim({ simKey, params = {} }: { simKey: string; params?: Record<string, any> }) {
+function IdealGasLawsSim({
+  simKey,
+  params = {},
+  onParamChange,
+}: {
+  simKey: string;
+  params?: Record<string, any>;
+  onParamChange?: (key: string, value: number) => void;
+}) {
   const initialMode = params.mode || (
     simKey.includes('boyle') || simKey.includes('isothermal') ? 'isothermal' :
     simKey.includes('charles') || simKey.includes('isobaric') ? 'isobaric' :
