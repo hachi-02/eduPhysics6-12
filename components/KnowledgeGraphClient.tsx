@@ -692,127 +692,286 @@ export function KnowledgeGraphClient({
 
       {/* 3. MAIN WORKSPACE: DAG MATRIX (LEFT/TOP) + GAP INSPECTOR (RIGHT) */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        {/* LEFT 7 COLUMNS: INTERACTIVE MULTI-GRADE DAG BOARD */}
-        <div className="xl:col-span-7 2xl:col-span-8">
+        {/* LEFT 7 COLUMNS: 4-STAGE FOCUSED FLOWCHART + CLEAN TOPIC MATRIX */}
+        <div className="space-y-6 xl:col-span-7 2xl:col-span-8">
+          {/* PART A: 4-STAGE FOCUSED DEPENDENCY PIPELINE (ZERO OVERLAPPING LINES) */}
+          {traceResult && (
+            <div className="edu-card overflow-hidden border-2 border-brand-200/80 bg-gradient-to-br from-white via-slate-50/50 to-brand-50/30 p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+                <div className="flex items-center gap-2 text-xs font-extrabold text-slate-900 sm:text-sm">
+                  <GitBranch className="h-4 w-4 text-brand-600" />
+                  <span>
+                    SƠ ĐỒ DÒNG CHẢY 4 TẦNG CỦA BÀI ĐANG CHỌN:{' '}
+                    <span className="text-brand-700">
+                      Lớp {traceResult.targetNode.grade_number} • {traceResult.targetNode.code}
+                    </span>
+                  </span>
+                </div>
+                <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-[11px] font-bold text-brand-800">
+                  Bấm vào bất kỳ thẻ nào ở các tầng để dịch chuyển tâm truy vết
+                </span>
+              </div>
+
+              {/* 4-Stage Horizontal Pipeline */}
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                {/* STAGE 1: DEEP FOUNDATIONAL ROOTS (Depth >= 2) */}
+                <div className="flex flex-col rounded-2xl border border-rose-200/80 bg-rose-50/35 p-3">
+                  <div className="mb-2.5 flex items-center justify-between border-b border-rose-200/60 pb-2">
+                    <div>
+                      <div className="text-[11px] font-extrabold uppercase tracking-wide text-rose-900">
+                        1. Gốc Nền Tảng Xa
+                      </div>
+                      <div className="text-[10px] font-medium text-rose-700">
+                        Các lớp dưới (Cách ≥ 2 bước)
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-extrabold text-rose-800">
+                      {traceResult.ancestors.filter((a) => a.depth >= 2).length}
+                    </span>
+                  </div>
+
+                  <div className="max-h-72 space-y-2 overflow-y-auto pr-0.5">
+                    {traceResult.ancestors.filter((a) => a.depth >= 2).length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-rose-200 bg-white/70 p-3 text-center text-[11px] text-slate-500">
+                        Không có tiền đề xa hơn (bài này chỉ cần tiền đề trực tiếp ở Tầng 2).
+                      </div>
+                    ) : (
+                      traceResult.ancestors
+                        .filter((a) => a.depth >= 2)
+                        .sort((a, b) => Number(b.isRootCause) - Number(a.isRootCause) || a.depth - b.depth)
+                        .map((anc) => (
+                          <button
+                            key={anc.node.code}
+                            type="button"
+                            onClick={() => setSelectedCode(anc.node.code)}
+                            className={`w-full rounded-xl border p-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${
+                              anc.isRootCause
+                                ? 'border-rose-400 bg-rose-50/95 ring-1 ring-rose-400'
+                                : 'border-slate-200 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-white">
+                                Lớp {anc.node.grade_number} • {anc.node.code}
+                              </span>
+                              {anc.isRootCause ? (
+                                <span className="rounded bg-rose-600 px-1.5 py-0.5 text-[9px] font-extrabold text-white">
+                                  🚨 Gốc lỗ hổng
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  Trước {anc.depth} bước
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1.5 text-[11px] font-bold leading-snug text-slate-900">
+                              {anc.node.title.replace(/^Chủ đề \d+\.\d+:\s*/i, '')}
+                            </div>
+                            <div className="mt-1.5 rounded-lg bg-slate-100/80 px-2 py-1 text-[10px] leading-snug text-slate-600 line-clamp-2">
+                              🔗 {anc.connectingEdge.bridgeConcept}
+                            </div>
+                          </button>
+                        ))
+                    )}
+                  </div>
+                </div>
+
+                {/* STAGE 2: DIRECT PREREQUISITES (Depth === 1) */}
+                <div className="flex flex-col rounded-2xl border border-amber-200/90 bg-amber-50/40 p-3">
+                  <div className="mb-2.5 flex items-center justify-between border-b border-amber-200/60 pb-2">
+                    <div>
+                      <div className="text-[11px] font-extrabold uppercase tracking-wide text-amber-950">
+                        2. Tiền Đề Trực Tiếp
+                      </div>
+                      <div className="text-[10px] font-medium text-amber-800">
+                        Cần học ngay trước bài này
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
+                      {traceResult.ancestors.filter((a) => a.depth === 1).length}
+                    </span>
+                  </div>
+
+                  <div className="max-h-72 space-y-2 overflow-y-auto pr-0.5">
+                    {traceResult.ancestors.filter((a) => a.depth === 1).length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-3 text-center text-[11px] text-slate-500">
+                        Đây là bài mở đầu nhánh kiến thức, không yêu cầu bài học trước đó.
+                      </div>
+                    ) : (
+                      traceResult.ancestors
+                        .filter((a) => a.depth === 1)
+                        .map((anc) => (
+                          <button
+                            key={anc.node.code}
+                            type="button"
+                            onClick={() => setSelectedCode(anc.node.code)}
+                            className={`w-full rounded-xl border p-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${
+                              anc.node.status === 'broken'
+                                ? 'border-rose-400 bg-rose-50/90 ring-1 ring-rose-400'
+                                : 'border-amber-300 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="rounded bg-amber-700 px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-white">
+                                Lớp {anc.node.grade_number} • {anc.node.code}
+                              </span>
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[9px] font-extrabold ${
+                                  anc.node.status === 'broken'
+                                    ? 'bg-rose-600 text-white'
+                                    : anc.node.status === 'mastered'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-amber-100 text-amber-900'
+                                }`}
+                              >
+                                {anc.node.status === 'broken'
+                                  ? 'Đang hổng'
+                                  : anc.node.status === 'mastered'
+                                    ? 'Đã vững'
+                                    : `${anc.node.directMasteryScore}%`}
+                              </span>
+                            </div>
+                            <div className="mt-1.5 text-[11px] font-bold leading-snug text-slate-900">
+                              {anc.node.title.replace(/^Chủ đề \d+\.\d+:\s*/i, '')}
+                            </div>
+                            <div className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[10px] leading-snug text-amber-950">
+                              <strong>➔ Cầu nối:</strong> {anc.connectingEdge.bridgeConcept}
+                            </div>
+                          </button>
+                        ))
+                    )}
+                  </div>
+                </div>
+
+                {/* STAGE 3: SELECTED TARGET TOPIC (CENTER FOCUS) */}
+                <div className="flex flex-col justify-between rounded-2xl border-2 border-slate-900 bg-slate-900 p-3.5 text-white shadow-card">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-1 border-b border-white/15 pb-2">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide text-amber-300">
+                        <Target className="h-3.5 w-3.5" /> 3. Đang Truy Vết
+                      </span>
+                      <span className="rounded bg-white/20 px-2 py-0.5 font-mono text-[10px] font-extrabold">
+                        Lớp {traceResult.targetNode.grade_number} • {traceResult.targetNode.code}
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-extrabold leading-snug sm:text-sm">
+                      {traceResult.targetNode.title}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-white/10 p-2 text-center">
+                      <div>
+                        <div className="text-sm font-extrabold text-amber-300">
+                          {traceResult.targetNode.effectiveReadiness}%
+                        </div>
+                        <div className="text-[9px] text-white/75">Độ sẵn sàng</div>
+                      </div>
+                      <div className="border-l border-white/15">
+                        <div className="text-sm font-extrabold text-rose-300">
+                          {traceResult.targetNode.upstreamRiskScore}%
+                        </div>
+                        <div className="text-[9px] text-white/75">Rủi ro nền tảng</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-white/70">Kiến thức cốt lõi:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {traceResult.targetNode.coreConcepts.slice(0, 3).map((c, idx) => (
+                          <span
+                            key={idx}
+                            className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-medium text-white/95"
+                          >
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-1.5 border-t border-white/15 pt-2.5">
+                    <button
+                      type="button"
+                      onClick={() => startProbeForNode(traceResult.targetNode.code)}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-400 px-3 py-1.5 text-[11px] font-extrabold text-slate-950 transition hover:bg-amber-300"
+                    >
+                      <Play className="h-3 w-3" /> Làm 3 câu test bài này
+                    </button>
+                    <Link
+                      href={`/topic/${traceResult.targetNode.id}`}
+                      className="flex w-full items-center justify-center gap-1 rounded-xl bg-white/15 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-white/25"
+                    >
+                      <BookOpen className="h-3 w-3" /> Vào học Lý thuyết &amp; Mô phỏng
+                    </Link>
+                  </div>
+                </div>
+
+                {/* STAGE 4: DOWNSTREAM UNLOCKED TOPICS (Depth >= 1) */}
+                <div className="flex flex-col rounded-2xl border border-brand-200/90 bg-brand-50/35 p-3">
+                  <div className="mb-2.5 flex items-center justify-between border-b border-brand-200/60 pb-2">
+                    <div>
+                      <div className="text-[11px] font-extrabold uppercase tracking-wide text-brand-950">
+                        4. Mở Khóa Bài Sau
+                      </div>
+                      <div className="text-[10px] font-medium text-brand-700">
+                        Các bài lớp trên dùng tiếp
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-extrabold text-brand-900">
+                      {traceResult.descendants.length}
+                    </span>
+                  </div>
+
+                  <div className="max-h-72 space-y-2 overflow-y-auto pr-0.5">
+                    {traceResult.descendants.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-brand-200 bg-white/70 p-3 text-center text-[11px] text-slate-500">
+                        Đây là chủ đề tổng kết cuối nhánh trong chương trình Lớp 12.
+                      </div>
+                    ) : (
+                      traceResult.descendants.map((desc) => (
+                        <button
+                          key={desc.node.code}
+                          type="button"
+                          onClick={() => setSelectedCode(desc.node.code)}
+                          className="w-full rounded-xl border border-brand-200 bg-white p-2.5 text-left transition hover:-translate-y-0.5 hover:border-brand-400 hover:shadow-soft"
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="rounded bg-brand-600 px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-white">
+                              Lớp {desc.node.grade_number} • {desc.node.code}
+                            </span>
+                            <span className="text-[10px] font-bold text-brand-700">
+                              Sau {desc.depth} bước
+                            </span>
+                          </div>
+                          <div className="mt-1.5 text-[11px] font-bold leading-snug text-slate-900">
+                            {desc.node.title.replace(/^Chủ đề \d+\.\d+:\s*/i, '')}
+                          </div>
+                          <div className="mt-1.5 rounded-lg bg-brand-50/70 px-2 py-1 text-[10px] leading-snug text-brand-900 line-clamp-2">
+                            🔓 {desc.connectingEdge.bridgeConcept}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PART B: CLEAN 7-GRADE TOPIC MATRIX (NO MESSY SVG SPAGHETTI LINES) */}
           <div className="edu-card overflow-hidden p-4 sm:p-5">
-            <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
                 <Compass className="h-4 w-4 text-brand-600" />
-                <span>SƠ ĐỒ LIÊN KẾT BÀI HỌC TỪ LỚP 6 ĐẾN LỚP 12 (Bấm vào bài bất kỳ để xem lộ trình):</span>
+                <span>DANH MỤC 92 BÀI HỌC THEO KHỐI LỚP (Bấm chọn bài bất kỳ để nạp lên Sơ đồ 4 Tầng phía trên):</span>
               </div>
               <span className="text-[11px] font-semibold text-slate-500">
-                Cuộn ngang để xem trọn vẹn Lớp 6 → Lớp 12
+                Các bài liên quan với bài đang chọn được tô sáng tự động
               </span>
             </div>
 
-            <div
-              ref={boardContainerRef}
-              onScroll={recomputeSvgLines}
-              className="relative overflow-x-auto pb-4 pt-1"
-            >
-              {/* SVG Directed Edges Overlay */}
-              <svg
-                width={boardSize.width}
-                height={boardSize.height}
-                className="pointer-events-none absolute left-0 top-0 z-0"
-              >
-                <defs>
-                  <marker
-                    id="arrow-root"
-                    viewBox="0 0 10 10"
-                    refX="7"
-                    refY="5"
-                    markerWidth="5"
-                    markerHeight="5"
-                    orient="auto-start-reverse"
-                  >
-                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#e11d48" />
-                  </marker>
-                  <marker
-                    id="arrow-upstream"
-                    viewBox="0 0 10 10"
-                    refX="7"
-                    refY="5"
-                    markerWidth="5"
-                    markerHeight="5"
-                    orient="auto-start-reverse"
-                  >
-                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#d97706" />
-                  </marker>
-                  <marker
-                    id="arrow-downstream"
-                    viewBox="0 0 10 10"
-                    refX="7"
-                    refY="5"
-                    markerWidth="5"
-                    markerHeight="5"
-                    orient="auto-start-reverse"
-                  >
-                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563eb" />
-                  </marker>
-                </defs>
-
-                {svgLines.map((line) => {
-                  const dx = Math.abs(line.x2 - line.x1);
-                  const cx1 = line.x1 + Math.max(28, dx * 0.42);
-                  const cx2 = line.x2 - Math.max(28, dx * 0.42);
-                  const pathD = `M ${line.x1} ${line.y1} C ${cx1} ${line.y1}, ${cx2} ${line.y2}, ${line.x2} ${line.y2}`;
-
-                  if (line.role === 'background') {
-                    return (
-                      <path
-                        key={line.key}
-                        d={pathD}
-                        fill="none"
-                        stroke="#cbd5e1"
-                        strokeWidth={1.1}
-                        strokeOpacity={0.45}
-                      />
-                    );
-                  }
-
-                  if (line.role === 'root_path') {
-                    return (
-                      <path
-                        key={line.key}
-                        d={pathD}
-                        fill="none"
-                        stroke="#e11d48"
-                        strokeWidth={2.6}
-                        strokeDasharray="6 3"
-                        markerEnd="url(#arrow-root)"
-                      />
-                    );
-                  }
-
-                  if (line.role === 'upstream') {
-                    return (
-                      <path
-                        key={line.key}
-                        d={pathD}
-                        fill="none"
-                        stroke="#d97706"
-                        strokeWidth={2.0}
-                        markerEnd="url(#arrow-upstream)"
-                      />
-                    );
-                  }
-
-                  return (
-                    <path
-                      key={line.key}
-                      d={pathD}
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth={2.0}
-                      strokeOpacity={0.85}
-                      markerEnd="url(#arrow-downstream)"
-                    />
-                  );
-                })}
-              </svg>
-
-              {/* Grade Columns (Dynamic based on active filter) */}
+            <div ref={boardContainerRef} className="relative overflow-x-auto pb-3 pt-1">
+              {/* Grade Columns (Dynamic based on active filter, clean layout without overlapping lines) */}
               <div className="relative z-10 flex gap-3.5">
                 {visibleGrades.map((gradeNum) => {
                   const list = nodesByGrade[gradeNum] || [];
@@ -847,12 +1006,11 @@ export function KnowledgeGraphClient({
                           const isRootCause = traceCodeSets.rootCauseCodes.has(node.code);
                           const isAncestor = traceCodeSets.ancestorCodes.has(node.code);
                           const isDescendant = traceCodeSets.descendantCodes.has(node.code);
-                          const inActiveChain = isSelected || isAncestor || isDescendant;
 
                           const pillarInfo = PHYSICS_PILLARS[node.pillar];
 
                           // Node border & background styling
-                          let cardStyle = 'border-slate-200/90 bg-white/95 text-slate-800';
+                          let cardStyle = 'border-slate-200/90 bg-white text-slate-800';
                           let dotColor = 'bg-slate-300';
 
                           if (node.status === 'broken') {
@@ -867,7 +1025,7 @@ export function KnowledgeGraphClient({
                           }
 
                           if (isSelected) {
-                            cardStyle += ' ring-4 ring-slate-900 border-slate-900 shadow-card scale-[1.03]';
+                            cardStyle += ' ring-4 ring-slate-900 border-slate-900 shadow-card';
                           } else if (isRootCause) {
                             cardStyle += ' ring-2 ring-rose-600 shadow-soft';
                           } else if (isAncestor) {
@@ -875,7 +1033,7 @@ export function KnowledgeGraphClient({
                           } else if (isDescendant) {
                             cardStyle += ' ring-2 ring-brand-500/80';
                           } else {
-                            cardStyle += ' opacity-45 hover:opacity-95';
+                            cardStyle += ' opacity-55 hover:opacity-100';
                           }
 
                           return (
@@ -907,7 +1065,7 @@ export function KnowledgeGraphClient({
                               {/* Role badge if in trace */}
                               {isSelected && (
                                 <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-slate-900 px-1.5 py-0.5 text-[9px] font-extrabold text-white">
-                                  <Target className="h-2.5 w-2.5" /> ĐANG TRUY VẾT
+                                  <Target className="h-2.5 w-2.5" /> ĐANG CHỌN
                                 </div>
                               )}
                               {!isSelected && isRootCause && (
@@ -917,26 +1075,26 @@ export function KnowledgeGraphClient({
                               )}
                               {!isSelected && !isRootCause && isAncestor && (
                                 <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-900">
-                                  ↑ Tiền đề
+                                  ↑ Bài nền tảng
                                 </div>
                               )}
                               {!isSelected && isDescendant && (
                                 <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-brand-100 px-1.5 py-0.5 text-[9px] font-extrabold text-brand-800">
-                                  ↓ Phụ thuộc
+                                  ↓ Bài mở khóa
                                 </div>
                               )}
 
-                              {/* Mistake / Risk footer */}
-                              {(node.activeMistakeCount > 0 || node.upstreamRiskScore >= 35) && (
-                                <div className="mt-1.5 flex items-center justify-between border-t border-slate-200/60 pt-1 text-[9px] font-bold">
-                                  {node.activeMistakeCount > 0 ? (
-                                    <span className="text-rose-700">Sai {node.activeMistakeCount} câu</span>
-                                  ) : (
-                                    <span className="text-amber-800">Rủi ro {node.upstreamRiskScore}%</span>
-                                  )}
-                                  <span className="text-slate-500">Sẵn sàng {node.effectiveReadiness}%</span>
-                                </div>
-                              )}
+                              {/* Clean Connection / Mistake footer */}
+                              <div className="mt-1.5 flex items-center justify-between border-t border-slate-200/60 pt-1 text-[9px] font-semibold text-slate-500">
+                                {node.activeMistakeCount > 0 ? (
+                                  <span className="font-bold text-rose-700">Sai {node.activeMistakeCount} câu</span>
+                                ) : node.upstreamRiskScore >= 35 ? (
+                                  <span className="font-bold text-amber-800">Rủi ro {node.upstreamRiskScore}%</span>
+                                ) : (
+                                  <span>↑{node.prerequisiteCodes.length} • ↓{node.dependentCodes.length}</span>
+                                )}
+                                <span>Sẵn sàng {node.effectiveReadiness}%</span>
+                              </div>
                             </button>
                           );
                         })}
