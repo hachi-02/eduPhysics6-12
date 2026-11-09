@@ -849,9 +849,19 @@ export function AdaptiveCatRunner({
                         })}
                       </div>
 
-                      <div className="rounded-xl border border-slate-200/80 bg-white p-3 text-slate-700">
-                        <strong className="text-emerald-700">Giải thích: </strong>
-                        <RichPhysicsText text={h.question.explanation} />
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white p-3 text-slate-700">
+                        <div className="flex-1">
+                          <strong className="text-emerald-700">Giải thích: </strong>
+                          <RichPhysicsText text={h.question.explanation} />
+                        </div>
+                        <Link
+                          href={`/problem-sandbox?questionId=${h.question.id}${
+                            h.question.topic_id ? `&topicId=${h.question.topic_id}` : ''
+                          }`}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[11px] font-extrabold text-teal-800 transition hover:bg-teal-100"
+                        >
+                          <span>🔬 Kiểm chứng bằng Mô phỏng</span>
+                        </Link>
                       </div>
                     </div>
                   );

@@ -1048,3 +1048,151 @@ export function getAdaptiveTestCenterData() {
   };
 }
 
+export function getProblemSandboxData(requestedQuestionId?: number) {
+  ensureDatabaseSeeded(false);
+  const db = getDb();
+
+  const chapters = db.query<{
+    id: number;
+    code: string;
+    title: string;
+    grade_number: number;
+    order_index: number;
+  }>(`
+    SELECT c.id, c.code, c.title, g.grade_number, c.order_index
+    FROM chapters c
+    JOIN grades g ON g.id = c.grade_id
+    ORDER BY g.grade_number ASC, c.order_index ASC
+  `);
+
+  const topics = db.query<{
+    id: number;
+    code: string;
+    title: string;
+    chapter_id: number;
+    chapter_code: string;
+    chapter_title: string;
+    grade_number: number;
+  }>(`
+    SELECT t.id, t.code, t.title, t.chapter_id, c.code AS chapter_code, c.title AS chapter_title, g.grade_number
+    FROM topics t
+    JOIN chapters c ON c.id = t.chapter_id
+    JOIN grades g ON g.id = c.grade_id
+    ORDER BY g.grade_number ASC, c.order_index ASC, t.order_index ASC
+  `);
+
+  const rawSims = db.query<any>(`SELECT * FROM simulations ORDER BY id ASC`);
+  const simulationByTopicId: Record<number, SimulationItem> = {};
+  for (const s of rawSims) {
+    if (!simulationByTopicId[s.topic_id]) {
+      simulationByTopicId[s.topic_id] = {
+        id: s.id,
+        topic_id: s.topic_id,
+        sim_key: s.sim_key,
+        title: s.title,
+        description: s.description,
+        parameters: safeJsonParse<Record<string, any>>(s.parameters_json, {}),
+        guide_steps: safeJsonParse<string[]>(s.guide_steps_json, []),
+        physics_insight: s.physics_insight || '',
+      };
+    }
+  }
+
+  const rawFormulas = db.query<any>(`SELECT * FROM formulas ORDER BY topic_id ASC, order_index ASC`);
+  const formulasByTopicId: Record<number, FormulaItem[]> = {};
+  for (const f of rawFormulas) {
+    if (!formulasByTopicId[f.topic_id]) {
+      formulasByTopicId[f.topic_id] = [];
+    }
+    formulasByTopicId[f.topic_id].push({
+      id: f.id,
+      topic_id: f.topic_id,
+      order_index: f.order_index,
+      name: f.name,
+      latex_expression: f.latex_expression,
+      plain_expression: f.plain_expression,
+      variables: safeJsonParse(f.variables_json, []),
+      derived_formulas: safeJsonParse(f.derived_formulas_json, []),
+      usage_note: f.usage_note || '',
+    });
+  }
+
+  // Pick up to 8 best problem/calculation questions per topic (plus requestedQuestionId if any)
+  const rawQuestions = db.query<any>(`
+    SELECT
+      q.id,
+      q.scope_type,
+      q.topic_id,
+      q.chapter_id,
+      q.order_index,
+      q.difficulty,
+      q.question_text,
+      q.options_json,
+      q.correct_index,
+      q.explanation
+    FROM questions q
+    WHERE q.scope_type = 'topic'
+       OR (q.id = ?)
+    ORDER BY
+      CASE q.difficulty
+        WHEN 'van_dung' THEN 1
+        WHEN 'thong_hieu' THEN 2
+        WHEN 'van_dung_cao' THEN 3
+        ELSE 4
+      END ASC,
+      q.order_index ASC
+  `, [requestedQuestionId || -1]);
+
+  const questionsByTopicId: Record<number, QuestionItem[]> = {};
+  let initialQuestion: (QuestionItem & { resolvedTopicId: number }) | null = null;
+
+  // Map chapter_id -> first topic_id in case a chapter-level question is passed via ?questionId=
+  const firstTopicByChapter: Record<number, number> = {};
+  for (const t of topics) {
+    if (!firstTopicByChapter[t.chapter_id]) {
+      firstTopicByChapter[t.chapter_id] = t.id;
+    }
+  }
+
+  for (const q of rawQuestions) {
+    const mapped: QuestionItem = {
+      id: q.id,
+      scope_type: q.scope_type,
+      topic_id: q.topic_id,
+      chapter_id: q.chapter_id,
+      order_index: q.order_index,
+      difficulty: q.difficulty,
+      question_text: q.question_text,
+      options: safeJsonParse<string[]>(q.options_json, ['', '', '', '']),
+      correct_index: q.correct_index,
+      explanation: q.explanation,
+    };
+
+    const resolvedTopicId = q.topic_id || firstTopicByChapter[q.chapter_id] || topics[0]?.id || 1;
+    if (requestedQuestionId && q.id === requestedQuestionId) {
+      initialQuestion = { ...mapped, resolvedTopicId };
+    }
+
+    if (!questionsByTopicId[resolvedTopicId]) {
+      questionsByTopicId[resolvedTopicId] = [];
+    }
+
+    const list = questionsByTopicId[resolvedTopicId];
+    if (list.length < 8 || (requestedQuestionId && q.id === requestedQuestionId)) {
+      if (!list.some((item) => item.id === mapped.id)) {
+        list.push(mapped);
+      }
+    }
+  }
+
+  return {
+    chapters,
+    topics,
+    simulationByTopicId,
+    formulasByTopicId,
+    questionsByTopicId,
+    initialQuestion,
+  };
+}
+
+

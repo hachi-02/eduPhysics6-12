@@ -1,0 +1,43 @@
+import assert from 'node:assert';
+import {
+  classifySimDomain,
+  extractRawQuantitiesFromText,
+  buildProblemSandboxState,
+} from '../lib/problem-sandbox';
+
+console.log('Running Problem-to-Sim Sandbox unit tests...');
+
+// 1. Test domain classification
+assert.strictEqual(classifySimDomain('shm_oscillator_lab'), 'shm_wave');
+assert.strictEqual(classifySimDomain('newton_second_law_lab'), 'newton_dynamics');
+assert.strictEqual(classifySimDomain('ohm_circuit_lab'), 'electric_circuit');
+assert.strictEqual(classifySimDomain('boyle_isotherm_lab'), 'ideal_gas');
+assert.strictEqual(classifySimDomain('radioactive_decay_lab'), 'nuclear');
+
+// 2. Test Vietnamese & LaTeX parameter extraction
+const sampleShmText =
+  'Một con lắc lò xo gồm vật nhỏ khối lượng m = 200 g dao động điều hòa với biên độ A = 8 cm và chu kì T = 1,5 s.';
+const rawShm = extractRawQuantitiesFromText(sampleShmText);
+assert.strictEqual(rawShm.mass?.value, 0.2);
+assert.strictEqual(rawShm.amplitude?.value, 8);
+assert.strictEqual(rawShm.period?.value, 1.5);
+
+// 3. Test buildProblemSandboxState for Electric Circuit
+const sampleCircuitText =
+  'Đặt hiệu điện thế U = 18 V vào hai đầu điện trở R = 6 \\Omega. Tính cường độ dòng điện.';
+const circuitState = buildProblemSandboxState(sampleCircuitText, 'ohm_circuit_lab');
+assert.strictEqual(circuitState.simParameters.voltage, 18);
+assert.strictEqual(circuitState.simParameters.resistance, 6);
+assert.strictEqual(circuitState.liveMetrics[0].value, '3.00'); // I = 18 / 6 = 3.00 A
+
+// 4. Test What-If slider override
+const overriddenState = buildProblemSandboxState(
+  sampleCircuitText,
+  'ohm_circuit_lab',
+  {},
+  { resistance: 9 }
+);
+assert.strictEqual(overriddenState.simParameters.resistance, 9);
+assert.strictEqual(overriddenState.liveMetrics[0].value, '2.00'); // I = 18 / 9 = 2.00 A
+
+console.log('✅ All Problem-to-Sim Sandbox tests passed!');
