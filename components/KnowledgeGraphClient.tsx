@@ -833,7 +833,7 @@ export function KnowledgeGraphClient({
                       >
                         <div className="text-xs font-extrabold">LỚP {gradeNum}</div>
                         <div className="text-[10px] font-semibold opacity-80">
-                          {isTargetGrade && selectedGradeFilter !== 'all'
+                          {isTargetGrade
                             ? `Đang lọc (${list.length} bài)`
                             : gradeNum >= 10
                               ? 'THPT • Định hướng Thi'
