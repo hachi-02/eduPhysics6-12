@@ -937,7 +937,7 @@ export function ProblemSandboxClient({
           </div>
 
           {/* 2. Synchronized Interactive Physics Lab */}
-          <InteractivePhysicsLab simulation={syncedSimulation} />
+          <InteractivePhysicsLab simulation={syncedSimulation} hideGraphEngine={true} />
 
           {/* 3. Topic Formulas Reference Card */}
           {topicFormulas.length > 0 && (

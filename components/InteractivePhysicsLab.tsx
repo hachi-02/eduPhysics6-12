@@ -22,9 +22,17 @@ import {
 } from 'lucide-react';
 import { PhysicsGraphEngine } from './PhysicsGraphEngine';
 
-export function InteractivePhysicsLab({ simulation }: { simulation: SimulationItem }) {
+export function InteractivePhysicsLab({
+  simulation,
+  hideGraphEngine = false,
+}: {
+  simulation: SimulationItem;
+  hideGraphEngine?: boolean;
+}) {
   const { sim_key, title, description, guide_steps, physics_insight, parameters } = simulation;
-  const [labMode, setLabMode] = useState<'dual' | 'sim' | 'graph'>('dual');
+  const [labMode, setLabMode] = useState<'dual' | 'sim' | 'graph'>(
+    hideGraphEngine ? 'sim' : 'dual'
+  );
 
   return (
     <div className="edu-card overflow-hidden">
@@ -41,43 +49,45 @@ export function InteractivePhysicsLab({ simulation }: { simulation: SimulationIt
         </div>
 
         {/* Lab Mode Segmented Switcher */}
-        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 text-xs shadow-soft">
-          <button
-            type="button"
-            onClick={() => setLabMode('dual')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-semibold transition ${
-              labMode === 'dual' ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Columns className="h-3.5 w-3.5" />
-            <span>Mô phỏng & Đồ thị</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setLabMode('sim')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-semibold transition ${
-              labMode === 'sim' ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <FlaskConical className="h-3.5 w-3.5" />
-            <span>Chỉ Mô phỏng</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setLabMode('graph')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-semibold transition ${
-              labMode === 'graph' ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <TrendingUp className="h-3.5 w-3.5" />
-            <span>Đồ thị & Số liệu</span>
-          </button>
-        </div>
+        {!hideGraphEngine && (
+          <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 text-xs shadow-soft">
+            <button
+              type="button"
+              onClick={() => setLabMode('dual')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-semibold transition ${
+                labMode === 'dual' ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Columns className="h-3.5 w-3.5" />
+              <span>Mô phỏng & Đồ thị</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLabMode('sim')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-semibold transition ${
+                labMode === 'sim' ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FlaskConical className="h-3.5 w-3.5" />
+              <span>Chỉ Mô phỏng</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLabMode('graph')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-semibold transition ${
+                labMode === 'graph' ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <TrendingUp className="h-3.5 w-3.5" />
+              <span>Đồ thị & Số liệu</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-5 p-6">
         {/* Interactive Canvas Area by sim_key */}
-        {(labMode === 'sim' || labMode === 'dual') && (
+        {(labMode === 'sim' || labMode === 'dual' || hideGraphEngine) && (
           <div
             key={`${sim_key}-${JSON.stringify(parameters)}`}
             className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-lift"
@@ -87,7 +97,7 @@ export function InteractivePhysicsLab({ simulation }: { simulation: SimulationIt
         )}
 
         {/* Live Real-time Graph & Experimental Data Hub */}
-        {(labMode === 'graph' || labMode === 'dual') && (
+        {!hideGraphEngine && (labMode === 'graph' || labMode === 'dual') && (
           <PhysicsGraphEngine simKey={sim_key} parameters={parameters} />
         )}
 
