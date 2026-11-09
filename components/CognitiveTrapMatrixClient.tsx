@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   ALL_TRAP_TYPES,
@@ -20,6 +20,7 @@ import {
   HelpCircle,
   Sparkles,
   ArrowRight,
+  ArrowDown,
   Filter,
   RefreshCw,
   Award,
@@ -37,6 +38,16 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number>(0);
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [showAnswer, setShowAnswer] = useState<boolean>(false);
+  const drillSectionRef = useRef<HTMLDivElement>(null);
+
+  const handleFocusTrap = (trap: CognitiveTrapType | 'all') => {
+    setSelectedTrap(trap);
+    if (trap !== 'all') {
+      setTimeout(() => {
+        drillSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 70);
+    }
+  };
 
   // Filter mistakes by grade
   const gradeFilteredMistakes = useMemo(() => {
@@ -235,7 +246,7 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
             <CognitiveTrapRadar
               radarValues={stats.radarValues}
               selectedTrap={selectedTrap}
-              onSelectTrap={setSelectedTrap}
+              onSelectTrap={handleFocusTrap}
               trapCounts={stats.trapCounts}
             />
           </div>
@@ -280,7 +291,7 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
               return (
                 <div
                   key={type}
-                  onClick={() => setSelectedTrap(isSelected ? 'all' : type)}
+                  onClick={() => handleFocusTrap(type)}
                   className={`group relative cursor-pointer rounded-2xl border p-4 transition duration-200 ${
                     isSelected
                       ? 'border-indigo-600 bg-indigo-50/70 shadow-soft ring-2 ring-indigo-500/20'
@@ -314,9 +325,16 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                     <span className="text-slate-500 font-medium truncate max-w-[170px]">
                       Ví dụ: {meta.examplesSummary}
                     </span>
-                    <span className="text-indigo-600 font-extrabold group-hover:underline shrink-0">
-                      Chi tiết →
-                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFocusTrap(type);
+                      }}
+                      className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 transition shrink-0 group-hover:underline"
+                    >
+                      Chi tiết <ArrowDown className="h-3 w-3" />
+                    </button>
                   </div>
                 </div>
               );
@@ -352,7 +370,11 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
       </div>
 
       {/* 3. Detailed Drill List & Diagnostics */}
-      <div className="space-y-4 pt-4 border-t border-slate-200">
+      <div
+        ref={drillSectionRef}
+        id="trap-drill-section"
+        className="space-y-4 pt-4 border-t border-slate-200 scroll-mt-20"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-indigo-600" />

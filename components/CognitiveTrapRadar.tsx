@@ -7,7 +7,7 @@ import { CognitiveTrapType } from '@/types/cms';
 interface CognitiveTrapRadarProps {
   radarValues: { axis: string; trapType: CognitiveTrapType; value: number }[];
   selectedTrap: CognitiveTrapType | 'all';
-  onSelectTrap: (trap: CognitiveTrapType | 'all') => void;
+  onSelectTrap: (trap: CognitiveTrapType) => void;
   trapCounts: Record<CognitiveTrapType, number>;
 }
 
@@ -19,9 +19,11 @@ export function CognitiveTrapRadar({
 }: CognitiveTrapRadarProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  const size = 360;
-  const center = size / 2;
-  const radius = 120;
+  const viewBoxWidth = 520;
+  const viewBoxHeight = 420;
+  const centerX = viewBoxWidth / 2; // 260
+  const centerY = viewBoxHeight / 2; // 210
+  const radius = 110;
   const numAxes = radarValues.length; // 6
   const angleStep = (Math.PI * 2) / numAxes;
 
@@ -33,8 +35,8 @@ export function CognitiveTrapRadar({
     const pts = [];
     for (let i = 0; i < numAxes; i++) {
       const angle = i * angleStep - Math.PI / 2;
-      const x = center + radius * lvl * Math.cos(angle);
-      const y = center + radius * lvl * Math.sin(angle);
+      const x = centerX + radius * lvl * Math.cos(angle);
+      const y = centerY + radius * lvl * Math.sin(angle);
       pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
     }
     return pts.join(' ');
@@ -44,34 +46,34 @@ export function CognitiveTrapRadar({
   const dataPoints = radarValues.map((item, i) => {
     const angle = i * angleStep - Math.PI / 2;
     const rVal = (item.value / 100) * radius;
-    const x = center + rVal * Math.cos(angle);
-    const y = center + rVal * Math.sin(angle);
+    const x = centerX + rVal * Math.cos(angle);
+    const y = centerY + rVal * Math.sin(angle);
     return { x, y, ...item };
   });
 
   const dataPolyline = dataPoints.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
   return (
-    <div className="relative flex flex-col items-center">
+    <div className="relative flex flex-col items-center w-full">
       <svg
-        viewBox={`0 0 ${size} ${size}`}
-        className="h-72 w-72 sm:h-84 sm:w-84 overflow-visible drop-shadow-md select-none"
+        viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+        className="w-full max-w-[480px] h-auto overflow-visible drop-shadow-md select-none"
       >
         <defs>
           <radialGradient id="radarGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#818cf8" stopOpacity="0.45" />
-            <stop offset="70%" stopColor="#4f46e5" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#312e81" stopOpacity="0.05" />
+            <stop offset="0%" stopColor="#818cf8" stopOpacity="0.35" />
+            <stop offset="70%" stopColor="#4f46e5" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#312e81" stopOpacity="0.02" />
           </radialGradient>
           <linearGradient id="polygonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.65" />
-            <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.65" />
+            <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.6" />
+            <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.6" />
           </linearGradient>
         </defs>
 
         {/* Ambient glow circle */}
-        <circle cx={center} cy={center} r={radius + 15} fill="url(#radarGlow)" />
+        <circle cx={centerX} cy={centerY} r={radius + 15} fill="url(#radarGlow)" />
 
         {/* Concentric grid polygons */}
         {gridPolygons.map((pts, idx) => (
@@ -89,13 +91,13 @@ export function CognitiveTrapRadar({
         {/* Radial axes lines */}
         {radarValues.map((_, i) => {
           const angle = i * angleStep - Math.PI / 2;
-          const x2 = center + radius * Math.cos(angle);
-          const y2 = center + radius * Math.sin(angle);
+          const x2 = centerX + radius * Math.cos(angle);
+          const y2 = centerY + radius * Math.sin(angle);
           return (
             <line
               key={i}
-              x1={center}
-              y1={center}
+              x1={centerX}
+              y1={centerY}
               x2={x2}
               y2={y2}
               stroke="#94a3b8"
@@ -119,72 +121,108 @@ export function CognitiveTrapRadar({
         {dataPoints.map((pt, i) => {
           const isSelected = selectedTrap === pt.trapType;
           const isHovered = hoveredIdx === i;
-          const count = trapCounts[pt.trapType] || 0;
+          const color = COGNITIVE_TRAP_REGISTRY[pt.trapType].color;
+
           return (
             <g
               key={i}
               className="cursor-pointer"
-              onClick={() => onSelectTrap(isSelected ? 'all' : pt.trapType)}
+              onClick={() => onSelectTrap(pt.trapType)}
               onMouseEnter={() => setHoveredIdx(i)}
               onMouseLeave={() => setHoveredIdx(null)}
             >
-              {/* Outer pulsing ring for selected / hovered node */}
+              {/* Outer static ring for selected / hovered node (NO animate-ping!) */}
               {(isSelected || isHovered) && (
                 <circle
                   cx={pt.x}
                   cy={pt.y}
-                  r={12}
-                  fill={COGNITIVE_TRAP_REGISTRY[pt.trapType].color}
-                  opacity={0.3}
-                  className="animate-ping"
+                  r={10}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={2.5}
+                  opacity={0.85}
                 />
               )}
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r={isSelected || isHovered ? 7 : 5}
-                fill={COGNITIVE_TRAP_REGISTRY[pt.trapType].color}
+                r={isSelected || isHovered ? 6.5 : 4.5}
+                fill={color}
                 stroke="#ffffff"
                 strokeWidth={2}
-                className="transition-transform duration-200"
+                className="transition-all duration-150"
               />
             </g>
           );
         })}
 
-        {/* Outer text labels around the polygon */}
+        {/* Outer text labels positioned safely around each axis */}
         {radarValues.map((item, i) => {
           const angle = i * angleStep - Math.PI / 2;
-          const labelDist = radius + 28;
-          const x = center + labelDist * Math.cos(angle);
-          const y = center + labelDist * Math.sin(angle);
+          const sin = Math.sin(angle);
+          const cos = Math.cos(angle);
           const meta = COGNITIVE_TRAP_REGISTRY[item.trapType];
           const isSelected = selectedTrap === item.trapType;
           const count = trapCounts[item.trapType] || 0;
 
+          // Safe positioning logic to guarantee ZERO overlap
+          let labelX = centerX;
+          let labelY = centerY;
+          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+          let countOffsetY = 16;
+
+          if (Math.abs(cos) < 0.25) {
+            // Pure Top or Pure Bottom
+            if (sin < 0) {
+              // Top axis (i = 0)
+              labelX = centerX;
+              labelY = centerY - radius - 30;
+              textAnchor = 'middle';
+              countOffsetY = 16;
+            } else {
+              // Bottom axis (i = 3)
+              labelX = centerX;
+              labelY = centerY + radius + 28;
+              textAnchor = 'middle';
+              countOffsetY = 16;
+            }
+          } else if (cos > 0) {
+            // Right quadrant (i = 1 or 2)
+            labelX = centerX + (radius + 22) * cos;
+            labelY = centerY + (radius + 12) * sin;
+            textAnchor = 'start';
+            countOffsetY = 16;
+          } else {
+            // Left quadrant (i = 4 or 5)
+            labelX = centerX + (radius + 22) * cos;
+            labelY = centerY + (radius + 12) * sin;
+            textAnchor = 'end';
+            countOffsetY = 16;
+          }
+
           return (
             <g
               key={i}
-              className="cursor-pointer"
-              onClick={() => onSelectTrap(isSelected ? 'all' : item.trapType)}
+              className="cursor-pointer group"
+              onClick={() => onSelectTrap(item.trapType)}
             >
               <text
-                x={x}
-                y={y - 6}
-                textAnchor="middle"
+                x={labelX}
+                y={labelY}
+                textAnchor={textAnchor}
                 className={`text-[11px] font-extrabold transition-colors ${
                   isSelected
-                    ? 'fill-indigo-600 font-black scale-105'
+                    ? 'fill-indigo-600 font-black'
                     : 'fill-slate-700 hover:fill-indigo-600'
                 }`}
               >
                 {meta.icon} {meta.name.replace('Bẫy ', '')}
               </text>
               <text
-                x={x}
-                y={y + 8}
-                textAnchor="middle"
-                className={`text-[9.5px] font-bold ${
+                x={labelX}
+                y={labelY + countOffsetY}
+                textAnchor={textAnchor}
+                className={`text-[10px] font-bold ${
                   count > 0 ? 'fill-rose-600' : 'fill-slate-400'
                 }`}
               >
@@ -195,9 +233,9 @@ export function CognitiveTrapRadar({
         })}
       </svg>
 
-      <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+      <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
         <span className="inline-block h-2 w-2 rounded-full bg-rose-500" />
-        <span>Vùng đa giác càng phình to ở trục nào: Mức độ mắc bẫy ở dạng đó càng cao.</span>
+        <span>Vùng đa giác phình to ở đỉnh nào: Mức độ mắc bẫy ở dạng đó càng cao.</span>
       </div>
     </div>
   );
