@@ -381,17 +381,16 @@ export function KnowledgeGraphClient({
           <div className="max-w-3xl space-y-2.5">
             <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-extrabold text-brand-700">
               <Network className="h-3.5 w-3.5" />
-              <span>KNOWLEDGE GRAPH TRACING • ĐỒ THỊ TRI THỨC XUYÊN LỚP 6–12</span>
+              <span>BẢN ĐỒ LIÊN KẾT KIẾN THỨC &amp; TÌM GỐC LỖ HỔNG (LỚP 6 – LỚP 12)</span>
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-              Hệ thống Đồ thị Tri thức &amp; Truy vết Lỗ hổng Tiền đề
+              Bản đồ Kiến thức &amp; Truy vết Lỗ hổng Gốc rễ
             </h1>
             <p className="text-sm leading-relaxed text-slate-600">
-              Mạng lưới <strong>{stats.totalNodes} chủ đề</strong> và{' '}
-              <strong>{stats.totalEdges} liên kết tiền đề có hướng (DAG)</strong> xuyên suốt từ Lớp 6 đến Lớp 12.
-              Khi bạn gặp khó khăn ở một chủ đề bất kỳ, thuật toán{' '}
-              <span className="font-semibold text-slate-800">Topological Backtracking</span> sẽ lần ngược cây phả hệ
-              để tìm đúng <strong>mắt xích gốc rễ bị hổng</strong> ở các lớp dưới và thiết lập lộ trình vá kiến thức ngắn nhất.
+              Kết nối toàn bộ <strong>{stats.totalNodes} chủ đề</strong> và{' '}
+              <strong>{stats.totalEdges} mối liên hệ kiến thức</strong> xuyên suốt từ Lớp 6 đến Lớp 12.
+              Khi bạn làm sai hoặc thấy khó ở một bài bất kỳ, hệ thống sẽ tự động{' '}
+              <strong>dò ngược về các lớp dưới</strong> để chỉ ra chính xác bài gốc nào bạn đang quên và gợi ý lộ trình học bù ngắn nhất.
             </p>
           </div>
 
@@ -399,23 +398,23 @@ export function KnowledgeGraphClient({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:shrink-0">
             <div className="rounded-2xl border border-rose-200/80 bg-rose-50/70 p-3.5 text-center">
               <div className="text-2xl font-extrabold text-rose-700">{stats.broken}</div>
-              <div className="text-[11px] font-bold text-rose-900">Mắt xích Đứt gãy</div>
-              <div className="text-[10px] text-rose-600">Đang có lỗi sai</div>
+              <div className="text-[11px] font-bold text-rose-900">Đang Hổng / Sai</div>
+              <div className="text-[10px] text-rose-600">Cần ôn lại ngay</div>
             </div>
             <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 p-3.5 text-center">
               <div className="text-2xl font-extrabold text-amber-700">{stats.highUpstreamRisk}</div>
-              <div className="text-[11px] font-bold text-amber-900">Bị Ảnh hưởng</div>
-              <div className="text-[10px] text-amber-700">Do hổng tiền đề</div>
+              <div className="text-[11px] font-bold text-amber-900">Dễ Bị Ảnh Hưởng</div>
+              <div className="text-[10px] text-amber-700">Do hổng bài lớp dưới</div>
             </div>
             <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-3.5 text-center">
               <div className="text-2xl font-extrabold text-emerald-700">{stats.mastered}</div>
-              <div className="text-[11px] font-bold text-emerald-900">Đã Làm chủ</div>
-              <div className="text-[10px] text-emerald-600">Nền tảng vững</div>
+              <div className="text-[11px] font-bold text-emerald-900">Đã Nắm Vững</div>
+              <div className="text-[10px] text-emerald-600">Kiến thức chắc chắn</div>
             </div>
             <div className="rounded-2xl border border-brand-200/80 bg-brand-50/70 p-3.5 text-center">
               <div className="text-2xl font-extrabold text-brand-700">{stats.totalEdges}</div>
-              <div className="text-[11px] font-bold text-brand-900">Cầu nối Tri thức</div>
-              <div className="text-[10px] text-brand-600">6 trụ cột Vật lý</div>
+              <div className="text-[11px] font-bold text-brand-900">Mối Liên Kết</div>
+              <div className="text-[10px] text-brand-600">Xuyên suốt 7 khối lớp</div>
             </div>
           </div>
         </div>
@@ -425,7 +424,7 @@ export function KnowledgeGraphClient({
           <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
               <Sparkles className="h-4 w-4 text-purple-600" />
-              <span>KỊCH BẢN CHẨN ĐOÁN MẪU (Bấm để kiểm nghiệm thuật toán truy vết xuyên lớp):</span>
+              <span>💡 XEM THỬ TÌNH HUỐNG MẤT GỐC THƯỜNG GẶP (Bấm vào để xem cách hệ thống dò tìm bài gốc ở lớp dưới):</span>
             </div>
             {simulatedBrokenCodes.length > 0 && (
               <button
@@ -434,9 +433,9 @@ export function KnowledgeGraphClient({
                   setActivePresetId(null);
                   setSimulatedBrokenCodes([]);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-purple-300 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-800 shadow-2xs transition hover:bg-purple-100"
               >
-                <RotateCcw className="h-3.5 w-3.5" /> Quay về Dữ liệu Thực tế trong DB ({initialTopics.filter((t) => t.activeMistakeCount > 0).length} chủ đề có lỗi)
+                <RotateCcw className="h-3.5 w-3.5" /> Thoát xem thử • Quay về kết quả học của tôi ({initialTopics.filter((t) => t.activeMistakeCount > 0).length} bài đang có câu sai)
               </button>
             )}
           </div>
@@ -534,7 +533,7 @@ export function KnowledgeGraphClient({
               }`}
             >
               <GitBranch className="h-3.5 w-3.5" />
-              {onlyFocusedChain ? 'Đang cô lập Chuỗi Phả hệ' : 'Cô lập Chuỗi Phả hệ đang chọn'}
+              {onlyFocusedChain ? 'Đang lọc riêng các bài liên quan' : 'Chỉ hiện các bài liên quan trực tiếp'}
             </button>
           </div>
         </div>
@@ -543,27 +542,27 @@ export function KnowledgeGraphClient({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 text-[11px] text-slate-600">
           <div className="flex flex-wrap items-center gap-4">
             <span className="flex items-center gap-1.5 font-semibold text-rose-700">
-              <span className="h-3 w-3 rounded-full bg-rose-500 ring-2 ring-rose-200" /> Đứt gãy / Có câu sai (Broken)
+              <span className="h-3 w-3 rounded-full bg-rose-500 ring-2 ring-rose-200" /> Đang hổng / Có câu sai
             </span>
             <span className="flex items-center gap-1.5 font-semibold text-amber-700">
-              <span className="h-3 w-3 rounded-full bg-amber-500 ring-2 ring-amber-200" /> Cần củng cố / Rủi ro tiền đề
+              <span className="h-3 w-3 rounded-full bg-amber-500 ring-2 ring-amber-200" /> Cần củng cố thêm
             </span>
             <span className="flex items-center gap-1.5 font-semibold text-emerald-700">
-              <span className="h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-emerald-200" /> Đã làm chủ (Mastered)
+              <span className="h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-emerald-200" /> Đã nắm vững
             </span>
             <span className="flex items-center gap-1.5 font-semibold text-slate-600">
-              <span className="h-3 w-3 rounded-full bg-slate-300" /> Chưa kiểm tra
+              <span className="h-3 w-3 rounded-full bg-slate-300" /> Chưa làm bài kiểm tra
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-4 font-semibold">
             <span className="flex items-center gap-1.5 text-rose-600">
-              <span className="inline-block h-0.5 w-5 bg-rose-500" /> Đường truy vết lỗ hổng gốc
+              <span className="inline-block h-0.5 w-5 bg-rose-500" /> Đường dẫn tới bài gốc bị hổng
             </span>
             <span className="flex items-center gap-1.5 text-amber-600">
-              <span className="inline-block h-0.5 w-5 bg-amber-500" /> Nhánh tiền đề (Thượng nguồn)
+              <span className="inline-block h-0.5 w-5 bg-amber-500" /> Bài nền tảng lớp dưới
             </span>
             <span className="flex items-center gap-1.5 text-brand-600">
-              <span className="inline-block h-0.5 w-5 bg-brand-500" /> Nhánh mở khóa (Hạ nguồn)
+              <span className="inline-block h-0.5 w-5 bg-brand-500" /> Bài lớp trên sẽ dùng tiếp
             </span>
           </div>
         </div>
@@ -577,7 +576,7 @@ export function KnowledgeGraphClient({
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
                 <Compass className="h-4 w-4 text-brand-600" />
-                <span>BẢN ĐỒ MẠNG LƯỚI PHẢ HỆ VẬT LÝ (Bấm vào bất kỳ nút nào để truy vết):</span>
+                <span>SƠ ĐỒ LIÊN KẾT BÀI HỌC TỪ LỚP 6 ĐẾN LỚP 12 (Bấm vào bài bất kỳ để xem lộ trình):</span>
               </div>
               <span className="text-[11px] font-semibold text-slate-500">
                 Cuộn ngang để xem trọn vẹn Lớp 6 → Lớp 12
@@ -849,12 +848,12 @@ export function KnowledgeGraphClient({
                         ? 'border-rose-300 bg-rose-100 text-rose-800 hover:bg-rose-200'
                         : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-700'
                     }`}
-                    title="Giả lập học sinh đang bị hổng mắt xích này để xem rủi ro lan truyền"
+                    title="Đánh dấu thử rằng bạn đang yếu bài này để xem các bài lớp trên bị ảnh hưởng thế nào"
                   >
                     <Zap className="h-3 w-3" />
                     {traceResult.targetNode.status === 'broken'
-                      ? 'Đang hổng (Bấm để khôi phục)'
-                      : 'Giả lập hổng mắt xích này'}
+                      ? 'Đang đánh dấu yếu (Bấm để bỏ)'
+                      : 'Thử đánh dấu: Tôi đang yếu bài này'}
                   </button>
                 </div>
 
@@ -978,7 +977,7 @@ export function KnowledgeGraphClient({
                   <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs leading-relaxed text-amber-950">
                     <div className="mb-1 flex items-center gap-1.5 font-extrabold text-amber-900">
                       <ShieldAlert className="h-4 w-4 text-amber-600" />
-                      <span>KẾT LUẬN CHẨN ĐOÁN TÔ-PÔ (TOPOLOGICAL BACKTRACKING):</span>
+                      <span>NHẬN ĐỊNH NGUYÊN NHÂN &amp; GỢI Ý ÔN TẬP:</span>
                     </div>
                     {traceResult.diagnosisSummary}
                   </div>
@@ -1121,11 +1120,11 @@ export function KnowledgeGraphClient({
                 <div className="max-h-[540px] space-y-4 overflow-y-auto pr-1">
                   <div className="space-y-2">
                     <div className="text-xs font-extrabold text-amber-800">
-                      ↑ THƯỢNG NGUỒN: {traceResult.ancestors.length} Chủ đề Tiền đề cần có trước
+                      ↑ KIẾN THỨC NỀN TẢNG PHÍA TRƯỚC ({traceResult.ancestors.length} bài cần nắm vững trước)
                     </div>
                     {traceResult.ancestors.length === 0 ? (
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                        Đây là chủ đề gốc khởi đầu (Root Node), không phụ thuộc vào chủ đề trước đó.
+                        Đây là bài học mở đầu nhánh kiến thức, không yêu cầu bài học trước đó.
                       </div>
                     ) : (
                       traceResult.ancestors.map((anc) => (
@@ -1139,11 +1138,11 @@ export function KnowledgeGraphClient({
                               Lớp {anc.node.grade_number} • {anc.node.code}: {anc.node.title}
                             </span>
                             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
-                              Bậc -{anc.depth}
+                              Trước {anc.depth} bước
                             </span>
                           </div>
                           <div className="mt-1 text-[11px] text-slate-600">
-                            <strong>Cầu nối:</strong> {anc.connectingEdge.bridgeConcept}
+                            <strong>Kiến thức liên kết:</strong> {anc.connectingEdge.bridgeConcept}
                           </div>
                         </div>
                       ))
@@ -1152,11 +1151,11 @@ export function KnowledgeGraphClient({
 
                   <div className="space-y-2 border-t border-slate-100 pt-3">
                     <div className="text-xs font-extrabold text-brand-800">
-                      ↓ HẠ NGUỒN: {traceResult.descendants.length} Chủ đề Tương lai phụ thuộc vào bài này
+                      ↓ CÁC BÀI LỚP TRÊN SẼ DÙNG KIẾN THỨC NÀY ({traceResult.descendants.length} bài)
                     </div>
                     {traceResult.descendants.length === 0 ? (
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                        Đây là chủ đề đỉnh nhánh (Leaf Node) của chương trình THPT.
+                        Đây là bài học tổng kết cuối nhánh trong chương trình THPT.
                       </div>
                     ) : (
                       traceResult.descendants.map((desc) => (
@@ -1170,11 +1169,11 @@ export function KnowledgeGraphClient({
                               Lớp {desc.node.grade_number} • {desc.node.code}: {desc.node.title}
                             </span>
                             <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-800">
-                              Bậc +{desc.depth}
+                              Sau {desc.depth} bước
                             </span>
                           </div>
                           <div className="mt-1 text-[11px] text-slate-600">
-                            <strong>Ứng dụng:</strong> {desc.connectingEdge.bridgeConcept}
+                            <strong>Ứng dụng tiếp:</strong> {desc.connectingEdge.bridgeConcept}
                           </div>
                         </div>
                       ))

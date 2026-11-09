@@ -2152,7 +2152,7 @@ export function tracePrerequisiteGaps(
     const topRoot = rootCauses[0] || sortedAncestors[0];
     diagnosisSummary = `Chủ đề "${targetNode.title}" (Lớp ${targetNode.grade_number}) được xây dựng trên ${ancestors.length} mắt xích tiền đề xuyên lớp. Nền tảng cốt lõi nhất là Lớp ${topRoot.node.grade_number} (${topRoot.node.code}: ${topRoot.node.title}) với cầu nối "${topRoot.connectingEdge.bridgeConcept}".`;
   } else {
-    diagnosisSummary = `"${targetNode.title}" là chủ đề nền tảng khởi đầu (Root Node) của nhánh kiến thức này và là tiền đề trực tiếp mở khóa ${sortedDescendants.length} chủ đề ở các lớp tiếp theo.`;
+    diagnosisSummary = `"${targetNode.title}" là bài học nền tảng mở đầu của nhánh kiến thức này và trực tiếp mở khóa ${sortedDescendants.length} bài học ở các lớp tiếp theo.`;
   }
 
   return {
