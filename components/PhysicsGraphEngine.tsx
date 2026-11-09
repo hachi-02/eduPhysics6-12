@@ -371,10 +371,11 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
       k.includes('thermodynamics_first_law') ||
       k.includes('calorimetry'))
   ) {
-    const m = Number(params.mass || 1); // 1 kg nước
+    const m = Number(params.mass || 1); // kg
     const c = 4186; // J/(kg.K)
-    const P_heater = Number(params.power || 1000); // 1000W heater
-    const T0 = 20; // Nhiệt độ ban đầu 20 độ C
+    const P_heater = Number(params.power || 1000); // W heater
+    const T0 = Number(params.t0 ?? params.t2 ?? 20); // Nhiệt độ ban đầu (°C)
+    const T_boil = Number(params.tMaxTemp ?? 100);
 
     return {
       domainTitle: 'Đồ thị Nhiệt độ Đun nóng T(t) & Nhiệt lượng Q(t)',
@@ -393,7 +394,7 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
           calculate: (t_min) => {
             const t_sec = t_min * 60;
             const temp = T0 + (P_heater * t_sec) / (m * c);
-            return Math.min(100, temp); // dừng ở sôi 100 độ C
+            return Math.min(Math.max(100, T_boil), temp);
           },
         },
         {
@@ -511,10 +512,10 @@ export function getGraphSpecForSimKey(simKey: string, params: Record<string, any
     k.includes('magnet') ||
     k.includes('ampere')
   ) {
-    const f_grid = 50; // Hz
+    const f_grid = Number(params.f ?? 50); // Hz
     const omega = 2 * Math.PI * f_grid;
-    const Phi0 = 0.02; // Wb
-    const E0 = omega * Phi0; // ~6.28 V
+    const Phi0 = Number(params.B ? params.B * 0.05 : 0.02); // Wb
+    const E0 = omega * Phi0;
 
     return {
       domainTitle: 'Đồ thị Từ thông Φ(t) & Suất điện động Cảm ứng e(t)',

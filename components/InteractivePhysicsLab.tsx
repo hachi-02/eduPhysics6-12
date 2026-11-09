@@ -78,7 +78,10 @@ export function InteractivePhysicsLab({ simulation }: { simulation: SimulationIt
       <div className="space-y-5 p-6">
         {/* Interactive Canvas Area by sim_key */}
         {(labMode === 'sim' || labMode === 'dual') && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-lift">
+          <div
+            key={`${sim_key}-${JSON.stringify(parameters)}`}
+            className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-lift"
+          >
             {renderSimByKey(sim_key, parameters)}
           </div>
         )}
@@ -5481,8 +5484,8 @@ function NuclearDecaySim({ simKey, params = {} }: { simKey: string; params?: Rec
   const isotope = isotopes[isotopeKey] || isotopes.I131;
 
   // Time in units of half-lives: t / T
-  const [timeT, setTimeT] = useState<number>(params.t || 1.0); // 0.0 to 5.0
-  const [n0, setN0] = useState<number>(1000);
+  const [timeT, setTimeT] = useState<number>(params.t ?? 1.0); // 0.0 to 5.0
+  const [n0, setN0] = useState<number>(params.initialCount ?? params.n0 ?? 1000);
 
   // Physics calculations
   // Radioactive decay law: N(t) = N0 * 2^(-t/T)
