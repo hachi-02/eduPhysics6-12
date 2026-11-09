@@ -126,8 +126,14 @@ export function AdaptiveCatRunner({
   const [finished, setFinished] = useState<boolean>(false);
   const [secondsElapsed, setSecondsElapsed] = useState<number>(0);
 
-  // Reset if question pool changes
+  // Reset only when scope or targetLength explicitly changes (never on router.refresh() while viewing report)
+  const sessionScopeKey = `${scopeType}-${scopeId}-${targetLength}`;
+  const prevScopeKeyRef = React.useRef<string>(sessionScopeKey);
+
   useEffect(() => {
+    if (prevScopeKeyRef.current === sessionScopeKey) return;
+    prevScopeKeyRef.current = sessionScopeKey;
+
     const first = selectNextCatQuestion(calibratedPool, new Set<number>(), 0.0, []);
     setHistory([]);
     setCurrentTheta(0.0);
@@ -140,7 +146,7 @@ export function AdaptiveCatRunner({
     setLatestStepResult(null);
     setFinished(false);
     setSecondsElapsed(0);
-  }, [calibratedPool, targetLength]);
+  }, [sessionScopeKey, calibratedPool]);
 
   // Timer
   useEffect(() => {
