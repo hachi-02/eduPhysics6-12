@@ -34,6 +34,7 @@ import {
   X,
   CheckSquare,
   Award,
+  GitBranch,
 } from 'lucide-react';
 
 const DIFF_LABELS: Record<string, string> = {
@@ -1275,6 +1276,15 @@ export function MistakeNotebookClient({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
+                        {tGroup.topic_code && (
+                          <Link
+                            href={`/knowledge-graph?focus=${tGroup.topic_code}`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50/80 px-2.5 py-1 text-xs font-bold text-purple-700 transition hover:bg-purple-100"
+                          >
+                            <GitBranch className="h-3 w-3" />
+                            <span>Truy vết lỗ hổng gốc</span>
+                          </Link>
+                        )}
                         {tGroup.topic_id ? (
                           <Link
                             href={`/topic/${tGroup.topic_id}`}

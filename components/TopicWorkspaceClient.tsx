@@ -18,6 +18,7 @@ import {
   Lightbulb,
   Ruler,
   PenLine,
+  GitBranch,
 } from 'lucide-react';
 
 type TabKey = 'theory' | 'formulas' | 'simulation' | 'examples' | 'quiz';
@@ -106,13 +107,22 @@ export function TopicWorkspaceClient({
           <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
           <div className="pointer-events-none absolute -bottom-24 left-1/3 h-44 w-44 rounded-full bg-accent-300/20 blur-3xl" />
           <div className="relative">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-white/15 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wide backdrop-blur">
-                {topic.code}
-              </span>
-              <span className="text-[11px] font-medium text-white/75">
-                Tổng hợp chuẩn 3 bộ SGK
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-white/15 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wide backdrop-blur">
+                  {topic.code}
+                </span>
+                <span className="text-[11px] font-medium text-white/75">
+                  Tổng hợp chuẩn 3 bộ SGK
+                </span>
+              </div>
+              <Link
+                href={`/knowledge-graph?focus=${topic.code}`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-xs font-bold text-white backdrop-blur transition hover:bg-white/25"
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+                <span>Cây tiền đề &amp; Truy vết lỗ hổng</span>
+              </Link>
             </div>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">
               {topic.title}

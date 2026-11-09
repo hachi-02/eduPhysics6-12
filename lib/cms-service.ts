@@ -862,3 +862,101 @@ export function getCheatsheetData(gradeNumber: number): CheatsheetGradeData | nu
     totalQuantities,
   };
 }
+
+export function getKnowledgeGraphRuntimeData(): {
+  topics: import('./knowledge-graph').TopicRuntimeInput[];
+  diagnosticQuestionsByCode: Record<string, QuestionItem[]>;
+} {
+  ensureDatabaseSeeded(false);
+  const db = getDb();
+
+  const rows = db.query<any>(`
+    SELECT
+      t.id,
+      t.code,
+      t.title,
+      t.order_index,
+      c.id AS chapter_id,
+      c.code AS chapter_code,
+      c.title AS chapter_title,
+      c.order_index AS chapter_order,
+      g.grade_number,
+      COALESCE(SUM(CASE WHEN qm.mastered = 0 THEN 1 ELSE 0 END), 0) AS active_mistake_count,
+      COALESCE(SUM(CASE WHEN qm.mastered = 1 THEN 1 ELSE 0 END), 0) AS mastered_mistake_count,
+      COALESCE(SUM(CASE WHEN qm.mastered = 0 THEN qm.wrong_count ELSE 0 END), 0) AS total_wrong_count,
+      (
+        SELECT COUNT(*)
+        FROM quiz_attempts qa
+        WHERE qa.scope_type = 'topic' AND qa.scope_id = t.id
+      ) AS attempt_count,
+      (
+        SELECT MAX(CAST(qa.score AS REAL) * 100.0 / CASE WHEN qa.total_questions > 0 THEN qa.total_questions ELSE 25 END)
+        FROM quiz_attempts qa
+        WHERE qa.scope_type = 'topic' AND qa.scope_id = t.id
+      ) AS best_score_pct,
+      (
+        SELECT AVG(CAST(qa.score AS REAL) * 100.0 / CASE WHEN qa.total_questions > 0 THEN qa.total_questions ELSE 25 END)
+        FROM quiz_attempts qa
+        WHERE qa.scope_type = 'topic' AND qa.scope_id = t.id
+      ) AS avg_score_pct
+    FROM topics t
+    JOIN chapters c ON c.id = t.chapter_id
+    JOIN grades g ON g.id = c.grade_id
+    LEFT JOIN questions q ON q.scope_type = 'topic' AND q.topic_id = t.id
+    LEFT JOIN question_mistakes qm ON qm.question_id = q.id
+    GROUP BY t.id
+    ORDER BY g.grade_number ASC, c.order_index ASC, t.order_index ASC
+  `);
+
+  const topics: import('./knowledge-graph').TopicRuntimeInput[] = rows.map((r) => ({
+    id: r.id,
+    code: r.code,
+    title: r.title,
+    grade_number: r.grade_number,
+    chapter_id: r.chapter_id,
+    chapter_code: r.chapter_code,
+    chapter_title: r.chapter_title,
+    order_index: r.chapter_order * 100 + r.order_index,
+    activeMistakeCount: Number(r.active_mistake_count || 0),
+    masteredMistakeCount: Number(r.mastered_mistake_count || 0),
+    totalWrongCount: Number(r.total_wrong_count || 0),
+    attemptCount: Number(r.attempt_count || 0),
+    bestScorePct: r.best_score_pct !== null && r.best_score_pct !== undefined ? Math.round(Number(r.best_score_pct)) : null,
+    avgScorePct: r.avg_score_pct !== null && r.avg_score_pct !== undefined ? Math.round(Number(r.avg_score_pct)) : null,
+  }));
+
+  // Pick 3 representative diagnostic questions per topic (order_index 1, 11, 19)
+  const diagRows = db.query<any>(`
+    SELECT q.id, q.scope_type, q.topic_id, q.chapter_id, q.order_index, q.difficulty,
+           q.question_text, q.options_json, q.correct_index, q.explanation,
+           t.code AS topic_code
+    FROM questions q
+    JOIN topics t ON t.id = q.topic_id
+    WHERE q.scope_type = 'topic' AND q.order_index IN (2, 11, 19)
+    ORDER BY q.topic_id ASC, q.order_index ASC
+  `);
+
+  const diagnosticQuestionsByCode: Record<string, QuestionItem[]> = {};
+  for (const q of diagRows) {
+    if (!diagnosticQuestionsByCode[q.topic_code]) {
+      diagnosticQuestionsByCode[q.topic_code] = [];
+    }
+    diagnosticQuestionsByCode[q.topic_code].push({
+      id: q.id,
+      scope_type: 'topic',
+      topic_id: q.topic_id,
+      chapter_id: q.chapter_id,
+      order_index: q.order_index,
+      difficulty: q.difficulty,
+      question_text: q.question_text,
+      options: safeJsonParse<string[]>(q.options_json, ['', '', '', '']),
+      correct_index: q.correct_index,
+      explanation: q.explanation,
+    });
+  }
+
+  return {
+    topics,
+    diagnosticQuestionsByCode,
+  };
+}

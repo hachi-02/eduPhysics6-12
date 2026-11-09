@@ -11,6 +11,7 @@ import {
   Settings,
   ChevronDown,
   Sparkles,
+  GitBranch,
 } from 'lucide-react';
 import { GlobalSearchModal } from './GlobalSearchModal';
 import { DropdownMenu, DropdownItem } from './ui/DropdownMenu';
@@ -24,10 +25,16 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const pathname = usePathname();
 
   const isHome = pathname === '/' || pathname.startsWith('/?');
+  const isKnowledgeGraph = pathname.startsWith('/knowledge-graph');
   const isMistakes = pathname.startsWith('/mistakes');
   const isCheatsheet = pathname.startsWith('/cheatsheet');
 
   const utilityMenuItems: DropdownItem[] = [
+    {
+      label: 'Đồ thị Tri thức & Truy vết lỗ hổng (DAG 6–12)',
+      icon: <GitBranch className="w-4 h-4 text-purple-600" />,
+      href: '/knowledge-graph',
+    },
     {
       label: 'Cẩm nang công thức A4 (In / PDF)',
       icon: <Printer className="w-4 h-4 text-accent-600" />,
@@ -82,6 +89,19 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
           >
             <BookOpen className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Chương trình</span>
+          </Link>
+
+          {/* Main Link: Knowledge Graph DAG */}
+          <Link
+            href="/knowledge-graph"
+            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition duration-150 ease-snap ${
+              isKnowledgeGraph
+                ? 'bg-purple-50 text-purple-700 shadow-soft ring-1 ring-purple-200/80'
+                : 'text-slate-600 hover:bg-purple-50/70 hover:text-purple-700'
+            }`}
+          >
+            <GitBranch className="h-3.5 w-3.5 text-purple-600" />
+            <span className="hidden md:inline">Đồ thị Tri thức</span>
           </Link>
 
           {/* Quick Link: Mistakes (if any) */}
