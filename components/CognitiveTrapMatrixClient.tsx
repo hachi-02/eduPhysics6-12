@@ -246,7 +246,7 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
             <CognitiveTrapRadar
               radarValues={stats.radarValues}
               selectedTrap={selectedTrap}
-              onSelectTrap={handleFocusTrap}
+              onSelectTrap={(t) => setSelectedTrap(selectedTrap === t ? 'all' : t)}
               trapCounts={stats.trapCounts}
             />
           </div>
@@ -291,7 +291,7 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
               return (
                 <div
                   key={type}
-                  onClick={() => handleFocusTrap(type)}
+                  onClick={() => setSelectedTrap(isSelected ? 'all' : type)}
                   className={`group relative cursor-pointer rounded-2xl border p-4 transition duration-200 ${
                     isSelected
                       ? 'border-indigo-600 bg-indigo-50/70 shadow-soft ring-2 ring-indigo-500/20'
