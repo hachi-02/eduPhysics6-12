@@ -24,7 +24,6 @@ import {
   BookOpen,
   Calculator,
   Activity,
-  TrendingUp,
 } from 'lucide-react';
 
 interface ChapterOption {
@@ -227,50 +226,6 @@ export function ProblemSandboxClient({
     setShowSolution(true);
   };
 
-  // SVG coordinates for the Live Problem Comparison Graph
-  const pg = sandboxState.problemGraph;
-  const svgW = 640;
-  const svgH = 230;
-  const padL = 54;
-  const padR = 24;
-  const padT = 24;
-  const padB = 36;
-  const plotW = svgW - padL - padR;
-  const plotH = svgH - padT - padB;
-
-  const { xMin, xMax, yMin, yMax } = useMemo(() => {
-    const xs = pg.points.map((p) => p.x).concat([pg.markerOrig.x, pg.markerNew.x]);
-    const ys = pg.points
-      .flatMap((p) => [p.yOrig, p.yNew])
-      .concat([pg.markerOrig.y, pg.markerNew.y]);
-
-    let minX = Math.min(...xs);
-    let maxX = Math.max(...xs);
-    if (Math.abs(maxX - minX) < 1e-6) maxX = minX + 1;
-
-    let minY = Math.min(...ys, 0);
-    let maxY = Math.max(...ys);
-    if (Math.abs(maxY - minY) < 1e-6) maxY = minY + 1;
-    const padY = (maxY - minY) * 0.12;
-    return {
-      xMin: minX,
-      xMax: maxX,
-      yMin: minY,
-      yMax: maxY + padY,
-    };
-  }, [pg]);
-
-  const toSvgX = (x: number) => padL + ((x - xMin) / (xMax - xMin || 1)) * plotW;
-  const toSvgY = (y: number) =>
-    padT + plotH - ((clampVal(y, yMin, yMax) - yMin) / (yMax - yMin || 1)) * plotH;
-
-  const origPolyline = pg.points
-    .map((p) => `${toSvgX(p.x).toFixed(1)},${toSvgY(p.yOrig).toFixed(1)}`)
-    .join(' ');
-  const newPolyline = pg.points
-    .map((p) => `${toSvgX(p.x).toFixed(1)},${toSvgY(p.yNew).toFixed(1)}`)
-    .join(' ');
-
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
       {/* 1. HERO HEADER */}
@@ -286,9 +241,9 @@ export function ProblemSandboxClient({
             </h1>
             <p className="text-sm leading-relaxed text-slate-600">
               Kết nối trực tiếp <strong>đề bài Vật lý</strong> với{' '}
-              <strong>đồ thị thực nghiệm &amp; mô phỏng</strong>. Khi bạn kéo thanh trượt{' '}
+              <strong>phòng thí nghiệm mô phỏng trực quan</strong>. Khi bạn kéo thanh trượt{' '}
               <strong>&ldquo;Điều gì xảy ra nếu...?&rdquo; (What-If)</strong>, con số ngay trong đề bài sẽ
-              thay đổi trực tiếp, tự động giải lại đáp án mới và vẽ đường đồ thị mới đối chiếu với đề gốc.
+              thay đổi trực tiếp, tự động giải lại đáp án mới và tương tác đồng bộ với mô phỏng bên phải.
             </p>
           </div>
 
@@ -757,189 +712,13 @@ export function ProblemSandboxClient({
         </div>
 
         {/* ================================================================ */}
-        {/* RIGHT COLUMN (7 COLS): LIVE PROBLEM GRAPH, TELEMETRY & SIMULATION */}
+        {/* RIGHT COLUMN (7 COLS): INTERACTIVE SIMULATION & FORMULAS */}
         {/* ================================================================ */}
         <div className="space-y-5 lg:col-span-7">
-          {/* 1. DEDICATED PROBLEM COMPARATIVE GRAPH (ORIGINAL VS WHAT-IF) */}
-          <div className="edu-card space-y-4 border-2 border-teal-200/80 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
-                  <TrendingUp className="h-4 w-4" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">{pg.title}</h3>
-                  <p className="text-[11px] text-slate-500">
-                    Đối chiếu trực tiếp đường cong của <strong>Đề bài gốc (nét đứt)</strong> và{' '}
-                    <strong>Đề bài sau khi kéo thanh trượt What-If (nét liền đậm)</strong>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold">
-                <span className="flex items-center gap-1.5 text-slate-500">
-                  <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-slate-400" />
-                  Đường Đề gốc
-                </span>
-                <span className="flex items-center gap-1.5 text-indigo-700">
-                  <span className="inline-block h-1 w-4 rounded bg-indigo-600" />
-                  Đường Đề mới (What-If)
-                </span>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-950 p-3 text-white">
-              <svg viewBox={`0 0 ${svgW} ${svgH}`} className="mx-auto h-56 w-full min-w-[480px]">
-                {/* Grid lines */}
-                {[0, 0.25, 0.5, 0.75, 1].map((r) => {
-                  const yVal = yMin + (1 - r) * (yMax - yMin);
-                  const yPos = padT + r * plotH;
-                  return (
-                    <g key={r}>
-                      <line
-                        x1={padL}
-                        y1={yPos}
-                        x2={svgW - padR}
-                        y2={yPos}
-                        stroke="#1e293b"
-                        strokeDasharray="4 4"
-                      />
-                      <text
-                        x={padL - 8}
-                        y={yPos + 3}
-                        textAnchor="end"
-                        className="fill-slate-400 font-mono text-[9px]"
-                      >
-                        {Number(yVal.toFixed(1))}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* X-axis labels */}
-                {[0, 0.25, 0.5, 0.75, 1].map((r) => {
-                  const xVal = xMin + r * (xMax - xMin);
-                  const xPos = padL + r * plotW;
-                  return (
-                    <text
-                      key={r}
-                      x={xPos}
-                      y={svgH - 10}
-                      textAnchor="middle"
-                      className="fill-slate-400 font-mono text-[9px]"
-                    >
-                      {Number(xVal.toFixed(1))} {pg.xUnit}
-                    </text>
-                  );
-                })}
-
-                {/* Dashed curve: Original Question */}
-                <polyline
-                  fill="none"
-                  stroke="#94a3b8"
-                  strokeWidth={2}
-                  strokeDasharray="5 4"
-                  points={origPolyline}
-                />
-
-                {/* Solid curve: Current / What-If Modified Question */}
-                <polyline
-                  fill="none"
-                  stroke="#38bdf8"
-                  strokeWidth={3}
-                  points={newPolyline}
-                />
-
-                {/* Marker for Original Answer */}
-                <circle
-                  cx={toSvgX(pg.markerOrig.x)}
-                  cy={toSvgY(pg.markerOrig.y)}
-                  r={5}
-                  fill="#64748b"
-                  stroke="#ffffff"
-                  strokeWidth={1.5}
-                />
-
-                {/* Crosshair & Glowing Marker for New Answer */}
-                <line
-                  x1={toSvgX(pg.markerNew.x)}
-                  y1={padT}
-                  x2={toSvgX(pg.markerNew.x)}
-                  y2={padT + plotH}
-                  stroke="#f59e0b"
-                  strokeWidth={1}
-                  strokeDasharray="3 3"
-                />
-                <line
-                  x1={padL}
-                  y1={toSvgY(pg.markerNew.y)}
-                  x2={svgW - padR}
-                  y2={toSvgY(pg.markerNew.y)}
-                  stroke="#f59e0b"
-                  strokeWidth={1}
-                  strokeDasharray="3 3"
-                />
-                <circle
-                  cx={toSvgX(pg.markerNew.x)}
-                  cy={toSvgY(pg.markerNew.y)}
-                  r={6.5}
-                  fill="#f59e0b"
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                />
-              </svg>
-
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2 text-[11px]">
-                <span className="text-slate-400">
-                  ⚪ Điểm đáp án đề gốc:{' '}
-                  <strong className="text-slate-200">
-                    {isResultUnlocked ? pg.markerOrig.label : '🔒 Kiểm tra đáp án để mở khóa'}
-                  </strong>
-                </span>
-                <span className="text-amber-300">
-                  🟠 Điểm đáp án đề hiện tại:{' '}
-                  <strong>
-                    {isResultUnlocked ? pg.markerNew.label : '🔒 Kiểm tra đáp án để mở khóa'}
-                  </strong>
-                </span>
-              </div>
-            </div>
-
-            {/* Live Derived Telemetry Cards */}
-            {isResultUnlocked ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {sandboxState.liveMetrics.map((m, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-2xl border p-3.5 ${m.highlightColor}`}
-                  >
-                    <div className="flex items-center justify-between text-[11px] font-bold opacity-85">
-                      <span>{m.label}</span>
-                      <span className="font-mono font-extrabold">{m.symbol}</span>
-                    </div>
-                    <div className="mt-1 text-lg font-extrabold">
-                      {m.value}{' '}
-                      <span className="text-xs font-semibold opacity-80">{m.unit}</span>
-                    </div>
-                    <div className="mt-0.5 font-mono text-[10px] opacity-75">
-                      {m.formula}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-3.5 text-center text-xs font-semibold text-slate-500">
-                🔒 Số liệu đáp án trên đồ thị đang được ẩn để bạn tự nhập kết quả vào ô{' '}
-                <strong>Nhập đáp án</strong> bên trái và bấm <strong>Kiểm tra đáp án</strong> (dù là đề
-                gốc hay đề đã đổi số What-If).
-              </div>
-            )}
-          </div>
-
-          {/* 2. Synchronized Interactive Physics Lab */}
+          {/* Synchronized Interactive Physics Lab */}
           <InteractivePhysicsLab simulation={syncedSimulation} />
 
-          {/* 3. Topic Formulas Reference Card */}
+          {/* Topic Formulas Reference Card */}
           {topicFormulas.length > 0 && (
             <div className="edu-card space-y-3 p-5">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
@@ -972,8 +751,4 @@ export function ProblemSandboxClient({
       </div>
     </div>
   );
-}
-
-function clampVal(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v));
 }
