@@ -1001,9 +1001,19 @@ export function Quiz25Engine({ scopeType, scopeId, title, questions }: Quiz25Eng
             </button>
 
             {!submitted ? (
-              <button type="button" onClick={handleSubmit} className="edu-btn-primary px-4 py-2 text-xs">
-                Nộp bài ({answeredCount}/{totalQuestions})
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  <span>Hủy kiểm tra</span>
+                </button>
+                <button type="button" onClick={handleSubmit} className="edu-btn-primary px-4 py-2 text-xs">
+                  Nộp bài ({answeredCount}/{totalQuestions})
+                </button>
+              </>
             ) : (
               <button
                 type="button"

@@ -82,6 +82,33 @@ function ensureInitialized(client: DatabaseClient) {
     client.exec(sql);
   }
   migrateQuestionFormatColumns(client);
+  ensureAdaptiveCatTable(client);
+}
+
+function ensureAdaptiveCatTable(client: DatabaseClient) {
+  try {
+    client.exec(`
+      CREATE TABLE IF NOT EXISTS adaptive_cat_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        scope_type TEXT NOT NULL,
+        scope_id INTEGER NOT NULL,
+        grade_number INTEGER,
+        total_questions INTEGER NOT NULL,
+        correct_count INTEGER NOT NULL,
+        final_theta REAL NOT NULL,
+        final_se REAL NOT NULL,
+        confidence_pct INTEGER NOT NULL,
+        predicted_score_10 REAL NOT NULL,
+        ability_tier_label TEXT NOT NULL,
+        time_spent_sec INTEGER NOT NULL,
+        history_json TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+    `);
+  } catch {
+    // Ignore table creation errors
+  }
 }
 
 /**

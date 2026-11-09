@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { QuestionItem } from '@/types/cms';
-import { AdaptiveCatRunner } from './AdaptiveCatRunner';
+import { AdaptiveCatRunner, CatAttemptReviewData } from './AdaptiveCatRunner';
+import { CatResponseStep } from '@/lib/adaptive-cat';
 import {
   Target,
   Layers,
@@ -14,6 +15,11 @@ import {
   BookOpen,
   Zap,
   CheckCircle2,
+  History,
+  Eye,
+  Trash2,
+  Clock,
+  Calendar,
 } from 'lucide-react';
 
 interface ChapterOption {
@@ -41,6 +47,24 @@ type EnrichedQuestion = QuestionItem & {
   empiricalWrongCount?: number;
 };
 
+interface SavedCatAttemptRow {
+  id: number;
+  title: string;
+  scope_type: 'grade' | 'chapter' | 'topic';
+  scope_id: number;
+  grade_number: number | null;
+  total_questions: number;
+  correct_count: number;
+  final_theta: number;
+  final_se: number;
+  confidence_pct: number;
+  predicted_score_10: number;
+  ability_tier_label: string;
+  time_spent_sec: number;
+  history_json: string;
+  created_at: string;
+}
+
 interface AdaptiveTestCenterClientProps {
   chapters: ChapterOption[];
   topics: TopicOption[];
@@ -58,6 +82,82 @@ export function AdaptiveTestCenterClient({
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
   const [targetLength, setTargetLength] = useState<number>(10);
   const [running, setRunning] = useState<boolean>(false);
+  const [reviewData, setReviewData] = useState<CatAttemptReviewData | null>(null);
+
+  // Saved CAT Report History
+  const [catHistory, setCatHistory] = useState<SavedCatAttemptRow[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+
+  const fetchCatHistory = useCallback(async () => {
+    try {
+      setLoadingHistory(true);
+      const res = await fetch('/api/adaptive-cat/attempts');
+      if (res.ok) {
+        const data = await res.json();
+        setCatHistory(data.attempts || []);
+      }
+    } catch {
+      // Ignore network error
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!running) {
+      fetchCatHistory();
+    }
+  }, [running, fetchCatHistory]);
+
+  const handleDeleteAttempt = async (id: number) => {
+    try {
+      await fetch(`/api/adaptive-cat/attempts?id=${id}`, { method: 'DELETE' });
+      setCatHistory((prev) => prev.filter((item) => item.id !== id));
+    } catch {
+      // Ignore network error
+    }
+  };
+
+  const handleOpenSavedReport = (row: SavedCatAttemptRow) => {
+    try {
+      const parsedHistory: CatResponseStep[] = JSON.parse(row.history_json || '[]');
+      if (!Array.isArray(parsedHistory) || parsedHistory.length === 0) return;
+      setReviewData({
+        id: row.id,
+        title: row.title,
+        history: parsedHistory,
+        finalTheta: Number(row.final_theta),
+        finalSe: Number(row.final_se),
+        confidencePct: Number(row.confidence_pct),
+        timeSpentSec: Number(row.time_spent_sec),
+        createdAt: row.created_at,
+      });
+      setRunning(true);
+    } catch {
+      // Ignore parse error
+    }
+  };
+
+  const formatTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`);
+      return d.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
   // Chapters & topics for selectedGrade
   const gradeChapters = useMemo(
@@ -128,7 +228,7 @@ export function AdaptiveTestCenterClient({
     return (
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <AdaptiveCatRunner
-          title={sessionTitle}
+          title={reviewData ? reviewData.title : sessionTitle}
           scopeType={scopeMode}
           scopeId={
             scopeMode === 'topic'
@@ -139,7 +239,11 @@ export function AdaptiveTestCenterClient({
           }
           questions={activePool}
           targetLength={targetLength}
-          onExitMode={() => setRunning(false)}
+          initialReviewData={reviewData}
+          onExitMode={() => {
+            setReviewData(null);
+            setRunning(false);
+          }}
         />
       </div>
     );
@@ -402,13 +506,125 @@ export function AdaptiveTestCenterClient({
 
           <button
             type="button"
-            onClick={() => setRunning(true)}
+            onClick={() => {
+              setReviewData(null);
+              setRunning(true);
+            }}
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 py-3.5 text-sm font-extrabold text-white shadow-card transition hover:opacity-95"
           >
             <Play className="h-4 w-4 fill-current" />
             <span>Bắt đầu Khảo thí Thích ứng ({targetLength} câu)</span>
           </button>
         </div>
+      </div>
+
+      {/* 3. SAVED ADAPTIVE CAT REPORTS HISTORY */}
+      <div className="edu-card space-y-4 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+              <History className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900">
+                Lịch sử Báo cáo Khảo thí Thích ứng (CAT Reports)
+              </h2>
+              <p className="text-xs text-slate-500">
+                Lưu trữ toàn bộ biểu đồ hành trình năng lực θ, điểm dự báo thang 10 và chi tiết từng câu hỏi của các lần thi trước.
+              </p>
+            </div>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-700">
+            {catHistory.length} báo cáo đã lưu
+          </span>
+        </div>
+
+        {loadingHistory ? (
+          <div className="py-8 text-center text-xs font-semibold text-slate-400">
+            Đang tải lịch sử báo cáo...
+          </div>
+        ) : catHistory.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center text-xs text-slate-500">
+            Chưa có báo cáo khảo thí thích ứng nào. Hãy hoàn thành một bài thi thích ứng ở trên để lưu báo cáo đầu tiên!
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {catHistory.map((row) => (
+              <div
+                key={row.id}
+                className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs transition hover:border-purple-300 hover:shadow-soft"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-extrabold text-slate-900 line-clamp-1">
+                        {row.title}
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" /> {formatDate(row.created_at)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> {formatTime(row.time_spent_sec)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 rounded-xl border border-purple-200 bg-purple-50 px-2.5 py-1 text-right">
+                      <div className="text-sm font-extrabold text-purple-900">
+                        {Number(row.predicted_score_10).toFixed(1)}
+                        <span className="text-[10px] font-semibold text-purple-600">/10</span>
+                      </div>
+                      <div className="text-[9px] font-bold text-purple-700">
+                        {row.ability_tier_label}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Metrics Pills */}
+                  <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-2 text-center text-[11px]">
+                    <div>
+                      <span className="text-slate-500">Năng lực θ: </span>
+                      <strong className="text-slate-900">
+                        {row.final_theta >= 0 ? `+${row.final_theta}` : row.final_theta}
+                      </strong>
+                    </div>
+                    <div className="border-x border-slate-200">
+                      <span className="text-slate-500">Đúng: </span>
+                      <strong className="text-emerald-700">
+                        {row.correct_count}/{row.total_questions}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Tin cậy: </span>
+                      <strong className="text-indigo-700">{row.confidence_pct}%</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenSavedReport(row)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-3.5 py-1.5 text-xs font-extrabold text-white shadow-2xs transition hover:bg-purple-500"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    <span>Xem lại Báo cáo &amp; Biểu đồ</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteAttempt(row.id)}
+                    title="Xóa báo cáo này"
+                    className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

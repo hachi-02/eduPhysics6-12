@@ -35,6 +35,17 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
+export interface CatAttemptReviewData {
+  id?: number;
+  title: string;
+  history: CatResponseStep[];
+  finalTheta: number;
+  finalSe: number;
+  confidencePct: number;
+  timeSpentSec: number;
+  createdAt?: string;
+}
+
 interface AdaptiveCatRunnerProps {
   title: string;
   subtitle?: string;
@@ -52,6 +63,7 @@ interface AdaptiveCatRunnerProps {
   >;
   targetLength?: number;
   onExitMode?: () => void;
+  initialReviewData?: CatAttemptReviewData | null;
 }
 
 const DIFF_META: Record<
@@ -92,6 +104,7 @@ export function AdaptiveCatRunner({
   questions,
   targetLength = 10,
   onExitMode,
+  initialReviewData = null,
 }: AdaptiveCatRunnerProps) {
   const router = useRouter();
 
@@ -101,10 +114,18 @@ export function AdaptiveCatRunner({
   const maxItems = Math.min(targetLength, calibratedPool.length);
 
   // Adaptive session state
-  const [history, setHistory] = useState<CatResponseStep[]>([]);
-  const [currentTheta, setCurrentTheta] = useState<number>(0.0);
-  const [currentSe, setCurrentSe] = useState<number>(1.15);
-  const [confidencePct, setConfidencePct] = useState<number>(25);
+  const [history, setHistory] = useState<CatResponseStep[]>(
+    initialReviewData ? initialReviewData.history : []
+  );
+  const [currentTheta, setCurrentTheta] = useState<number>(
+    initialReviewData ? initialReviewData.finalTheta : 0.0
+  );
+  const [currentSe, setCurrentSe] = useState<number>(
+    initialReviewData ? initialReviewData.finalSe : 1.15
+  );
+  const [confidencePct, setConfidencePct] = useState<number>(
+    initialReviewData ? initialReviewData.confidencePct : 25
+  );
 
   // Current active question & selection reason
   const initialSelection = useMemo(
@@ -123,8 +144,21 @@ export function AdaptiveCatRunner({
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [itemLocked, setItemLocked] = useState<boolean>(false);
   const [latestStepResult, setLatestStepResult] = useState<CatResponseStep | null>(null);
-  const [finished, setFinished] = useState<boolean>(false);
-  const [secondsElapsed, setSecondsElapsed] = useState<number>(0);
+  const [finished, setFinished] = useState<boolean>(Boolean(initialReviewData));
+  const [secondsElapsed, setSecondsElapsed] = useState<number>(
+    initialReviewData ? initialReviewData.timeSpentSec : 0
+  );
+
+  useEffect(() => {
+    if (initialReviewData) {
+      setHistory(initialReviewData.history);
+      setCurrentTheta(initialReviewData.finalTheta);
+      setCurrentSe(initialReviewData.finalSe);
+      setConfidencePct(initialReviewData.confidencePct);
+      setSecondsElapsed(initialReviewData.timeSpentSec);
+      setFinished(true);
+    }
+  }, [initialReviewData]);
 
   // Reset only when scope or targetLength explicitly changes (never on router.refresh() while viewing report)
   const sessionScopeKey = `${scopeType}-${scopeId}-${targetLength}`;
@@ -262,12 +296,40 @@ export function AdaptiveCatRunner({
         body: JSON.stringify({ action: 'batch_practice_result', results }),
       });
 
+      const correctCount = finalHistory.filter((h) => h.isCorrect).length;
+      const lastStep = finalHistory[finalHistory.length - 1];
+      const finalThetaVal = lastStep ? lastStep.thetaAfter : currentTheta;
+      const finalSeVal = lastStep ? lastStep.seAfter : currentSe;
+      const finalConfVal = lastStep ? lastStep.confidencePct : confidencePct;
+      const finalPred10 = thetaToScore10(finalThetaVal);
+      const finalTier = getAbilityTier(finalThetaVal);
+
+      // Save detailed CAT report to adaptive_cat_attempts table
+      await fetch('/api/adaptive-cat/attempts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          scopeType,
+          scopeId,
+          gradeNumber: finalHistory[0]?.question.grade_number || null,
+          totalQuestions: finalHistory.length,
+          correctCount,
+          finalTheta: finalThetaVal,
+          finalSe: finalSeVal,
+          confidencePct: finalConfVal,
+          predictedScore10: finalPred10,
+          abilityTierLabel: finalTier.shortLabel,
+          timeSpentSec: secondsElapsed,
+          history: finalHistory,
+        }),
+      });
+
       if (scopeType === 'topic' || scopeType === 'chapter') {
         const answersMap: Record<number, number> = {};
         for (const h of finalHistory) {
           answersMap[h.question.id] = h.userAnswer;
         }
-        const correctCount = finalHistory.filter((h) => h.isCorrect).length;
         await fetch('/api/quiz/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -785,20 +847,25 @@ export function AdaptiveCatRunner({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <div className="flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-bold">
                 <Clock className="h-3.5 w-3.5 text-purple-200" />
                 <span>{formatTime(secondsElapsed)}</span>
               </div>
-              {onExitMode && (
-                <button
-                  type="button"
-                  onClick={onExitMode}
-                  className="rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/90 transition hover:bg-white/20"
-                >
-                  Đổi chế độ
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (onExitMode) {
+                    onExitMode();
+                  } else {
+                    handleRestartCat();
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/50 bg-rose-500/20 px-3 py-1.5 text-xs font-extrabold text-rose-100 transition hover:bg-rose-500/40"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                <span>Hủy kiểm tra</span>
+              </button>
             </div>
           </div>
 
