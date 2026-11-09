@@ -159,9 +159,10 @@ export function ProblemSandboxClient({
   }, [activeQuestion?.id]);
 
   // Whenever the user drags a What-If slider to change the problem numbers,
-  // reset the check banner so they can check their new answer for the new problem
+  // reset the check banner and hide the previous answer so they can solve the new problem
   useEffect(() => {
     setSubmittedStatus('idle');
+    setShowSolution(false);
   }, [overrideParams]);
 
   const baseSimulation = useMemo<SimulationItem>(() => {
@@ -213,7 +214,7 @@ export function ProblemSandboxClient({
   }, [baseSimulation, sandboxState.simParameters]);
 
   const hasCustomOverrides = Object.keys(overrideParams).length > 0;
-  const isResultUnlocked = showSolution || submittedStatus !== 'idle';
+  const isResultUnlocked = showSolution;
 
   const handleCheckAnswer = (e: React.FormEvent) => {
     e.preventDefault();

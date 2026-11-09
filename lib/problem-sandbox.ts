@@ -535,8 +535,12 @@ export function buildProblemSandboxState(
     const k_base = kMatch ? parseVnNumber(kMatch[2]) || 6000 : (parseVnNumber(cMatch?.[2] || '27') || 27) + 273.15;
     const c_base = Number((k_base - 273.15).toFixed(2));
 
-    const c_val = getVal('celsius', c_base);
-    const k_val = Number((c_val + 273.15).toFixed(2));
+    const k_val = isInputKelvin
+      ? getVal('kelvinInput', k_base)
+      : Number((getVal('celsius', c_base) + 273.15).toFixed(2));
+    const c_val = isInputKelvin
+      ? Number((k_val - 273.15).toFixed(2))
+      : getVal('celsius', c_base);
     const f_val = Number((c_val * 1.8 + 32).toFixed(1));
 
     const modifiedQuestionText = isInputKelvin
@@ -560,22 +564,30 @@ export function buildProblemSandboxState(
     return {
       domainName: 'Chuyển đổi Thang Nhiệt độ (Celsius • Kelvin • Fahrenheit)',
       modifiedQuestionText,
-      originalAnswerLabel: isInputKelvin ? `${formatVnNum(Math.round(c_base))} °C (${formatVnNum(c_base)} °C)` : `${formatVnNum(k_base)} K`,
-      newAnswerLabel: isInputKelvin ? `${formatVnNum(Math.round(c_val))} °C (${formatVnNum(c_val)} °C)` : `${formatVnNum(k_val)} K`,
+      originalAnswerLabel: isInputKelvin
+        ? `${formatVnNum(c_base)} °C (làm tròn: ${formatVnNum(Math.round(c_base))} °C)`
+        : `${formatVnNum(k_base)} K`,
+      newAnswerLabel: isInputKelvin
+        ? `${formatVnNum(c_val)} °C (làm tròn: ${formatVnNum(Math.round(c_val))} °C)`
+        : `${formatVnNum(k_val)} K`,
       targetNumericAnswer: targetAns,
       acceptableAnswers: [Math.round(targetAns), Number(targetAns.toFixed(1)), Number((isInputKelvin ? k_val - 273 : c_val + 273).toFixed(2))],
       answerUnit: ansUnit,
       dynamicExplanation: isInputKelvin
-        ? `Áp dụng công thức quy đổi từ thang Kelvin (K) sang thang Celsius (°C): t(°C) = T(K) - 273,15 = ${formatVnNum(k_val)} - 273,15 = ${formatVnNum(c_val)} °C (xấp xỉ ${Math.round(c_val)} °C).`
+        ? `Áp dụng công thức quy đổi từ thang Kelvin (K) sang thang Celsius (°C): t(°C) = T(K) - 273,15 = ${formatVnNum(k_val)} - 273,15 = ${formatVnNum(c_val)} °C (làm tròn số nguyên là ${Math.round(c_val)} °C).`
         : `Áp dụng công thức quy đổi từ thang Celsius (°C) sang thang Kelvin (K): T(K) = t(°C) + 273,15 = ${formatVnNum(c_val)} + 273,15 = ${formatVnNum(k_val)} K.`,
       extractedList: [
-        { paramKey: 'celsius', symbol: 't (°C)', label: 'Nhiệt độ Celsius', value: c_val, defaultValue: c_base, unit: '°C', fromQuestionText: true },
-        { paramKey: 'temperature', symbol: 'T (K)', label: 'Nhiệt độ Kelvin', value: k_val, defaultValue: k_base, unit: 'K', fromQuestionText: true },
+        { paramKey: 'celsius', symbol: 't (°C)', label: 'Nhiệt độ Celsius', value: c_val, defaultValue: c_base, unit: '°C', fromQuestionText: !isInputKelvin },
+        { paramKey: 'kelvinInput', symbol: 'T (K)', label: 'Nhiệt độ Kelvin', value: k_val, defaultValue: k_base, unit: 'K', fromQuestionText: isInputKelvin },
       ],
       simParameters: { ...baseSimParams, temperature: clamp(k_val, 100, 1000), mass: 1, power: 1000 },
-      sliders: [
-        { paramKey: 'celsius', symbol: 't', label: 'Thay đổi Nhiệt độ trong đề (t)', unit: '°C', min: -273, max: Math.max(1000, Math.round(c_base * 1.5)), step: 10, defaultValue: c_base },
-      ],
+      sliders: isInputKelvin
+        ? [
+            { paramKey: 'kelvinInput', symbol: 'T', label: 'Nhiệt độ Kelvin trong đề (T)', unit: 'K', min: 100, max: Math.max(1500, Math.round(k_base * 1.5)), step: 50, defaultValue: k_base },
+          ]
+        : [
+            { paramKey: 'celsius', symbol: 't', label: 'Nhiệt độ Celsius trong đề (t)', unit: '°C', min: -273, max: Math.max(1000, Math.round(c_base * 1.5)), step: 10, defaultValue: c_base },
+          ],
       liveMetrics: [
         { symbol: 't (°C)', label: 'Thang Celsius', formula: 't = T(K) - 273,15', value: c_val.toFixed(2), unit: '°C', highlightColor: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
         { symbol: 'T (K)', label: 'Thang Kelvin tuyệt đối', formula: 'T = t(°C) + 273,15', value: k_val.toFixed(2), unit: 'K', highlightColor: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
