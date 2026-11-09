@@ -74,6 +74,7 @@ export function KnowledgeGraphClient({
 
   // Filters
   const [selectedPillar, setSelectedPillar] = useState<PhysicsPillarId | 'all'>('all');
+  const [selectedGradeFilter, setSelectedGradeFilter] = useState<'all' | 'thcs' | 'thpt' | number>('all');
   const [onlyFocusedChain, setOnlyFocusedChain] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -171,20 +172,28 @@ export function KnowledgeGraphClient({
     const q = searchQuery.trim().toLowerCase();
 
     for (const node of graphState.nodes) {
+      const inChain =
+        node.code === selectedCode ||
+        traceCodeSets.ancestorCodes.has(node.code) ||
+        traceCodeSets.descendantCodes.has(node.code);
+
+      // Grade filter: keep all topics of the target grade(s), plus connected chain nodes from other grades
+      if (selectedGradeFilter !== 'all') {
+        const matchesGrade =
+          selectedGradeFilter === 'thcs'
+            ? node.grade_number <= 9
+            : selectedGradeFilter === 'thpt'
+              ? node.grade_number >= 10
+              : node.grade_number === selectedGradeFilter;
+        if (!matchesGrade && !inChain) continue;
+      }
+
       if (selectedPillar !== 'all' && node.pillar !== selectedPillar) {
         // Still keep if onlyFocusedChain is active and node is in the chain
-        const inChain =
-          node.code === selectedCode ||
-          traceCodeSets.ancestorCodes.has(node.code) ||
-          traceCodeSets.descendantCodes.has(node.code);
         if (!onlyFocusedChain || !inChain) continue;
       }
 
       if (onlyFocusedChain) {
-        const inChain =
-          node.code === selectedCode ||
-          traceCodeSets.ancestorCodes.has(node.code) ||
-          traceCodeSets.descendantCodes.has(node.code);
         if (!inChain) continue;
       }
 
@@ -201,7 +210,55 @@ export function KnowledgeGraphClient({
       }
     }
     return grouped;
-  }, [graphState.nodes, selectedPillar, onlyFocusedChain, searchQuery, selectedCode, traceCodeSets]);
+  }, [
+    graphState.nodes,
+    selectedGradeFilter,
+    selectedPillar,
+    onlyFocusedChain,
+    searchQuery,
+    selectedCode,
+    traceCodeSets,
+  ]);
+
+  const visibleGrades = useMemo(() => {
+    const allGrades = [6, 7, 8, 9, 10, 11, 12];
+    if (selectedGradeFilter === 'all' && !onlyFocusedChain && !searchQuery.trim()) {
+      return allGrades;
+    }
+    const nonEmpty = allGrades.filter((g) => (nodesByGrade[g] || []).length > 0);
+    return nonEmpty.length > 0 ? nonEmpty : allGrades;
+  }, [nodesByGrade, selectedGradeFilter, onlyFocusedChain, searchQuery]);
+
+  const handleSelectGradeFilter = (filter: 'all' | 'thcs' | 'thpt' | number) => {
+    setSelectedGradeFilter(filter);
+    if (filter === 'all') return;
+
+    const currentNode = graphState.nodeMap[selectedCode];
+    const currentMatches =
+      currentNode &&
+      (filter === 'thcs'
+        ? currentNode.grade_number <= 9
+        : filter === 'thpt'
+          ? currentNode.grade_number >= 10
+          : currentNode.grade_number === filter);
+
+    if (!currentMatches) {
+      const candidates = graphState.nodes.filter((n) =>
+        filter === 'thcs'
+          ? n.grade_number <= 9
+          : filter === 'thpt'
+            ? n.grade_number >= 10
+            : n.grade_number === filter
+      );
+      const priorityNode =
+        candidates.find((n) => n.status === 'broken') ||
+        candidates.find((n) => n.status === 'warning') ||
+        candidates[0];
+      if (priorityNode) {
+        setSelectedCode(priorityNode.code);
+      }
+    }
+  };
 
   // SVG overlay coordinates measurement
   const boardContainerRef = useRef<HTMLDivElement | null>(null);
@@ -497,7 +554,51 @@ export function KnowledgeGraphClient({
       </div>
 
       {/* 2. FILTER & LEGEND TOOLBAR */}
-      <div className="edu-card space-y-4 p-4 sm:p-5">
+      <div className="edu-card space-y-3.5 p-4 sm:p-5">
+        {/* Grade Filter Row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 flex items-center gap-1 text-xs font-bold text-slate-600">
+              <Layers className="h-3.5 w-3.5 text-brand-600" /> Khối lớp:
+            </span>
+            {(
+              [
+                { id: 'all', label: 'Tất cả 6–12' },
+                { id: 'thcs', label: 'Cấp THCS (6–9)' },
+                { id: 'thpt', label: 'Cấp THPT (10–12)' },
+                { id: 6, label: 'Lớp 6' },
+                { id: 7, label: 'Lớp 7' },
+                { id: 8, label: 'Lớp 8' },
+                { id: 9, label: 'Lớp 9' },
+                { id: 10, label: 'Lớp 10' },
+                { id: 11, label: 'Lớp 11' },
+                { id: 12, label: 'Lớp 12' },
+              ] as const
+            ).map((gTab) => {
+              const isActive = selectedGradeFilter === gTab.id;
+              return (
+                <button
+                  key={String(gTab.id)}
+                  type="button"
+                  onClick={() => handleSelectGradeFilter(gTab.id)}
+                  className={`rounded-xl px-2.5 py-1.5 text-xs font-bold transition ${
+                    isActive
+                      ? 'bg-brand-600 text-white shadow-soft'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {gTab.label}
+                </button>
+              );
+            })}
+          </div>
+          {selectedGradeFilter !== 'all' && (
+            <span className="text-[11px] font-semibold text-brand-700">
+              ✨ Tự động giữ lại các bài nền tảng lớp dưới có liên kết với bài đang chọn
+            </span>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Pillar Filter Pills */}
           <div className="flex flex-wrap items-center gap-1.5">
@@ -711,22 +812,32 @@ export function KnowledgeGraphClient({
                 })}
               </svg>
 
-              {/* 7 Grade Columns */}
-              <div className="relative z-10 flex min-w-[1160px] gap-3.5">
-                {[6, 7, 8, 9, 10, 11, 12].map((gradeNum) => {
+              {/* Grade Columns (Dynamic based on active filter) */}
+              <div className="relative z-10 flex gap-3.5">
+                {visibleGrades.map((gradeNum) => {
                   const list = nodesByGrade[gradeNum] || [];
+                  const isTargetGrade =
+                    selectedGradeFilter === gradeNum ||
+                    (selectedGradeFilter === 'thcs' && gradeNum <= 9) ||
+                    (selectedGradeFilter === 'thpt' && gradeNum >= 10);
                   return (
                     <div key={gradeNum} className="flex w-44 shrink-0 flex-col space-y-2.5">
                       <div
                         className={`rounded-xl border px-3 py-2 text-center ${
-                          gradeNum >= 10
-                            ? 'border-brand-200 bg-brand-50/90 text-brand-900'
-                            : 'border-slate-200 bg-slate-100/90 text-slate-800'
+                          isTargetGrade
+                            ? 'border-brand-500 bg-brand-600 text-white shadow-soft'
+                            : gradeNum >= 10
+                              ? 'border-brand-200 bg-brand-50/90 text-brand-900'
+                              : 'border-slate-200 bg-slate-100/90 text-slate-800'
                         }`}
                       >
                         <div className="text-xs font-extrabold">LỚP {gradeNum}</div>
-                        <div className="text-[10px] font-semibold opacity-75">
-                          {gradeNum >= 10 ? 'THPT • Định hướng Thi' : 'THCS • Nền tảng KHTN'}
+                        <div className="text-[10px] font-semibold opacity-80">
+                          {isTargetGrade && selectedGradeFilter !== 'all'
+                            ? `Đang lọc (${list.length} bài)`
+                            : gradeNum >= 10
+                              ? 'THPT • Định hướng Thi'
+                              : 'THCS • Nền tảng KHTN'}
                         </div>
                       </div>
 
