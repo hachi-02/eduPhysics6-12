@@ -25,10 +25,27 @@ import {
   RefreshCw,
   Award,
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 
 interface CognitiveTrapMatrixClientProps {
   mistakes: MistakeQuestionItem[];
+}
+
+function getPaginationRange(current: number, total: number): (number | '...')[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (current <= 4) {
+    return [1, 2, 3, 4, 5, '...', total];
+  }
+  if (current >= total - 3) {
+    return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+  }
+  return [1, '...', current - 1, current, current + 1, '...', total];
 }
 
 export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClientProps) {
@@ -38,10 +55,13 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number>(0);
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [showAnswer, setShowAnswer] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(5);
   const drillSectionRef = useRef<HTMLDivElement>(null);
 
   const handleFocusTrap = (trap: CognitiveTrapType | 'all') => {
     setSelectedTrap(trap);
+    setCurrentPage(1);
     if (trap !== 'all') {
       setTimeout(() => {
         drillSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -73,6 +93,21 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
     if (selectedTrap === 'all') return analyzedMistakes;
     return analyzedMistakes.filter((m) => m.trapAnalysis.trapType === selectedTrap);
   }, [analyzedMistakes, selectedTrap]);
+
+  // Pagination for detailed questions drill list
+  const totalPages = Math.max(1, Math.ceil(displayMistakes.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedMistakes = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pageSize;
+    return displayMistakes.slice(start, start + pageSize);
+  }, [displayMistakes, safeCurrentPage, pageSize]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setCurrentPage(newPage);
+    drillSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Practice workout active question
   const practiceList = displayMistakes;
@@ -148,7 +183,10 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
           </span>
           <button
             type="button"
-            onClick={() => setSelectedGrade('all')}
+            onClick={() => {
+              setSelectedGrade('all');
+              setCurrentPage(1);
+            }}
             className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
               selectedGrade === 'all'
                 ? 'bg-indigo-600 text-white shadow-soft'
@@ -161,7 +199,10 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
             <button
               key={g}
               type="button"
-              onClick={() => setSelectedGrade(g)}
+              onClick={() => {
+                setSelectedGrade(g);
+                setCurrentPage(1);
+              }}
               className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
                 selectedGrade === g
                   ? 'bg-indigo-600 text-white shadow-soft'
@@ -229,7 +270,10 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
               {selectedTrap !== 'all' && (
                 <button
                   type="button"
-                  onClick={() => setSelectedTrap('all')}
+                  onClick={() => {
+                    setSelectedTrap('all');
+                    setCurrentPage(1);
+                  }}
                   className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                 >
                   <RefreshCw className="h-3 w-3" /> Xem tất cả
@@ -246,7 +290,10 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
             <CognitiveTrapRadar
               radarValues={stats.radarValues}
               selectedTrap={selectedTrap}
-              onSelectTrap={(t) => setSelectedTrap(selectedTrap === t ? 'all' : t)}
+              onSelectTrap={(t) => {
+                setSelectedTrap(selectedTrap === t ? 'all' : t);
+                setCurrentPage(1);
+              }}
               trapCounts={stats.trapCounts}
             />
           </div>
@@ -273,7 +320,10 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
             {selectedTrap !== 'all' && (
               <button
                 type="button"
-                onClick={() => setSelectedTrap('all')}
+                onClick={() => {
+                  setSelectedTrap('all');
+                  setCurrentPage(1);
+                }}
                 className="text-xs font-bold text-slate-500 hover:text-indigo-600"
               >
                 Bỏ chọn lọc
@@ -291,7 +341,10 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
               return (
                 <div
                   key={type}
-                  onClick={() => setSelectedTrap(isSelected ? 'all' : type)}
+                  onClick={() => {
+                    setSelectedTrap(isSelected ? 'all' : type);
+                    setCurrentPage(1);
+                  }}
                   className={`group relative cursor-pointer rounded-2xl border p-4 transition duration-200 ${
                     isSelected
                       ? 'border-indigo-600 bg-indigo-50/70 shadow-soft ring-2 ring-indigo-500/20'
@@ -375,19 +428,39 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
         id="trap-drill-section"
         className="space-y-4 pt-4 border-t border-slate-200 scroll-mt-20"
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <BookOpen className="h-5 w-5 text-indigo-600" />
             <h2 className="text-base font-black text-slate-900">
               Danh Sách Câu Hỏi & Chẩn Đoán Bẫy Chi Tiết ({displayMistakes.length})
             </h2>
-          </div>
-          <div className="text-xs text-slate-500">
             {selectedTrap !== 'all' && (
-              <span>
-                Đang lọc theo: <strong className="text-indigo-600">{COGNITIVE_TRAP_REGISTRY[selectedTrap as CognitiveTrapType].name}</strong>
+              <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                {COGNITIVE_TRAP_REGISTRY[selectedTrap as CognitiveTrapType].name}
               </span>
             )}
+          </div>
+
+          {/* Page size selector pills */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
+            <span>Hiển thị:</span>
+            {[5, 10, 20].map((sz) => (
+              <button
+                key={sz}
+                type="button"
+                onClick={() => {
+                  setPageSize(sz);
+                  setCurrentPage(1);
+                }}
+                className={`rounded-lg px-2.5 py-1 text-xs font-extrabold transition ${
+                  pageSize === sz
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {sz} câu/trang
+              </button>
+            ))}
           </div>
         </div>
 
@@ -402,105 +475,186 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {displayMistakes.map((item, idx) => {
-              const meta = COGNITIVE_TRAP_REGISTRY[item.trapAnalysis.trapType];
-              return (
-                <div
-                  key={item.id}
-                  className="edu-card overflow-hidden border border-slate-200 hover:border-indigo-300 transition"
-                >
-                  {/* Trap Header Badge */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-xs font-black text-indigo-800">
-                        #{idx + 1}
-                      </span>
-                      <span className="text-xs font-bold text-slate-700">
-                        Lớp {item.grade_number} • {item.chapter_code} {item.topic_code ? `• ${item.topic_code}` : ''}
-                      </span>
+          <>
+            <div className="space-y-4">
+              {paginatedMistakes.map((item, idx) => {
+                const globalIndex = (safeCurrentPage - 1) * pageSize + idx + 1;
+                const meta = COGNITIVE_TRAP_REGISTRY[item.trapAnalysis.trapType];
+                return (
+                  <div
+                    key={item.id}
+                    className="edu-card overflow-hidden border border-slate-200 hover:border-indigo-300 transition"
+                  >
+                    {/* Trap Header Badge */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-6 min-w-6 px-1.5 items-center justify-center rounded-lg bg-indigo-100 text-xs font-black text-indigo-800">
+                          #{globalIndex}
+                        </span>
+                        <span className="text-xs font-bold text-slate-700">
+                          Lớp {item.grade_number} • {item.chapter_code} {item.topic_code ? `• ${item.topic_code}` : ''}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-lg border px-2.5 py-0.5 text-[11px] font-extrabold ${meta.badgeCls}`}>
+                          {meta.icon} {meta.name}
+                        </span>
+                        <span className="rounded-lg bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                          Mức độ: {item.trapAnalysis.severity}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className={`rounded-lg border px-2.5 py-0.5 text-[11px] font-extrabold ${meta.badgeCls}`}>
-                        {meta.icon} {meta.name}
-                      </span>
-                      <span className="rounded-lg bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                        Mức độ: {item.trapAnalysis.severity}
-                      </span>
-                    </div>
-                  </div>
+                    {/* Question Stem */}
+                    <div className="p-5 space-y-4">
+                      <div className="text-sm font-bold text-slate-900 leading-relaxed">
+                        <RichPhysicsText text={item.question_text} />
+                      </div>
 
-                  {/* Question Stem */}
-                  <div className="p-5 space-y-4">
-                    <div className="text-sm font-bold text-slate-900 leading-relaxed">
-                      <RichPhysicsText text={item.question_text} />
-                    </div>
-
-                    {/* 4 Options Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      {item.options.map((opt, optIdx) => {
-                        const isCorrect = optIdx === item.correct_index;
-                        const isWrongSelected = optIdx === item.last_wrong_option;
-                        return (
-                          <div
-                            key={optIdx}
-                            className={`flex items-start gap-2.5 rounded-xl border p-3 ${
-                              isCorrect
-                                ? 'border-emerald-300 bg-emerald-50/90 text-emerald-950 font-semibold'
-                                : isWrongSelected
-                                ? 'border-rose-300 bg-rose-50/90 text-rose-950 font-semibold'
-                                : 'border-slate-200 bg-slate-50/50 text-slate-700'
-                            }`}
-                          >
-                            <span
-                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
+                      {/* 4 Options Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        {item.options.map((opt, optIdx) => {
+                          const isCorrect = optIdx === item.correct_index;
+                          const isWrongSelected = optIdx === item.last_wrong_option;
+                          return (
+                            <div
+                              key={optIdx}
+                              className={`flex items-start gap-2.5 rounded-xl border p-3 ${
                                 isCorrect
-                                  ? 'bg-emerald-600 text-white'
+                                  ? 'border-emerald-300 bg-emerald-50/90 text-emerald-950 font-semibold'
                                   : isWrongSelected
-                                  ? 'bg-rose-600 text-white'
-                                  : 'bg-slate-200 text-slate-700'
+                                  ? 'border-rose-300 bg-rose-50/90 text-rose-950 font-semibold'
+                                  : 'border-slate-200 bg-slate-50/50 text-slate-700'
                               }`}
                             >
-                              {String.fromCharCode(65 + optIdx)}
-                            </span>
-                            <div className="flex-1">
-                              <RichPhysicsText text={opt} />
-                              {isCorrect && (
-                                <span className="ml-1.5 text-[10px] font-extrabold text-emerald-700">
-                                  ✓ Đáp án đúng
-                                </span>
-                              )}
-                              {isWrongSelected && (
-                                <span className="ml-1.5 text-[10px] font-extrabold text-rose-700">
-                                  ✗ Phương án sập bẫy
-                                </span>
-                              )}
+                              <span
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
+                                  isCorrect
+                                    ? 'bg-emerald-600 text-white'
+                                    : isWrongSelected
+                                    ? 'bg-rose-600 text-white'
+                                    : 'bg-slate-200 text-slate-700'
+                                }`}
+                              >
+                                {String.fromCharCode(65 + optIdx)}
+                              </span>
+                              <div className="flex-1">
+                                <RichPhysicsText text={opt} />
+                                {isCorrect && (
+                                  <span className="ml-1.5 text-[10px] font-extrabold text-emerald-700">
+                                    ✓ Đáp án đúng
+                                  </span>
+                                )}
+                                {isWrongSelected && (
+                                  <span className="ml-1.5 text-[10px] font-extrabold text-rose-700">
+                                    ✗ Phương án sập bẫy
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Cognitive Diagnosis Card */}
-                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-2">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-indigo-900">
-                        <Brain className="h-4 w-4 text-indigo-600" />
-                        <span>🩺 Bác sĩ Tư duy Chẩn đoán Bẫy:</span>
+                          );
+                        })}
                       </div>
-                      <p className="text-xs text-indigo-950 leading-relaxed">
-                        {item.trapAnalysis.diagnosis}
-                      </p>
-                      <div className="pt-2 border-t border-indigo-200/50 text-[11px] text-indigo-800 flex items-start gap-1.5">
-                        <span className="font-bold shrink-0">💡 Bí kíp né bẫy:</span>
-                        <span>{item.trapAnalysis.remedyTip}</span>
+
+                      {/* Cognitive Diagnosis Card */}
+                      <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs font-black text-indigo-900">
+                          <Brain className="h-4 w-4 text-indigo-600" />
+                          <span>🩺 Bác sĩ Tư duy Chẩn đoán Bẫy:</span>
+                        </div>
+                        <p className="text-xs text-indigo-950 leading-relaxed">
+                          {item.trapAnalysis.diagnosis}
+                        </p>
+                        <div className="pt-2 border-t border-indigo-200/50 text-[11px] text-indigo-800 flex items-start gap-1.5">
+                          <span className="font-bold shrink-0">💡 Bí kíp né bẫy:</span>
+                          <span>{item.trapAnalysis.remedyTip}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+
+            {/* Pagination Controls Bar */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-200">
+                <div className="text-xs font-bold text-slate-500">
+                  Hiển thị câu <span className="text-slate-900 font-extrabold">{(safeCurrentPage - 1) * pageSize + 1}</span> –{' '}
+                  <span className="text-slate-900 font-extrabold">{Math.min(safeCurrentPage * pageSize, displayMistakes.length)}</span> trong{' '}
+                  <span className="text-slate-900 font-extrabold">{displayMistakes.length}</span> câu hỏi
                 </div>
-              );
-            })}
-          </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage === 1}
+                    onClick={() => handlePageChange(1)}
+                    title="Trang đầu"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronsLeft className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage === 1}
+                    onClick={() => handlePageChange(safeCurrentPage - 1)}
+                    title="Trang trước"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+
+                  {getPaginationRange(safeCurrentPage, totalPages).map((p, pIdx) => {
+                    if (p === '...') {
+                      return (
+                        <span key={`ellipsis-${pIdx}`} className="px-2 text-xs font-bold text-slate-400">
+                          ...
+                        </span>
+                      );
+                    }
+                    const isCurrent = p === safeCurrentPage;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => handlePageChange(p as number)}
+                        className={`flex h-9 min-w-9 px-2 items-center justify-center rounded-xl text-xs font-extrabold transition ${
+                          isCurrent
+                            ? 'bg-indigo-600 text-white shadow-soft font-black'
+                            : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage === totalPages}
+                    onClick={() => handlePageChange(safeCurrentPage + 1)}
+                    title="Trang sau"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage === totalPages}
+                    onClick={() => handlePageChange(totalPages)}
+                    title="Trang cuối"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
