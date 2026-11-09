@@ -67,9 +67,10 @@ export function KnowledgeGraphClient({
   const searchParams = useSearchParams();
   const focusParam = searchParams.get('focus');
 
-  // State for simulated broken nodes (for scenarios or manual what-if testing)
+  // State for simulated broken/mastered nodes (for scenarios or manual what-if testing)
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [simulatedBrokenCodes, setSimulatedBrokenCodes] = useState<string[]>([]);
+  const [simulatedMasteredCodes, setSimulatedMasteredCodes] = useState<string[]>([]);
 
   // Filters
   const [selectedPillar, setSelectedPillar] = useState<PhysicsPillarId | 'all'>('all');
@@ -78,8 +79,8 @@ export function KnowledgeGraphClient({
 
   // Build full DAG state
   const graphState = useMemo(
-    () => buildKnowledgeGraphState(initialTopics, simulatedBrokenCodes),
-    [initialTopics, simulatedBrokenCodes]
+    () => buildKnowledgeGraphState(initialTopics, simulatedBrokenCodes, simulatedMasteredCodes),
+    [initialTopics, simulatedBrokenCodes, simulatedMasteredCodes]
   );
 
   // Pick initial selected topic code:
@@ -311,22 +312,41 @@ export function KnowledgeGraphClient({
     if (activePresetId === presetId) {
       setActivePresetId(null);
       setSimulatedBrokenCodes([]);
+      setSimulatedMasteredCodes([]);
       return;
     }
     const preset = DIAGNOSTIC_PRESET_SCENARIOS.find((p) => p.id === presetId);
     if (!preset) return;
     setActivePresetId(preset.id);
     setSimulatedBrokenCodes(preset.simulatedBrokenCodes);
+    setSimulatedMasteredCodes([]);
     setSelectedCode(preset.targetTopicCode);
     setInspectorTab('roadmap');
   };
 
-  // Toggle manual simulation of a broken node
+  // Toggle manual simulation of a broken/mastered node
   const handleToggleSimulateNode = (code: string) => {
+    const currentNode = graphState.nodeMap[code];
+    const isCurrentlyBroken = currentNode?.status === 'broken';
+    const rawTopic = initialTopics.find((t) => t.code === code);
+    const isNaturallyBrokenInDb =
+      rawTopic !== undefined &&
+      (rawTopic.activeMistakeCount >= 2 ||
+        rawTopic.totalWrongCount >= 4 ||
+        (rawTopic.bestScorePct !== null && rawTopic.bestScorePct < 50));
+
     setActivePresetId('custom');
-    setSimulatedBrokenCodes((prev) =>
-      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
-    );
+    if (isCurrentlyBroken) {
+      // Turn OFF broken state (even if it had real mistakes in DB, allow what-if recovery)
+      setSimulatedBrokenCodes((prev) => prev.filter((c) => c !== code));
+      if (isNaturallyBrokenInDb) {
+        setSimulatedMasteredCodes((prev) => (prev.includes(code) ? prev : [...prev, code]));
+      }
+    } else {
+      // Turn ON broken state
+      setSimulatedMasteredCodes((prev) => prev.filter((c) => c !== code));
+      setSimulatedBrokenCodes((prev) => (prev.includes(code) ? prev : [...prev, code]));
+    }
   };
 
   // Submit 3-question diagnostic probe
@@ -426,12 +446,13 @@ export function KnowledgeGraphClient({
               <Sparkles className="h-4 w-4 text-purple-600" />
               <span>💡 XEM THỬ TÌNH HUỐNG MẤT GỐC THƯỜNG GẶP (Bấm vào để xem cách hệ thống dò tìm bài gốc ở lớp dưới):</span>
             </div>
-            {simulatedBrokenCodes.length > 0 && (
+            {(simulatedBrokenCodes.length > 0 || simulatedMasteredCodes.length > 0) && (
               <button
                 type="button"
                 onClick={() => {
                   setActivePresetId(null);
                   setSimulatedBrokenCodes([]);
+                  setSimulatedMasteredCodes([]);
                 }}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-purple-300 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-800 shadow-2xs transition hover:bg-purple-100"
               >

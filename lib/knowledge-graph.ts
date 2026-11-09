@@ -1779,13 +1779,15 @@ export function validateKnowledgeDag(): {
  */
 export function buildKnowledgeGraphState(
   runtimeTopics: TopicRuntimeInput[],
-  simulatedBrokenCodes: string[] = []
+  simulatedBrokenCodes: string[] = [],
+  simulatedMasteredCodes: string[] = []
 ): {
   nodes: KnowledgeGraphNode[];
   nodeMap: Record<string, KnowledgeGraphNode>;
   edges: KnowledgeEdgeSpec[];
 } {
   const simulatedSet = new Set(simulatedBrokenCodes);
+  const simulatedMasteredSet = new Set(simulatedMasteredCodes);
   const prereqMap = new Map<string, KnowledgeEdgeSpec[]>();
   const dependentMap = new Map<string, KnowledgeEdgeSpec[]>();
 
@@ -1811,17 +1813,29 @@ export function buildKnowledgeGraphState(
       failureSymptom: 'Chưa nắm vững kiến thức cốt lõi của chủ đề.',
     };
 
-    const isSimulatedBroken = simulatedSet.has(t.code);
-    const activeMistakes = isSimulatedBroken ? Math.max(3, t.activeMistakeCount) : t.activeMistakeCount;
-    const totalWrongs = isSimulatedBroken ? Math.max(6, t.totalWrongCount) : t.totalWrongCount;
+    const isSimulatedMastered = simulatedMasteredSet.has(t.code);
+    const isSimulatedBroken = !isSimulatedMastered && simulatedSet.has(t.code);
+    const activeMistakes = isSimulatedMastered
+      ? 0
+      : isSimulatedBroken
+        ? Math.max(3, t.activeMistakeCount)
+        : t.activeMistakeCount;
+    const totalWrongs = isSimulatedMastered
+      ? 0
+      : isSimulatedBroken
+        ? Math.max(6, t.totalWrongCount)
+        : t.totalWrongCount;
 
     let status: NodeHealthStatus = 'untested';
     let directMasteryScore = 50; // Mặc định trung lập khi chưa kiểm tra
 
     const hasActivity =
-      activeMistakes > 0 || t.masteredMistakeCount > 0 || t.attemptCount > 0;
+      isSimulatedMastered || activeMistakes > 0 || t.masteredMistakeCount > 0 || t.attemptCount > 0;
 
-    if (hasActivity) {
+    if (isSimulatedMastered) {
+      status = 'mastered';
+      directMasteryScore = 92;
+    } else if (hasActivity) {
       // Tính điểm dựa trên kết quả làm bài và số câu đang sai
       const baseQuizPct = t.bestScorePct !== null ? t.bestScorePct : 72;
       const mistakePenalty = activeMistakes * 14 + Math.max(0, totalWrongs - activeMistakes) * 4;
