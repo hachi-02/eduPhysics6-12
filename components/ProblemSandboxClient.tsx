@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   QuestionItem,
@@ -13,6 +13,7 @@ import { InteractivePhysicsLab } from './InteractivePhysicsLab';
 import {
   buildProblemSandboxState,
   verifyStudentNumericAnswer,
+  SIM_TO_WHATIF_KEY_ALIASES,
 } from '@/lib/problem-sandbox';
 import {
   FlaskConical,
@@ -109,6 +110,7 @@ export function ProblemSandboxClient({
 
   const [userAnswerInput, setUserAnswerInput] = useState<string>('');
   const [submittedStatus, setSubmittedStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
   const [showSolution, setShowSolution] = useState<boolean>(false);
   const [overrideParams, setOverrideParams] = useState<Record<string, number>>({});
 
@@ -153,6 +155,7 @@ export function ProblemSandboxClient({
 
   useEffect(() => {
     setUserAnswerInput('');
+    setSelectedOptionIndex(null);
     setSubmittedStatus('idle');
     setShowSolution(false);
     setOverrideParams({});
@@ -211,6 +214,26 @@ export function ProblemSandboxClient({
       parameters: sandboxState.simParameters,
     };
   }, [baseSimulation, sandboxState.simParameters]);
+
+  const handleSimParamChange = useCallback(
+    (simParamKey: string, value: number) => {
+      let matched = sandboxState.sliders.find((s) => s.paramKey === simParamKey);
+      if (!matched) {
+        const aliases = SIM_TO_WHATIF_KEY_ALIASES[simParamKey] || [];
+        matched = sandboxState.sliders.find((s) => aliases.includes(s.paramKey));
+      }
+      if (!matched && sandboxState.sliders.length > 0) {
+        matched = sandboxState.sliders[0];
+      }
+      if (matched) {
+        setOverrideParams((prev) => ({
+          ...prev,
+          [matched!.paramKey]: value,
+        }));
+      }
+    },
+    [sandboxState.sliders]
+  );
 
   const hasCustomOverrides = Object.keys(overrideParams).length > 0;
   const isResultUnlocked = showSolution;
@@ -457,7 +480,77 @@ export function ProblemSandboxClient({
                   <RichPhysicsText text={sandboxState.modifiedQuestionText} />
                 </div>
 
-                {/* Numerical Answer Input (works for BOTH Original & Modified What-If Question!) */}
+                {/* Conceptual Multiple Choice vs Numerical Answer Input */}
+                {sandboxState.isConceptual ? (
+                  <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
+                    <div className="flex flex-wrap items-center justify-between gap-1">
+                      <label className="text-xs font-extrabold text-slate-800">
+                        🎯 Chọn phương án trả lời đúng (Trắc nghiệm Lý thuyết):
+                      </label>
+                      <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-extrabold text-teal-800">
+                        Câu hỏi Lý thuyết
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2.5">
+                      {activeQuestion.options.map((opt, idx) => {
+                        const optLetter = String.fromCharCode(65 + idx);
+                        const isChosen = selectedOptionIndex === idx;
+                        const isCorrectOption = idx === activeQuestion.correct_index;
+                        const isAnswered = selectedOptionIndex !== null;
+
+                        let btnCls = 'border-slate-200 bg-slate-50/70 hover:border-teal-400 hover:bg-teal-50/40 text-slate-800';
+                        let badgeCls = 'border-slate-300 bg-white text-slate-700';
+
+                        if (isAnswered) {
+                          if (isCorrectOption) {
+                            btnCls = 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500/20';
+                            badgeCls = 'border-emerald-600 bg-emerald-600 text-white font-extrabold';
+                          } else if (isChosen && !isCorrectOption) {
+                            btnCls = 'border-rose-400 bg-rose-50 text-rose-950 ring-2 ring-rose-500/20';
+                            badgeCls = 'border-rose-600 bg-rose-600 text-white font-extrabold';
+                          } else {
+                            btnCls = 'border-slate-200 bg-slate-50/40 text-slate-400 opacity-60';
+                            badgeCls = 'border-slate-200 bg-slate-100 text-slate-400';
+                          }
+                        }
+
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setSelectedOptionIndex(idx);
+                              const isOk = idx === activeQuestion.correct_index;
+                              setSubmittedStatus(isOk ? 'correct' : 'wrong');
+                              setShowSolution(true);
+                            }}
+                            className={`flex items-start gap-3 rounded-xl border p-3 text-left text-xs font-semibold transition ${btnCls}`}
+                          >
+                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs font-bold transition ${badgeCls}`}>
+                              {optLetter}
+                            </span>
+                            <div className="flex-1 pt-0.5">
+                              <RichPhysicsText text={opt} />
+                            </div>
+                            {isAnswered && isCorrectOption && (
+                              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                            )}
+                            {isAnswered && isChosen && !isCorrectOption && (
+                              <XCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedOptionIndex === null && (
+                      <p className="text-[11px] leading-snug text-slate-500">
+                        💡 Bấm chọn phương án A, B, C hoặc D để đối chiếu kết quả ngay lập tức và mở khóa lời giải chi tiết.
+                      </p>
+                    )}
+                  </div>
+                ) : (
                 <form
                   onSubmit={handleCheckAnswer}
                   className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs"
@@ -507,6 +600,7 @@ export function ProblemSandboxClient({
                     liệu của <strong>đề bài mới</strong>!
                   </p>
                 </form>
+                )}
 
                 {/* Toggle Solution Button */}
                 <div className="pt-0.5">
@@ -535,7 +629,35 @@ export function ProblemSandboxClient({
                             : 'border-rose-300 bg-rose-100/80 text-rose-900'
                         }`}
                       >
-                        {submittedStatus === 'correct' ? (
+                        {sandboxState.isConceptual ? (
+                          submittedStatus === 'correct' ? (
+                            <>
+                              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                              <div>
+                                Chính xác! Phương án{' '}
+                                <span className="font-extrabold underline">
+                                  {String.fromCharCode(65 + (selectedOptionIndex ?? 0))}
+                                </span>{' '}
+                                là câu trả lời hoàn toàn chính xác.
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-700" />
+                              <div>
+                                Chưa chính xác! Bạn đã chọn phương án{' '}
+                                <span className="font-extrabold underline">
+                                  {selectedOptionIndex !== null ? String.fromCharCode(65 + selectedOptionIndex) : ''}
+                                </span>
+                                . Đáp án đúng là phương án{' '}
+                                <span className="font-extrabold underline">
+                                  {String.fromCharCode(65 + activeQuestion.correct_index)}
+                                </span>
+                                .
+                              </div>
+                            </>
+                          )
+                        ) : submittedStatus === 'correct' ? (
                           <>
                             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                             <div>
@@ -564,75 +686,99 @@ export function ProblemSandboxClient({
                     )}
 
                     {/* Auto-solved Comparison Box */}
-                    <div className="space-y-2 rounded-xl border border-indigo-200 bg-white p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="font-extrabold text-indigo-950">
-                          🎯 Đáp án Giải theo Số liệu Đề bài:
-                        </span>
-                        {hasCustomOverrides && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSubmittedStatus('idle');
-                              setOverrideParams({});
-                            }}
-                            className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-0.5 text-[10px] font-extrabold text-white hover:bg-indigo-500"
-                          >
-                            <RotateCcw className="h-3 w-3" />
-                            <span>Trả về đề gốc</span>
-                          </button>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
-                          <div className="text-[10px] font-bold text-slate-400">ĐÁP ÁN ĐỀ GỐC</div>
-                          <div className="mt-0.5 font-mono text-xs font-extrabold text-slate-800">
-                            {sandboxState.originalAnswerLabel}
+                    {sandboxState.isConceptual ? (
+                      <div className="space-y-1.5 rounded-xl border border-indigo-200 bg-white p-3">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          🎯 Đáp án Đúng của Câu hỏi Lý thuyết
+                        </div>
+                        <div className="flex items-start gap-2.5 pt-1">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-600 font-mono text-xs font-extrabold text-white">
+                            {String.fromCharCode(65 + activeQuestion.correct_index)}
+                          </span>
+                          <div className="text-xs font-bold text-slate-800">
+                            <RichPhysicsText text={activeQuestion.options[activeQuestion.correct_index]} />
                           </div>
                         </div>
-                        <div
-                          className={`rounded-xl border p-2.5 ${
-                            hasCustomOverrides
-                              ? 'border-indigo-400 bg-indigo-600 text-white shadow-soft'
-                              : 'border-emerald-200 bg-emerald-50/80 text-emerald-950'
-                          }`}
-                        >
+                      </div>
+                    ) : (
+                      <div className="space-y-2 rounded-xl border border-indigo-200 bg-white p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-indigo-950">
+                            🎯 Đáp án Giải theo Số liệu Đề bài:
+                          </span>
+                          {hasCustomOverrides && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSubmittedStatus('idle');
+                                setOverrideParams({});
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-0.5 text-[10px] font-extrabold text-white hover:bg-indigo-500"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                              <span>Trả về đề gốc</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                            <div className="text-[10px] font-bold text-slate-400">ĐÁP ÁN ĐỀ GỐC</div>
+                            <div className="mt-0.5 font-mono text-xs font-extrabold text-slate-800">
+                              {sandboxState.originalAnswerLabel}
+                            </div>
+                          </div>
                           <div
-                            className={`text-[10px] font-bold ${
-                              hasCustomOverrides ? 'text-indigo-200' : 'text-emerald-700'
+                            className={`rounded-xl border p-2.5 ${
+                              hasCustomOverrides
+                                ? 'border-indigo-400 bg-indigo-600 text-white shadow-soft'
+                                : 'border-emerald-200 bg-emerald-50/80 text-emerald-950'
                             }`}
                           >
-                            {hasCustomOverrides
-                              ? 'ĐÁP ÁN ĐỀ THAY ĐỔI (HIỆN TẠI)'
-                              : 'ĐÁP ÁN ĐỀ HIỆN TẠI'}
-                          </div>
-                          <div className="mt-0.5 font-mono text-xs font-extrabold">
-                            {sandboxState.newAnswerLabel}
+                            <div
+                              className={`text-[10px] font-bold ${
+                                hasCustomOverrides ? 'text-indigo-200' : 'text-emerald-700'
+                              }`}
+                            >
+                              {hasCustomOverrides
+                                ? 'ĐÁP ÁN ĐỀ THAY ĐỔI (HIỆN TẠI)'
+                                : 'ĐÁP ÁN ĐỀ HIỆN TẠI'}
+                            </div>
+                            <div className="mt-0.5 font-mono text-xs font-extrabold">
+                              {sandboxState.newAnswerLabel}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Dynamic Step-by-Step Solution (Always matches the current numbers in the problem!) */}
                     <div className="space-y-2 rounded-xl border border-emerald-200/90 bg-white p-3.5 leading-relaxed text-slate-800">
                       <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                         <strong className="text-emerald-800">
                           📖{' '}
-                          {hasCustomOverrides
+                          {sandboxState.isConceptual
+                            ? 'Lời giải chi tiết & Cơ sở lý thuyết:'
+                            : hasCustomOverrides
                             ? 'Lời giải chi tiết (Giải tự động theo Đề thay đổi What-If):'
                             : 'Lời giải chi tiết (Giải theo Đề gốc):'}
                         </strong>
-                        {hasCustomOverrides && (
+                        {!sandboxState.isConceptual && hasCustomOverrides && (
                           <span className="rounded bg-indigo-100 px-2 py-0.5 text-[10px] font-extrabold text-indigo-800">
                             Cập nhật theo số mới
                           </span>
                         )}
                       </div>
                       <div className="text-xs leading-relaxed text-slate-800">
-                        <RichPhysicsText text={sandboxState.dynamicExplanation} />
+                        <RichPhysicsText
+                          text={
+                            sandboxState.isConceptual
+                              ? (activeQuestion.explanation || sandboxState.dynamicExplanation)
+                              : sandboxState.dynamicExplanation
+                          }
+                        />
                       </div>
 
-                      {hasCustomOverrides && activeQuestion.explanation && (
+                      {!sandboxState.isConceptual && hasCustomOverrides && activeQuestion.explanation && (
                         <div className="mt-2 border-t border-dashed border-slate-200 pt-2 text-[11px] text-slate-500">
                           <strong className="text-slate-600">Đối chiếu lời giải đề gốc ban đầu: </strong>
                           <RichPhysicsText text={activeQuestion.explanation} />
@@ -646,7 +792,8 @@ export function ProblemSandboxClient({
           </div>
 
           {/* "WHAT-IF" INTERACTIVE PARAMETER SLIDERS */}
-          <div className="edu-card space-y-4 border-2 border-indigo-200/80 p-5">
+          {!sandboxState.isConceptual && sandboxState.sliders.length > 0 && (
+            <div className="edu-card space-y-4 border-2 border-indigo-200/80 p-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
@@ -754,6 +901,7 @@ export function ProblemSandboxClient({
                 : 'Hãy nhập đáp án ở trên để kiểm tra hoặc bấm "Xem Lời giải & Đáp án giải theo Đề hiện tại" để mở khóa phân tích số liệu.'}
             </div>
           </div>
+          )}
         </div>
 
         {/* ================================================================ */}
@@ -761,7 +909,8 @@ export function ProblemSandboxClient({
         {/* ================================================================ */}
         <div className="space-y-5 lg:col-span-7">
           {/* 1. DEDICATED PROBLEM COMPARATIVE GRAPH (ORIGINAL VS WHAT-IF) */}
-          <div className="edu-card space-y-4 border-2 border-teal-200/80 p-5">
+          {!sandboxState.isConceptual && (
+            <div className="edu-card space-y-4 border-2 border-teal-200/80 p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
@@ -935,9 +1084,14 @@ export function ProblemSandboxClient({
               </div>
             )}
           </div>
+          )}
 
           {/* 2. Synchronized Interactive Physics Lab */}
-          <InteractivePhysicsLab simulation={syncedSimulation} hideGraphEngine={true} />
+          <InteractivePhysicsLab
+            simulation={syncedSimulation}
+            hideGraphEngine={true}
+            onParamChange={handleSimParamChange}
+          />
 
           {/* 3. Topic Formulas Reference Card */}
           {topicFormulas.length > 0 && (

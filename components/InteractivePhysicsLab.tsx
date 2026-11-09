@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SimulationItem } from '@/types/cms';
 import {
   Sliders,
@@ -22,12 +22,52 @@ import {
 } from 'lucide-react';
 import { PhysicsGraphEngine } from './PhysicsGraphEngine';
 
+export function getSliderRange(
+  params: Record<string, any> | undefined,
+  paramKeys: string[],
+  fallbackMin: number,
+  fallbackMax: number,
+  fallbackStep: number,
+  currentVal?: number
+): { min: number; max: number; step: number } {
+  const bounds = params?._bounds as Record<string, { min: number; max: number; step: number }> | undefined;
+  if (bounds) {
+    for (const key of paramKeys) {
+      if (bounds[key]) {
+        const b = bounds[key];
+        const val = currentVal !== undefined && Number.isFinite(currentVal) ? currentVal : b.min;
+        return {
+          min: Math.min(b.min, val),
+          max: Math.max(b.max, val),
+          step: b.step,
+        };
+      }
+    }
+  }
+  const val = currentVal !== undefined && Number.isFinite(currentVal) ? currentVal : fallbackMin;
+  const min = Math.min(fallbackMin, val);
+  const max = Math.max(fallbackMax, val);
+  return { min, max, step: fallbackStep };
+}
+
+export function useSyncState<T>(propVal: T | undefined, fallback: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [val, setVal] = useState<T>(propVal !== undefined && propVal !== null ? propVal : fallback);
+  useEffect(() => {
+    if (propVal !== undefined && propVal !== null) {
+      setVal(propVal);
+    }
+  }, [propVal]);
+  return [val, setVal];
+}
+
 export function InteractivePhysicsLab({
   simulation,
   hideGraphEngine = false,
+  onParamChange,
 }: {
   simulation: SimulationItem;
   hideGraphEngine?: boolean;
+  onParamChange?: (paramKey: string, value: number) => void;
 }) {
   const { sim_key, title, description, guide_steps, physics_insight, parameters } = simulation;
   const [labMode, setLabMode] = useState<'dual' | 'sim' | 'graph'>(
@@ -89,10 +129,10 @@ export function InteractivePhysicsLab({
         {/* Interactive Canvas Area by sim_key */}
         {(labMode === 'sim' || labMode === 'dual' || hideGraphEngine) && (
           <div
-            key={`${sim_key}-${JSON.stringify(parameters)}`}
+            key={sim_key}
             className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-lift"
           >
-            {renderSimByKey(sim_key, parameters)}
+            {renderSimByKey(sim_key, parameters, onParamChange)}
           </div>
         )}
 
@@ -135,7 +175,11 @@ export function InteractivePhysicsLab({
   );
 }
 
-function renderSimByKey(simKey: string, params: Record<string, any> = {}) {
+function renderSimByKey(
+  simKey: string,
+  params: Record<string, any> = {},
+  onParamChange?: (key: string, value: number) => void
+) {
   switch (simKey) {
     // Existing Grade 6 & 7 simulations (synchronized with What-If params)
     case 'length_volume_lab':
@@ -143,12 +187,12 @@ function renderSimByKey(simKey: string, params: Record<string, any> = {}) {
     case 'mass_time_lab':
       return <MassTimeSim params={params} />;
     case 'temperature_scales_lab':
-      return <TemperatureScalesSim params={params} />;
+      return <TemperatureScalesSim params={params} onParamChange={onParamChange} />;
     case 'force_effects_lab':
     case 'force_vector_lab':
       return <ForceVectorAndEffectsSim params={params} />;
     case 'gravity_weight_lab':
-      return <GravityWeightSim params={params} />;
+      return <GravityWeightSim params={params} onParamChange={onParamChange} />;
     case 'contact_noncontact_lab':
       return <MagnetNonContactSim params={params} />;
     case 'spring_hooke_lab':
@@ -210,7 +254,7 @@ function renderSimByKey(simKey: string, params: Record<string, any> = {}) {
     case 'g11_circuit_emf_resistor_lab':
     case 'g11_sensor_power_transfer_lab':
     case 'g12_ac_generator_power_lab':
-      return <CircuitLabSim simKey={simKey} params={params} />;
+      return <CircuitLabSim simKey={simKey} params={params} onParamChange={onParamChange} />;
 
     // --- Domain Engine 4: Thermal Energy & Calorimetry (Grades 8, 12) ---
     case 'thermal_calorimetry_lab':
@@ -222,7 +266,7 @@ function renderSimByKey(simKey: string, params: Record<string, any> = {}) {
     case 'g12_molecular_states_lab':
     case 'g12_thermodynamics_first_law_lab':
     case 'g12_calorimetry_phase_change_lab':
-      return <ThermalCalorimetrySim simKey={simKey} params={params} />;
+      return <ThermalCalorimetrySim simKey={simKey} params={params} onParamChange={onParamChange} />;
 
     // --- Domain Engine 5: Geometric Optics & Lenses (Grade 9) ---
     case 'optics_ray_lens_lab':
@@ -266,7 +310,7 @@ function renderSimByKey(simKey: string, params: Record<string, any> = {}) {
     case 'g9_work_force_displacement_lab':
     case 'g9_power_speed_lab':
     case 'g9_rollercoaster_energy_lab':
-      return <NewtonDynamicsSim simKey={simKey} params={params} />;
+      return <NewtonDynamicsSim simKey={simKey} params={params} onParamChange={onParamChange} />;
 
     // --- Domain Engine 8: Oscillations & Waves (Grade 11) ---
     case 'oscillations_waves_lab':
@@ -309,7 +353,7 @@ function renderSimByKey(simKey: string, params: Record<string, any> = {}) {
     case 'g12_nuclear_binding_curve_lab':
     case 'g12_nuclear_reaction_lab':
     case 'g12_radioactive_decay_fission_lab':
-      return <NuclearDecaySim simKey={simKey} params={params} />;
+      return <NuclearDecaySim simKey={simKey} params={params} onParamChange={onParamChange} />;
 
     default:
       return <SpringHookeSim params={params} />;
@@ -480,11 +524,18 @@ function MassTimeSim({ params = {} }: { params?: Record<string, any> }) {
 }
 
 /* --- 3. Temperature Scales (°C - K - °F) --- */
-function TemperatureScalesSim({ params = {} }: { params?: Record<string, any> }) {
-  const [tempC, setTempC] = useState(
-    Number(params.tempC ?? params.celsius ?? params.stripTemp ?? params.t1 ?? 37)
+function TemperatureScalesSim({
+  params = {},
+  onParamChange,
+}: {
+  params?: Record<string, any>;
+  onParamChange?: (key: string, value: number) => void;
+}) {
+  const [tempC, setTempC] = useSyncState<number>(
+    Number(params.tempC ?? params.celsius ?? params.stripTemp ?? params.t1 ?? 37),
+    37
   );
-  const tempK = Number((tempC + 273).toFixed(1));
+  const tempK = Number((tempC + 273.15).toFixed(1));
   const tempF = Number((1.8 * tempC + 32).toFixed(1));
 
   const presets = [
@@ -495,7 +546,16 @@ function TemperatureScalesSim({ params = {} }: { params?: Record<string, any> })
     { label: 'Nước sôi (100°C)', val: 100 },
   ];
 
-  const fillPct = Math.min(100, Math.max(5, ((tempC + 40) / 160) * 100));
+  const tempRange = getSliderRange(
+    params,
+    ['celsius', 'kelvinInput', 'tempC', 'stripTemp', 'temperature', 'T', 't1', 'param1', 'param2'],
+    -40,
+    120,
+    1,
+    tempC
+  );
+
+  const fillPct = Math.min(100, Math.max(5, ((tempC - tempRange.min) / (tempRange.max - tempRange.min || 1)) * 100));
 
   return (
     <div className="space-y-4">
@@ -508,7 +568,10 @@ function TemperatureScalesSim({ params = {} }: { params?: Record<string, any> })
             <button
               key={p.val}
               type="button"
-              onClick={() => setTempC(p.val)}
+              onClick={() => {
+                setTempC(p.val);
+                onParamChange?.('celsius', p.val);
+              }}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
                 tempC === p.val ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
@@ -521,11 +584,15 @@ function TemperatureScalesSim({ params = {} }: { params?: Record<string, any> })
 
       <input
         type="range"
-        min={Math.min(-40, tempC)}
-        max={Math.max(120, tempC)}
-        step={1}
+        min={tempRange.min}
+        max={tempRange.max}
+        step={tempRange.step}
         value={tempC}
-        onChange={(e) => setTempC(Number(e.target.value))}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          setTempC(v);
+          onParamChange?.('celsius', v);
+        }}
         className="w-full accent-amber-400"
       />
 
@@ -641,8 +708,14 @@ function ForceVectorAndEffectsSim({ params = {} }: { params?: Record<string, any
 }
 
 /* --- 5. Gravity & Weight (Earth / Moon / Mars) --- */
-function GravityWeightSim({ params = {} }: { params?: Record<string, any> }) {
-  const [massKg, setMassKg] = useState(Number(params.massKg ?? params.mass ?? 15));
+function GravityWeightSim({
+  params = {},
+  onParamChange,
+}: {
+  params?: Record<string, any>;
+  onParamChange?: (key: string, value: number) => void;
+}) {
+  const [massKg, setMassKg] = useSyncState<number>(Number(params.massKg ?? params.mass ?? 15), 15);
   const [planet, setPlanet] = useState<'earth' | 'moon' | 'mars'>('earth');
 
   const planetData = {
@@ -652,6 +725,7 @@ function GravityWeightSim({ params = {} }: { params?: Record<string, any> }) {
   }[planet];
 
   const weightN = Number((massKg * planetData.g).toFixed(1));
+  const mRange = getSliderRange(params, ['mass', 'massKg', 'm1', 'm2', 'param1', 'param2'], 1, 60, 1, massKg);
 
   return (
     <div className="space-y-4">
@@ -661,7 +735,19 @@ function GravityWeightSim({ params = {} }: { params?: Record<string, any> }) {
             <span>Khối lượng của vật (m):</span>
             <strong className="text-cyan-300">{massKg} kg ({massKg * 1000} g)</strong>
           </label>
-          <input type="range" min={Math.min(1, massKg)} max={Math.max(60, massKg)} value={massKg} onChange={(e) => setMassKg(Number(e.target.value))} className="w-full accent-cyan-400 mt-1" />
+          <input
+            type="range"
+            min={mRange.min}
+            max={mRange.max}
+            step={mRange.step}
+            value={massKg}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setMassKg(v);
+              onParamChange?.('mass', v);
+            }}
+            className="w-full accent-cyan-400 mt-1"
+          />
         </div>
         <div className="flex gap-2 items-end">
           {(['earth', 'moon', 'mars'] as const).map((key) => (
@@ -2169,7 +2255,15 @@ function RotationalLeverSim({ simKey, params = {} }: { simKey: string; params?: 
              g11_drift_velocity_lab, g11_circuit_emf_resistor_lab, g11_sensor_power_transfer_lab,
              g12_ac_generator_power_lab
    ========================================================================= */
-function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Record<string, any> }) {
+function CircuitLabSim({
+  simKey,
+  params = {},
+  onParamChange,
+}: {
+  simKey: string;
+  params?: Record<string, any>;
+  onParamChange?: (key: string, value: number) => void;
+}) {
   const initialMode = params.mode || (
     simKey.includes('transformer') ? 'transformer' :
     simKey.includes('joule') || simKey.includes('heating') ? 'joule_power' :
@@ -2181,12 +2275,12 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
   const [switchClosed, setSwitchClosed] = useState<boolean>(true);
 
   // Electrical parameters
-  const [voltage, setVoltage] = useState<number>(params.voltage ?? 12); // V or EMF
-  const [internalR, setInternalR] = useState<number>(params.internalR ?? 1.5); // ohm
-  const [r1, setR1] = useState<number>(params.r1 ?? params.resistance ?? 10); // ohm
-  const [r2, setR2] = useState<number>(params.r2 ?? 15); // ohm
-  const [n1, setN1] = useState<number>(params.n1 ?? 200); // primary turns
-  const [n2, setN2] = useState<number>(params.n2 ?? 800); // secondary turns
+  const [voltage, setVoltage] = useSyncState<number>(params.voltage, 12); // V or EMF
+  const [internalR, setInternalR] = useSyncState<number>(params.internalR, 1.5); // ohm
+  const [r1, setR1] = useSyncState<number>(params.r1 ?? params.resistance, 10); // ohm
+  const [r2, setR2] = useSyncState<number>(params.r2, 15); // ohm
+  const [n1, setN1] = useSyncState<number>(params.n1, 200); // primary turns
+  const [n2, setN2] = useSyncState<number>(params.n2, 800); // secondary turns
 
   // Physics calculations
   let req = 0;
@@ -2304,15 +2398,24 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
               <span>{mode === 'emf_internal' ? 'Suất điện động (ℰ):' : 'Hiệu điện thế nguồn (U):'}</span>
               <span className="font-semibold text-cyan-400">{voltage} V</span>
             </div>
-            <input
-              type="range"
-              min={Math.min(1, voltage)}
-              max={Math.max(48, voltage)}
-              step="1"
-              value={voltage}
-              onChange={(e) => setVoltage(Number(e.target.value))}
-              className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-            />
+            {(() => {
+              const r = getSliderRange(params, ['voltage', 'U', 'u', 'volt', 'param1', 'param2'], 1, 48, 1, voltage);
+              return (
+                <input
+                  type="range"
+                  min={r.min}
+                  max={r.max}
+                  step={r.step}
+                  value={voltage}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setVoltage(v);
+                    onParamChange?.('voltage', v);
+                  }}
+                  className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                />
+              );
+            })()}
           </div>
 
           {mode === 'emf_internal' && (
@@ -2321,15 +2424,24 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
                 <span>Điện trở trong nguồn (r):</span>
                 <span className="font-semibold text-rose-400">{internalR} Ω</span>
               </div>
-              <input
-                type="range"
-                min={Math.min(0.1, internalR)}
-                max={Math.max(10.0, internalR)}
-                step="0.2"
-                value={internalR}
-                onChange={(e) => setInternalR(Number(e.target.value))}
-                className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-              />
+              {(() => {
+                const r = getSliderRange(params, ['internalR', 'r', 'param2'], 0.1, 10.0, 0.2, internalR);
+                return (
+                  <input
+                    type="range"
+                    min={r.min}
+                    max={r.max}
+                    step={r.step}
+                    value={internalR}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setInternalR(v);
+                      onParamChange?.('internalR', v);
+                    }}
+                    className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                );
+              })()}
             </div>
           )}
 
@@ -2338,15 +2450,24 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
               <span>{mode === 'emf_internal' ? 'Điện trở tải ngoài (R_N):' : 'Điện trở R₁:'}</span>
               <span className="font-semibold text-amber-400">{r1} Ω</span>
             </div>
-            <input
-              type="range"
-              min={Math.min(0.5, r1)}
-              max={Math.max(60, r1)}
-              step={r1 < 5 ? 0.5 : 1}
-              value={r1}
-              onChange={(e) => setR1(Number(e.target.value))}
-              className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-            />
+            {(() => {
+              const r = getSliderRange(params, ['r1', 'resistance', 'R', 'param1', 'param2'], 0.5, 60, 1, r1);
+              return (
+                <input
+                  type="range"
+                  min={r.min}
+                  max={r.max}
+                  step={r.step}
+                  value={r1}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setR1(v);
+                    onParamChange?.('resistance', v);
+                  }}
+                  className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                />
+              );
+            })()}
           </div>
 
           {mode !== 'emf_internal' && mode !== 'transformer' && (
@@ -2355,15 +2476,24 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
                 <span>Điện trở R₂:</span>
                 <span className="font-semibold text-amber-400">{r2} Ω</span>
               </div>
-              <input
-                type="range"
-                min={Math.min(0.5, r2)}
-                max={Math.max(60, r2)}
-                step={r2 < 5 ? 0.5 : 1}
-                value={r2}
-                onChange={(e) => setR2(Number(e.target.value))}
-                className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-              />
+              {(() => {
+                const r = getSliderRange(params, ['r2', 'param2', 'param1'], 0.5, 60, 1, r2);
+                return (
+                  <input
+                    type="range"
+                    min={r.min}
+                    max={r.max}
+                    step={r.step}
+                    value={r2}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setR2(v);
+                      onParamChange?.('r2', v);
+                    }}
+                    className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                );
+              })()}
             </div>
           )}
 
@@ -2607,7 +2737,15 @@ function CircuitLabSim({ simKey, params = {} }: { simKey: string; params?: Recor
              g8_thermal_motion_lab, g8_heat_transfer_modes_lab, g8_bimetallic_expansion_lab,
              g12_molecular_states_lab, g12_thermodynamics_first_law_lab, g12_calorimetry_phase_change_lab
    ========================================================================= */
-function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params?: Record<string, any> }) {
+function ThermalCalorimetrySim({
+  simKey,
+  params = {},
+  onParamChange,
+}: {
+  simKey: string;
+  params?: Record<string, any>;
+  onParamChange?: (key: string, value: number) => void;
+}) {
   const initialMode = params.mode || (
     simKey.includes('bimetallic') ? 'bimetallic' :
     simKey.includes('first_law') || simKey.includes('thermodynamics') ? 'first_law' :
@@ -2617,7 +2755,7 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
   const [mode, setMode] = useState<'calorimetry' | 'phase_change' | 'first_law' | 'bimetallic'>(initialMode);
 
   // Calorimetry
-  const [metalKey, setMetalKey] = useState<string>(params.metal || 'copper');
+  const [metalKey, setMetalKey] = useSyncState<string>(params.metal, 'copper');
   const metals: Record<string, { name: string; c: number; color: string }> = {
     copper: { name: 'Đồng đỏ (c = 380 J/kg·K)', c: 380, color: '#f59e0b' },
     aluminum: { name: 'Nhôm (c = 880 J/kg·K)', c: 880, color: '#cbd5e1' },
@@ -2625,18 +2763,18 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
     lead: { name: 'Chì (c = 130 J/kg·K)', c: 130, color: '#64748b' },
   };
   const metal = metals[metalKey] || metals.copper;
-  const [m1, setM1] = useState<number>(params.m1 ?? 0.3); // kg metal
-  const [t1, setT1] = useState<number>(params.t1 ?? 90); // deg C
-  const [m2, setM2] = useState<number>(params.m2 ?? params.mass ?? 0.5); // kg water
-  const [t2, setT2] = useState<number>(params.t2 ?? 20); // deg C
+  const [m1, setM1] = useSyncState<number>(params.m1, 0.3); // kg metal
+  const [t1, setT1] = useSyncState<number>(params.t1, 90); // deg C
+  const [m2, setM2] = useSyncState<number>(params.m2 ?? params.mass, 0.5); // kg water
+  const [t2, setT2] = useSyncState<number>(params.t2, 20); // deg C
   const cWater = 4200;
 
   // 1st Law: Delta U = A + Q
-  const [workA, setWorkA] = useState<number>(params.workA ?? 100); // J
-  const [heatQ, setHeatQ] = useState<number>(params.heatQ ?? 250); // J
+  const [workA, setWorkA] = useSyncState<number>(params.workA, 100); // J
+  const [heatQ, setHeatQ] = useSyncState<number>(params.heatQ, 250); // J
 
   // Bimetallic strip
-  const [stripTemp, setStripTemp] = useState<number>(params.stripTemp ?? params.tempC ?? 75); // deg C
+  const [stripTemp, setStripTemp] = useSyncState<number>(params.stripTemp ?? params.tempC ?? params.celsius, 75); // deg C
 
   // Physics calculations
   // Equilibrium temperature: T_cb = (m1*c1*t1 + m2*c2*t2) / (m1*c1 + m2*c2)
@@ -2710,15 +2848,24 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                   <span>Khối lượng kim loại (m₁):</span>
                   <span className="font-semibold text-amber-400">{m1.toFixed(2)} kg</span>
                 </div>
-                <input
-                  type="range"
-                  min={Math.min(0.05, m1)}
-                  max={Math.max(5.0, m1)}
-                  step="0.05"
-                  value={m1}
-                  onChange={(e) => setM1(Number(e.target.value))}
-                  className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                />
+                {(() => {
+                  const r = getSliderRange(params, ['m1', 'mass', 'param1', 'param2'], 0.05, 5.0, 0.05, m1);
+                  return (
+                    <input
+                      type="range"
+                      min={r.min}
+                      max={r.max}
+                      step={r.step}
+                      value={m1}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setM1(v);
+                        onParamChange?.('m1', v);
+                      }}
+                      className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  );
+                })()}
               </div>
 
               <div>
@@ -2726,15 +2873,24 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                   <span>Nhiệt độ kim loại / Nhiệt độ cao (t₁):</span>
                   <span className="font-semibold text-rose-400">{t1} °C</span>
                 </div>
-                <input
-                  type="range"
-                  min={Math.min(10, t1)}
-                  max={Math.max(150, t1)}
-                  step="1"
-                  value={t1}
-                  onChange={(e) => setT1(Number(e.target.value))}
-                  className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                />
+                {(() => {
+                  const r = getSliderRange(params, ['t1', 'tempC', 'celsius', 'stripTemp', 'param1', 'param2'], 10, 150, 1, t1);
+                  return (
+                    <input
+                      type="range"
+                      min={r.min}
+                      max={r.max}
+                      step={r.step}
+                      value={t1}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setT1(v);
+                        onParamChange?.('t1', v);
+                      }}
+                      className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  );
+                })()}
               </div>
 
               <div>
@@ -2742,15 +2898,24 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                   <span>Khối lượng nước trong bình (m₂):</span>
                   <span className="font-semibold text-cyan-400">{m2.toFixed(2)} kg</span>
                 </div>
-                <input
-                  type="range"
-                  min={Math.min(0.1, m2)}
-                  max={Math.max(10.0, m2)}
-                  step="0.1"
-                  value={m2}
-                  onChange={(e) => setM2(Number(e.target.value))}
-                  className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                />
+                {(() => {
+                  const r = getSliderRange(params, ['m2', 'mass', 'param2', 'param1'], 0.1, 10.0, 0.1, m2);
+                  return (
+                    <input
+                      type="range"
+                      min={r.min}
+                      max={r.max}
+                      step={r.step}
+                      value={m2}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setM2(v);
+                        onParamChange?.('m2', v);
+                      }}
+                      className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  );
+                })()}
               </div>
 
               <div>
@@ -2758,15 +2923,24 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                   <span>Nhiệt độ nước ban đầu (t₂):</span>
                   <span className="font-semibold text-cyan-400">{t2} °C</span>
                 </div>
-                <input
-                  type="range"
-                  min={Math.min(0, t2)}
-                  max={Math.max(80, t2)}
-                  step="1"
-                  value={t2}
-                  onChange={(e) => setT2(Number(e.target.value))}
-                  className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                />
+                {(() => {
+                  const r = getSliderRange(params, ['t2', 'param2', 'param1'], 0, 80, 1, t2);
+                  return (
+                    <input
+                      type="range"
+                      min={r.min}
+                      max={r.max}
+                      step={r.step}
+                      value={t2}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setT2(v);
+                        onParamChange?.('t2', v);
+                      }}
+                      className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  );
+                })()}
               </div>
             </>
           )}
@@ -2778,15 +2952,24 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                   <span>Công thực hiện lên hệ (A):</span>
                   <span className="font-semibold text-cyan-400">{workA} J</span>
                 </div>
-                <input
-                  type="range"
-                  min={Math.min(-600, workA)}
-                  max={Math.max(600, workA)}
-                  step="10"
-                  value={workA}
-                  onChange={(e) => setWorkA(Number(e.target.value))}
-                  className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                />
+                {(() => {
+                  const r = getSliderRange(params, ['workMag', 'workA', 'inputJ', 'param1', 'param2'], -600, 600, 10, workA);
+                  return (
+                    <input
+                      type="range"
+                      min={r.min}
+                      max={r.max}
+                      step={r.step}
+                      value={workA}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setWorkA(v);
+                        onParamChange?.('workMag', v);
+                      }}
+                      className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  );
+                })()}
               </div>
 
               <div>
@@ -2794,15 +2977,24 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                   <span>Nhiệt lượng truyền cho hệ (Q):</span>
                   <span className="font-semibold text-rose-400">{heatQ} J</span>
                 </div>
-                <input
-                  type="range"
-                  min={Math.min(-600, heatQ)}
-                  max={Math.max(1000, heatQ)}
-                  step="10"
-                  value={heatQ}
-                  onChange={(e) => setHeatQ(Number(e.target.value))}
-                  className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                />
+                {(() => {
+                  const r = getSliderRange(params, ['heatMag', 'heatQ', 'inputJ', 'param1', 'param2'], -600, 1000, 10, heatQ);
+                  return (
+                    <input
+                      type="range"
+                      min={r.min}
+                      max={r.max}
+                      step={r.step}
+                      value={heatQ}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setHeatQ(v);
+                        onParamChange?.('heatMag', v);
+                      }}
+                      className="w-full accent-rose-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  );
+                })()}
               </div>
             </>
           )}
@@ -2813,15 +3005,24 @@ function ThermalCalorimetrySim({ simKey, params = {} }: { simKey: string; params
                 <span>Nhiệt độ môi trường băng kép (t):</span>
                 <span className="font-semibold text-amber-400">{stripTemp} °C</span>
               </div>
-              <input
-                type="range"
-                min={Math.min(-50, stripTemp)}
-                max={Math.max(200, stripTemp)}
-                step="5"
-                value={stripTemp}
-                onChange={(e) => setStripTemp(Number(e.target.value))}
-                className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-              />
+              {(() => {
+                const r = getSliderRange(params, ['stripTemp', 'tempC', 'celsius', 'kelvinInput', 'temperature', 'T', 't1', 'param1', 'param2'], -50, 200, 5, stripTemp);
+                return (
+                  <input
+                    type="range"
+                    min={r.min}
+                    max={r.max}
+                    step={r.step}
+                    value={stripTemp}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setStripTemp(v);
+                      onParamChange?.('stripTemp', v);
+                    }}
+                    className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                );
+              })()}
             </div>
           )}
 
@@ -3969,7 +4170,15 @@ function KinematicsMotionSim({ simKey, params = {} }: { simKey: string; params?:
              g10_centripetal_banked_lab, g10_hookes_law_lab,
              g9_work_force_displacement_lab, g9_power_speed_lab, g9_rollercoaster_energy_lab
    ========================================================================= */
-function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: Record<string, any> }) {
+function NewtonDynamicsSim({
+  simKey,
+  params = {},
+  onParamChange,
+}: {
+  simKey: string;
+  params?: Record<string, any>;
+  onParamChange?: (key: string, value: number) => void;
+}) {
   const initialMode = params.mode || (
     simKey.includes('collision') || simKey.includes('momentum') || simKey.includes('impulse') || simKey.includes('rocket') ? 'collision' :
     simKey.includes('circular') || simKey.includes('centripetal') ? 'circular' :
@@ -3979,16 +4188,16 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
   const [mode, setMode] = useState<'incline' | 'collision' | 'energy' | 'circular'>(initialMode);
 
   // Incline parameters
-  const [angleDeg, setAngleDeg] = useState<number>(params.angle ?? 30);
-  const [mass, setMass] = useState<number>(params.mass ?? 4); // kg
-  const [mu, setMu] = useState<number>(params.mu ?? 0.2); // friction
-  const [pullForce, setPullForce] = useState<number>(params.pull ?? params.force ?? 35); // N
+  const [angleDeg, setAngleDeg] = useSyncState<number>(params.angle, 30);
+  const [mass, setMass] = useSyncState<number>(params.mass, 4); // kg
+  const [mu, setMu] = useSyncState<number>(params.mu, 0.2); // friction
+  const [pullForce, setPullForce] = useSyncState<number>(params.pull ?? params.force, 35); // N
 
   // Collision parameters
-  const [m1, setM1] = useState<number>(params.m1 ?? 3);
-  const [v1, setV1] = useState<number>(params.v1 ?? 4);
-  const [m2, setM2] = useState<number>(params.m2 ?? 2);
-  const [v2, setV2] = useState<number>(params.v2 ?? -2);
+  const [m1, setM1] = useSyncState<number>(params.m1, 3);
+  const [v1, setV1] = useSyncState<number>(params.v1, 4);
+  const [m2, setM2] = useSyncState<number>(params.m2, 2);
+  const [v2, setV2] = useSyncState<number>(params.v2, -2);
   const [isElastic, setIsElastic] = useState<boolean>(true);
 
   // Circular motion parameters
@@ -4088,15 +4297,24 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                   <span>Khối lượng vật (m):</span>
                   <span className="font-semibold text-amber-400">{mass} kg</span>
                 </div>
-                <input
-                  type="range"
-                  min={Math.min(0.2, mass)}
-                  max={Math.max(20, mass)}
-                  step="0.5"
-                  value={mass}
-                  onChange={(e) => setMass(Number(e.target.value))}
-                  className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                />
+                {(() => {
+                  const r = getSliderRange(params, ['mass', 'massKg', 'm1', 'm2', 'param1', 'param2'], 0.2, 20, 0.5, mass);
+                  return (
+                    <input
+                      type="range"
+                      min={r.min}
+                      max={r.max}
+                      step={r.step}
+                      value={mass}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setMass(v);
+                        onParamChange?.('mass', v);
+                      }}
+                      className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  );
+                })()}
               </div>
 
               <div>
@@ -4120,15 +4338,24 @@ function NewtonDynamicsSim({ simKey, params = {} }: { simKey: string; params?: R
                   <span>Lực kéo song song mặt dốc (F_kéo):</span>
                   <span className="font-semibold text-emerald-400">{pullForce} N</span>
                 </div>
-                <input
-                  type="range"
-                  min={Math.min(0, pullForce)}
-                  max={Math.max(150, pullForce)}
-                  step={pullForce < 15 ? 1 : 5}
-                  value={pullForce}
-                  onChange={(e) => setPullForce(Number(e.target.value))}
-                  className="w-full accent-emerald-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                />
+                {(() => {
+                  const r = getSliderRange(params, ['force', 'pull', 'f1', 'f2', 'pullForce', 'forceN', 'param1', 'param2'], 0, 150, 1, pullForce);
+                  return (
+                    <input
+                      type="range"
+                      min={r.min}
+                      max={r.max}
+                      step={r.step}
+                      value={pullForce}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setPullForce(v);
+                        onParamChange?.('force', v);
+                      }}
+                      className="w-full accent-emerald-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                  );
+                })()}
               </div>
             </>
           )}
@@ -5480,7 +5707,15 @@ function IdealGasLawsSim({ simKey, params = {} }: { simKey: string; params?: Rec
              g12_nuclear_binding_curve_lab, g12_nuclear_reaction_lab,
              g12_radioactive_decay_fission_lab
    ========================================================================= */
-function NuclearDecaySim({ simKey, params = {} }: { simKey: string; params?: Record<string, any> }) {
+function NuclearDecaySim({
+  simKey,
+  params = {},
+  onParamChange,
+}: {
+  simKey: string;
+  params?: Record<string, any>;
+  onParamChange?: (key: string, value: number) => void;
+}) {
   const initialMode = params.mode || (
     simKey.includes('binding_curve') ? 'binding_curve' :
     simKey.includes('reaction') || simKey.includes('fission') ? 'nuclear_reaction' :
@@ -5500,8 +5735,8 @@ function NuclearDecaySim({ simKey, params = {} }: { simKey: string; params?: Rec
   const isotope = isotopes[isotopeKey] || isotopes.I131;
 
   // Time in units of half-lives: t / T
-  const [timeT, setTimeT] = useState<number>(params.t ?? 1.0); // 0.0 to 5.0
-  const [n0, setN0] = useState<number>(params.initialCount ?? params.n0 ?? 1000);
+  const [timeT, setTimeT] = useSyncState<number>(params.t, 1.0); // 0.0 to 5.0
+  const [n0, setN0] = useSyncState<number>(params.initialCount ?? params.n0, 1000);
 
   // Physics calculations
   // Radioactive decay law: N(t) = N0 * 2^(-t/T)
@@ -5562,15 +5797,24 @@ function NuclearDecaySim({ simKey, params = {} }: { simKey: string; params?: Rec
               <span>Lượng phóng xạ ban đầu (N₀ / m₀):</span>
               <span className="font-semibold text-amber-400">{n0} (hạt / g)</span>
             </div>
-            <input
-              type="range"
-              min={Math.min(10, n0)}
-              max={Math.max(5000, n0)}
-              step={n0 < 200 ? 5 : 50}
-              value={n0}
-              onChange={(e) => setN0(Number(e.target.value))}
-              className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-            />
+            {(() => {
+              const r = getSliderRange(params, ['initialCount', 'n0', 'm0', 'initialMass', 'param1', 'param2'], 10, 5000, 50, n0);
+              return (
+                <input
+                  type="range"
+                  min={r.min}
+                  max={r.max}
+                  step={r.step}
+                  value={n0}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setN0(v);
+                    onParamChange?.('initialCount', v);
+                  }}
+                  className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                />
+              );
+            })()}
           </div>
 
           <div>
@@ -5578,15 +5822,24 @@ function NuclearDecaySim({ simKey, params = {} }: { simKey: string; params?: Rec
               <span>Thời gian trôi qua theo chu kỳ bán rã (t / T):</span>
               <span className="font-semibold text-cyan-400">{timeT.toFixed(2)} chu kỳ T</span>
             </div>
-            <input
-              type="range"
-              min={Math.min(0.0, timeT)}
-              max={Math.max(6.0, timeT)}
-              step="0.1"
-              value={timeT}
-              onChange={(e) => setTimeT(Number(e.target.value))}
-              className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-            />
+            {(() => {
+              const r = getSliderRange(params, ['t', 'elapsedTime', 'timeSec', 'param2', 'param1'], 0.0, 6.0, 0.1, timeT);
+              return (
+                <input
+                  type="range"
+                  min={r.min}
+                  max={r.max}
+                  step={r.step}
+                  value={timeT}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setTimeT(v);
+                    onParamChange?.('t', v);
+                  }}
+                  className="w-full accent-cyan-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                />
+              );
+            })()}
           </div>
 
           {/* Real-time Nuclear Metrics */}

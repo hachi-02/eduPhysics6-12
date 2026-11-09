@@ -76,6 +76,7 @@ export interface ProblemSandboxExtractionResult {
   liveMetrics: LiveSandboxMetric[];
   verificationInsight: string;
   problemGraph: ProblemSandboxGraphSpec;
+  isConceptual?: boolean;
 }
 
 export type SandboxDomainType =
@@ -469,6 +470,201 @@ function mapUnitValueToSimParams(
   }
 }
 
+export const SIM_TO_WHATIF_KEY_ALIASES: Record<string, string[]> = {
+  // Mass
+  mass: ['mass', 'initialMass', 'm1', 'm2', 'massKg', 'param1', 'param2', 'initialCount'],
+  massKg: ['mass', 'initialMass', 'm1', 'm2', 'massKg', 'param1', 'param2'],
+  massG: ['mass', 'initialMass', 'm1', 'm2', 'massG', 'param1', 'param2', 'initialCount'],
+  m1: ['m1', 'mass', 'param1', 'param2'],
+  m2: ['m2', 'mass', 'param2', 'param1'],
+  initialMass: ['initialMass', 'initialCount', 'mass', 'param1'],
+  initialCount: ['initialCount', 'initialMass', 'mass', 'n0', 'param1'],
+  n0: ['n0', 'initialCount', 'initialMass', 'mass', 'param1'],
+
+  // Voltage
+  voltage: ['voltage', 'U', 'u', 'volt', 'param1', 'param2'],
+  U: ['voltage', 'U', 'u', 'param1', 'param2'],
+  u: ['voltage', 'U', 'u', 'param1', 'param2'],
+
+  // Resistance
+  resistance: ['resistance', 'r1', 'r2', 'R', 'param1', 'param2'],
+  r1: ['r1', 'resistance', 'R', 'param1', 'param2'],
+  r2: ['r2', 'resistance', 'param2', 'param1'],
+  R: ['resistance', 'r1', 'r2', 'param1', 'param2'],
+  internalR: ['internalR', 'r', 'param2', 'param1'],
+
+  // Force
+  force: ['force', 'pull', 'f1', 'f2', 'pullForce', 'forceN', 'param1', 'param2'],
+  pull: ['pull', 'force', 'pullForce', 'param1', 'param2'],
+  pullForce: ['pullForce', 'force', 'pull', 'param1', 'param2'],
+  forceN: ['forceN', 'force', 'pull', 'param1', 'param2'],
+  f1: ['f1', 'force', 'pull', 'param1', 'param2'],
+  f2: ['f2', 'force', 'friction', 'param2', 'param1'],
+
+  // Temperature
+  tempC: ['celsius', 'kelvinInput', 'stripTemp', 'tempC', 'temperature', 't1', 't2', 'param1', 'param2'],
+  stripTemp: ['celsius', 'kelvinInput', 'tempC', 'stripTemp', 'temperature', 't1', 'param1', 'param2'],
+  temperature: ['kelvinInput', 'celsius', 'tempC', 'temperature', 'T', 'stripTemp', 'param1', 'param2'],
+  celsius: ['celsius', 'kelvinInput', 'tempC', 'temperature', 'stripTemp', 'param1', 'param2'],
+  kelvinInput: ['kelvinInput', 'celsius', 'temperature', 'tempC', 'T', 'stripTemp', 'param1', 'param2'],
+  t1: ['t1', 'celsius', 'tempC', 'stripTemp', 'param1', 'param2'],
+  t2: ['t2', 'celsius', 'tempC', 'param2', 'param1'],
+  T: ['kelvinInput', 'celsius', 'temperature', 'param1', 'param2'],
+
+  // Radioactive
+  halfLife: ['halfLife', 'T', 'tHalf', 'param1', 'param2'],
+  targetRatio: ['targetRatio', 'ratio', 'param1', 'param2'],
+  elapsedTime: ['elapsedTime', 't', 'timeSec', 'param1', 'param2'],
+  t: ['elapsedTime', 't', 'timeSec', 'param1', 'param2'],
+
+  // Motion / Velocity
+  v0: ['v0', 'speed', 'v', 'v0_1d', 'v1', 'v2', 'param1', 'param2'],
+  speed: ['v0', 'speed', 'v', 'param1', 'param2'],
+  v: ['v0', 'speed', 'v', 'param1', 'param2'],
+  accel: ['accel', 'acceleration', 'a', 'param1', 'param2'],
+  acceleration: ['accel', 'acceleration', 'a', 'param1', 'param2'],
+
+  // Optics / Dimensions
+  focalLength: ['focalLength', 'f', 'param1', 'param2'],
+  amplitude: ['amplitude', 'A', 'deltaL', 'param1', 'param2'],
+  distanceCm: ['distanceCm', 'd', 'L', 'param1', 'param2'],
+  l0: ['l0', 'deltaL', 'param1', 'param2'],
+
+  // Pressure & Volume
+  p1: ['p1', 'pressure', 'param1', 'param2'],
+  p2: ['p2', 'pressure', 'param2', 'param1'],
+  pressure: ['pressure', 'p1', 'p2', 'param1', 'param2'],
+  V1: ['V1', 'volume', 'waterV1', 'param1', 'param2'],
+  V2: ['V2', 'volume', 'stoneV', 'param2', 'param1'],
+  volume: ['volume', 'V1', 'V2', 'param1', 'param2'],
+
+  // Energy & Heat
+  heatQ: ['heatQ', 'inputJ', 'workA', 'param1', 'param2'],
+  workA: ['workA', 'heatQ', 'inputJ', 'param1', 'param2'],
+  inputJ: ['inputJ', 'workA', 'heatQ', 'param1', 'param2'],
+};
+
+export function buildBoundsMap(
+  sliders: SandboxSliderSpec[]
+): Record<string, { min: number; max: number; step: number }> {
+  const bounds: Record<string, { min: number; max: number; step: number }> = {};
+  for (const s of sliders) {
+    const b = { min: s.min, max: s.max, step: s.step };
+    bounds[s.paramKey] = b;
+    if (s.paramKey === 'mass' || s.paramKey === 'initialMass' || s.paramKey === 'm1' || s.paramKey === 'm2') {
+      bounds.mass = bounds.m0 = bounds.m1 = bounds.m2 = bounds.massKg = bounds.initialMass = bounds.massG = b;
+    }
+    if (s.paramKey === 'voltage' || s.paramKey === 'U') {
+      bounds.voltage = bounds.U = bounds.u = bounds.volt = b;
+    }
+    if (s.paramKey === 'resistance' || s.paramKey === 'r1' || s.paramKey === 'r2') {
+      bounds.resistance = bounds.r1 = bounds.r2 = bounds.R = bounds.r = b;
+    }
+    if (s.paramKey === 'force' || s.paramKey === 'pull' || s.paramKey === 'f1') {
+      bounds.force = bounds.pull = bounds.f1 = bounds.f2 = bounds.pullForce = bounds.forceN = b;
+    }
+    if (s.paramKey === 'celsius' || s.paramKey === 'kelvinInput') {
+      bounds.celsius = bounds.kelvinInput = bounds.tempC = bounds.stripTemp = bounds.temperature = bounds.T = bounds.t1 = bounds.t2 = bounds.t0 = b;
+    }
+    if (s.paramKey === 'halfLife') {
+      bounds.halfLife = bounds.T = bounds.tHalf = b;
+    }
+    if (s.paramKey === 'initialCount') {
+      bounds.initialCount = bounds.n0 = bounds.m0 = b;
+    }
+    if (s.paramKey === 'elapsedTime') {
+      bounds.elapsedTime = bounds.t = bounds.timeSec = b;
+    }
+    if (s.paramKey === 'v0' || s.paramKey === 'speed' || s.paramKey === 'v') {
+      bounds.v0 = bounds.speed = bounds.v = bounds.v0_1d = bounds.v1 = bounds.v2 = b;
+    }
+    if (s.paramKey === 'p1' || s.paramKey === 'p2' || s.paramKey === 'pressure') {
+      bounds.pressure = bounds.p1 = bounds.p2 = bounds.p = b;
+    }
+    if (s.paramKey === 'V1' || s.paramKey === 'V2' || s.paramKey === 'volume') {
+      bounds.volume = bounds.V1 = bounds.V2 = bounds.V = b;
+    }
+    if (s.paramKey === 'heatQ' || s.paramKey === 'workA') {
+      bounds.heatQ = bounds.workA = bounds.inputJ = b;
+    }
+  }
+  return bounds;
+}
+
+export function mapUnitBounds(
+  rawUnit: string,
+  bound: { min: number; max: number; step: number },
+  target: Record<string, { min: number; max: number; step: number }>
+): void {
+  const u = rawUnit.trim().replace('\\Omega', 'Ω');
+  const uLower = u.toLowerCase();
+
+  if (uLower === 'kg') {
+    target.mass = target.m1 = target.m2 = target.massKg = bound;
+  } else if (uLower === 'g' || uLower === 'mg') {
+    target.massG = target.initialCount = target.n0 = bound;
+  } else if (u === 'N') {
+    target.force = target.pull = target.f1 = target.f2 = target.pullForce = target.forceN = bound;
+  } else if (uLower === 'n/m') {
+    target.k = bound;
+  } else if (uLower === 'cm') {
+    target.A = target.amplitude = target.d = target.f = target.focalLength = target.depth = target.l0 = target.distanceCm = bound;
+  } else if (uLower === 'mm') {
+    target.vernierMm = bound;
+  } else if (uLower === 'cm³' || uLower === 'ml') {
+    target.volume = target.vObj = target.v0 = target.waterV1 = target.stoneV = bound;
+  } else if (uLower === 'm') {
+    target.h0 = target.d1 = target.d2 = target.L = target.radius = target.r = target.d = target.distM = bound;
+  } else if (uLower === 'km') {
+    target.distKm = bound;
+  } else if (uLower === 'm/s') {
+    target.v0 = target.v0_1d = target.v1 = target.v2 = target.v = target.speed = bound;
+  } else if (uLower === 'km/h') {
+    target.speed = target.speedKmh = bound;
+  } else if (uLower === 'm/s²' || uLower === 'm/s^2') {
+    target.accel = target.acceleration = bound;
+  } else if (u === 'V' || uLower === 'kv' || uLower === 'mv') {
+    target.voltage = target.U = bound;
+  } else if (u === 'A' || uLower === 'ma') {
+    target.I = target.current = bound;
+  } else if (u === 'Ω' || uLower === 'ôm' || uLower === 'ohm') {
+    target.resistance = target.r1 = target.r2 = target.R = target.internalR = bound;
+  } else if (uLower === 'hz' || uLower === 'khz') {
+    target.f = target.freqHz = bound;
+  } else if (uLower === 's' || uLower === 'giây' || uLower === 'phút' || uLower === 'giờ') {
+    target.t = target.time1d = target.timeSec = target.echoTime = target.period = bound;
+  } else if (u === '°C' || u === 'K') {
+    target.tempC = target.celsius = target.stripTemp = target.t1 = target.t2 = target.t0 = target.temperature = target.T = bound;
+  } else if (u === 'L' || uLower === 'lít') {
+    target.V = target.V1 = target.V2 = bound;
+  } else if (u === 'J' || uLower === 'kj') {
+    target.inputJ = target.heatQ = target.workA = bound;
+  } else if (u === 'W' || uLower === 'kw') {
+    target.power = bound;
+  } else if (u === '°' || uLower === 'độ') {
+    target.angle = target.incidentAngle = target.theta = target.eyeAngle = bound;
+  }
+}
+
+export function finalizeSandboxResult(
+  res: Omit<ProblemSandboxExtractionResult, 'isConceptual'> & { isConceptual?: boolean }
+): ProblemSandboxExtractionResult {
+  const isConceptual = res.isConceptual ?? (res.sliders.length === 0);
+  const bounds = buildBoundsMap(res.sliders);
+  const simParams = {
+    ...res.simParameters,
+    _bounds: {
+      ...(res.simParameters?._bounds || {}),
+      ...bounds,
+    },
+  };
+  return {
+    ...res,
+    isConceptual,
+    simParameters: simParams,
+  };
+}
+
 export function extractRawQuantitiesFromText(text: string): Record<string, { value: number; matched: boolean }> {
   const found: Record<string, { value: number; matched: boolean }> = {};
   const clean = text.replace(/\\text\{([^}]*)\}/g, '$1').replace(/\\,/g, ' ');
@@ -578,7 +774,7 @@ export function buildProblemSandboxState(
         });
       }
 
-      return {
+      return finalizeSandboxResult({
         domainName: 'Định luật Phóng xạ: Tìm Thời gian theo Tỉ số Phân rã ΔN / N',
         modifiedQuestionText,
         originalAnswerLabel: `t = ${formatVnNum(t_orig)} ${tUnit}`,
@@ -617,7 +813,8 @@ export function buildProblemSandboxState(
           markerOrig: { x: t_orig, y: ratio_base, label: `Đề gốc: (${t_orig.toFixed(1)} ${tUnit}, tỉ số ${ratio_base})` },
           markerNew: { x: t_ans, y: ratio_val, label: `Đề hiện tại: (${t_ans.toFixed(1)} ${tUnit}, tỉ số ${ratio_val})` },
         },
-      };
+        isConceptual: false,
+      });
     }
 
     // Sub-case 1B: Standard remaining mass m = m0 * 2^(-t/T)
@@ -655,7 +852,7 @@ export function buildProblemSandboxState(
       });
     }
 
-    return {
+    return finalizeSandboxResult({
       domainName: 'Định luật Phóng xạ & Chu kỳ Bán rã',
       modifiedQuestionText,
       originalAnswerLabel: `${formatVnNum(origRemain)} ${mUnit}`,
@@ -696,7 +893,8 @@ export function buildProblemSandboxState(
         markerOrig: { x: t_base, y: origRemain, label: `Đề gốc: (${t_base} ${tUnit}, ${origRemain.toFixed(2)} ${mUnit})` },
         markerNew: { x: t_val, y: mRemain, label: `Đề hiện tại: (${t_val} ${tUnit}, ${mRemain.toFixed(2)} ${mUnit})` },
       },
-    };
+      isConceptual: false,
+    });
   }
 
   // ==========================================================================
@@ -739,7 +937,7 @@ export function buildProblemSandboxState(
     const targetAns = isInputKelvin ? c_val : k_val;
     const ansUnit = isInputKelvin ? '°C' : 'K';
 
-    return {
+    return finalizeSandboxResult({
       domainName: 'Chuyển đổi Thang Nhiệt độ (Celsius • Kelvin • Fahrenheit)',
       modifiedQuestionText,
       originalAnswerLabel: isInputKelvin
@@ -793,7 +991,8 @@ export function buildProblemSandboxState(
         markerOrig: { x: c_base, y: k_base, label: `Đề gốc: (${c_base} °C, ${k_base} K)` },
         markerNew: { x: c_val, y: k_val, label: `Đề hiện tại: (${c_val} °C, ${k_val} K)` },
       },
-    };
+      isConceptual: false,
+    });
   }
 
   // ==========================================================================
@@ -835,7 +1034,7 @@ export function buildProblemSandboxState(
       });
     }
 
-    return {
+    return finalizeSandboxResult({
       domainName: 'Định luật I Nhiệt động lực học (ΔU = A + Q)',
       modifiedQuestionText,
       originalAnswerLabel: `ΔU = ${deltaU_orig >= 0 ? '+' : ''}${formatVnNum(deltaU_orig)} J`,
@@ -889,7 +1088,8 @@ export function buildProblemSandboxState(
         markerOrig: { x: Q_orig, y: deltaU_orig, label: `Đề gốc: ΔU = ${deltaU_orig} J` },
         markerNew: { x: Q_val, y: deltaU, label: `Đề hiện tại: ΔU = ${deltaU} J` },
       },
-    };
+      isConceptual: false,
+    });
   }
 
   // ==========================================================================
@@ -930,7 +1130,7 @@ export function buildProblemSandboxState(
       });
     }
 
-    return {
+    return finalizeSandboxResult({
       domainName: 'Phương trình Nhiệt lượng Đun nóng Q = m·c·(t₂ - t₁)',
       modifiedQuestionText,
       originalAnswerLabel: `${formatVnNum(Q_orig_kj)} kJ (hoặc ${(Q_orig_kj * 1000).toLocaleString('vi-VN')} J)`,
@@ -976,7 +1176,8 @@ export function buildProblemSandboxState(
         markerOrig: { x: t2_base, y: Q_orig_kj, label: `Đề gốc: (${t2_base} °C, ${Q_orig_kj.toFixed(1)} kJ)` },
         markerNew: { x: t2_val, y: Q_kj, label: `Đề hiện tại: (${t2_val} °C, ${Q_kj.toFixed(1)} kJ)` },
       },
-    };
+      isConceptual: false,
+    });
   }
 
   // ==========================================================================
@@ -1013,7 +1214,7 @@ export function buildProblemSandboxState(
       });
     }
 
-    return {
+    return finalizeSandboxResult({
       domainName: 'Định luật Boyle (Đẳng nhiệt p₁·V₁ = p₂·V₂)',
       modifiedQuestionText,
       originalAnswerLabel: `${formatVnNum(p2_orig)} ${pUnit}`,
@@ -1055,7 +1256,8 @@ export function buildProblemSandboxState(
         markerOrig: { x: V2_base, y: p2_orig, label: `Đề gốc: (${V2_base} L, ${p2_orig.toFixed(2)} ${pUnit})` },
         markerNew: { x: V2_val, y: p2_val, label: `Đề hiện tại: (${V2_val} L, ${p2_val.toFixed(2)} ${pUnit})` },
       },
-    };
+      isConceptual: false,
+    });
   }
 
   // ==========================================================================
@@ -1091,7 +1293,7 @@ export function buildProblemSandboxState(
       });
     }
 
-    return {
+    return finalizeSandboxResult({
       domainName: 'Lực từ Ampère tác dụng lên đoạn dây dẫn (F = B·I·L)',
       modifiedQuestionText,
       originalAnswerLabel: `${formatVnNum(F_orig)} N`,
@@ -1134,7 +1336,8 @@ export function buildProblemSandboxState(
         markerOrig: { x: I_base, y: F_orig, label: `Đề gốc: (${I_base} A, ${F_orig.toFixed(2)} N)` },
         markerNew: { x: I_val, y: F_ampere, label: `Đề hiện tại: (${I_val} A, ${F_ampere.toFixed(2)} N)` },
       },
-    };
+      isConceptual: false,
+    });
   }
 
   // ==========================================================================
@@ -1168,7 +1371,7 @@ export function buildProblemSandboxState(
       });
     }
 
-    return {
+    return finalizeSandboxResult({
       domainName: 'Định luật Ohm & Công suất Mạch điện (I = U / R)',
       modifiedQuestionText,
       originalAnswerLabel: `${formatVnNum(I_orig)} A`,
@@ -1207,7 +1410,8 @@ export function buildProblemSandboxState(
         markerOrig: { x: U_base, y: I_orig, label: `Đề gốc: (${U_base} V, ${I_orig.toFixed(2)} A)` },
         markerNew: { x: U_val, y: I_val, label: `Đề hiện tại: (${U_val} V, ${I_val.toFixed(2)} A)` },
       },
-    };
+      isConceptual: false,
+    });
   }
 
   // ==========================================================================
@@ -1218,6 +1422,7 @@ export function buildProblemSandboxState(
     .replace(/\\(?:text|mathrm)\{([^}]*)\}/g, '$1')
     .replace(/\\,/g, ' ');
   const optNumMatch = optClean.match(/([+-]?\d+(?:[.,]\d+)?)\s*([^\d\s(;]*)/);
+  const hasDigitInOpt = /\d/.test(correctOptText);
   const origAnsNum = optNumMatch ? parseVnNumber(optNumMatch[1]) ?? 1 : 1;
   const origAnsUnit = optNumMatch && optNumMatch[2] ? optNumMatch[2].trim() : '';
 
@@ -1227,6 +1432,36 @@ export function buildProblemSandboxState(
   const tokenRegex =
     /((\d+(?:[.,]\d+)?)\s*(kg|g|mg|cm³|cm²|cm|mm|m\/s²|m\/s\^2|m\/s|km\/h|km|m|N\/m|N|kHz|Hz|s|phút|giờ|ngày|năm|kV|mV|V|mA|A|\\Omega|Ω|ôm|ohm|kW|W|kJ|J|°C|K|lít|ml|L|mol|atm|kPa|Pa|T|μC|C|u|MeV|vòng|°))(?=$|[\s.,;!?)\]$])/gi;
   const stemTokens = Array.from(stemClean.matchAll(tokenRegex));
+
+  // If the question is purely conceptual (no numerical answer or no physical quantities with units in stem)
+  if (!hasDigitInOpt || stemTokens.length === 0) {
+    return finalizeSandboxResult({
+      domainName: 'Mô phỏng Minh họa Hiện tượng Lý thuyết',
+      modifiedQuestionText: stemOnly,
+      originalAnswerLabel: correctOptText || 'Lý thuyết',
+      newAnswerLabel: correctOptText || 'Lý thuyết',
+      targetNumericAnswer: 0,
+      acceptableAnswers: [0],
+      answerUnit: '',
+      dynamicExplanation: origExplanation,
+      extractedList: [],
+      simParameters: { ...baseSimParams },
+      sliders: [],
+      liveMetrics: [],
+      verificationInsight: origExplanation,
+      problemGraph: {
+        title: 'Minh họa Hiện tượng Vật lý',
+        xLabel: 'Thông số',
+        xUnit: '',
+        yLabel: 'Quy luật',
+        yUnit: '',
+        points: [],
+        markerOrig: { x: 0, y: 0, label: 'Lý thuyết' },
+        markerNew: { x: 0, y: 0, label: 'Lý thuyết' },
+      },
+      isConceptual: true,
+    });
+  }
 
   if (stemTokens.length > 0) {
     const primary = stemTokens[0];
@@ -1297,7 +1532,13 @@ export function buildProblemSandboxState(
     }
     mapUnitValueToSimParams(p1_val, p1_unit, mappedSimParams, false);
 
-    return {
+    const extraBounds: Record<string, { min: number; max: number; step: number }> = {};
+    mapUnitBounds(p1_unit, b1, extraBounds);
+    if (secondary) {
+      mapUnitBounds(p2_unit, b2, extraBounds);
+    }
+
+    return finalizeSandboxResult({
       domainName: 'Mô phỏng Thực nghiệm & Giải tự động theo Đề bài',
       modifiedQuestionText,
       originalAnswerLabel: `${formatVnNum(origAnsNum)} ${origAnsUnit}`.trim(),
@@ -1312,7 +1553,10 @@ export function buildProblemSandboxState(
           ? [{ paramKey: 'param2', symbol: 'X₂', label: `Đại lượng đề bài (${p2_unit})`, value: p2_val, defaultValue: p2_base, unit: p2_unit, fromQuestionText: true }]
           : []),
       ],
-      simParameters: mappedSimParams,
+      simParameters: {
+        ...mappedSimParams,
+        _bounds: extraBounds,
+      },
       sliders: [
         { paramKey: 'param1', symbol: 'X₁', label: `Số liệu thứ 1 trong đề (${p1_unit})`, unit: p1_unit, min: b1.min, max: b1.max, step: b1.step, defaultValue: p1_base },
         ...(secondary
@@ -1337,7 +1581,8 @@ export function buildProblemSandboxState(
         markerOrig: { x: p1_base, y: origAnsNum, label: `Đề gốc: (${p1_base} ${p1_unit} → ${formatVnNum(origAnsNum)} ${origAnsUnit})` },
         markerNew: { x: p1_val, y: scaledAns, label: `Đề hiện tại: (${p1_val} ${p1_unit} → ${formatVnNum(scaledAns)} ${origAnsUnit})` },
       },
-    };
+      isConceptual: false,
+    });
   }
 
   // Fallback for pure conceptual questions
@@ -1356,7 +1601,7 @@ export function buildProblemSandboxState(
     });
   }
 
-  return {
+  return finalizeSandboxResult({
     domainName: 'Mô phỏng Minh họa Hiện tượng Lý thuyết',
     modifiedQuestionText: stemOnly,
     originalAnswerLabel: correctOptText || `${ansVal}`,
@@ -1365,28 +1610,21 @@ export function buildProblemSandboxState(
     acceptableAnswers: [ansVal],
     answerUnit: origAnsUnit,
     dynamicExplanation: origExplanation,
-    extractedList: [
-      { paramKey: 'v0', symbol: 'v₀', label: 'Thông số minh họa 1', value: v0_val, defaultValue: v0_base, unit: 'đơn vị', fromQuestionText: false },
-      { paramKey: 'acceleration', symbol: 'a', label: 'Thông số minh họa 2', value: a_val, defaultValue: a_base, unit: 'đơn vị', fromQuestionText: false },
-    ],
+    extractedList: [],
     simParameters: { ...baseSimParams, v0: v0_val, acceleration: a_val },
-    sliders: [
-      { paramKey: 'v0', symbol: 'v₀', label: 'Thông số minh họa 1', unit: 'đơn vị', min: 1, max: 20, step: 1, defaultValue: v0_base },
-      { paramKey: 'acceleration', symbol: 'a', label: 'Thông số minh họa 2', unit: 'đơn vị', min: 0.5, max: 10, step: 0.5, defaultValue: a_base },
-    ],
-    liveMetrics: [
-      { symbol: 'Y(3s)', label: 'Giá trị tại t = 3s', formula: 'Y = v₀ + a·t', value: (v0_val + a_val * 3).toFixed(1), unit: 'đơn vị', highlightColor: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
-    ],
+    sliders: [],
+    liveMetrics: [],
     verificationInsight: origExplanation,
     problemGraph: {
-      title: 'Đồ thị Minh họa Quy luật Vật lý',
-      xLabel: 'Thời gian t',
-      xUnit: 's',
-      yLabel: 'Đại lượng Y',
-      yUnit: 'đơn vị',
+      title: 'Minh họa Hiện tượng Vật lý',
+      xLabel: 'Thông số',
+      xUnit: '',
+      yLabel: 'Quy luật',
+      yUnit: '',
       points: graphPoints,
       markerOrig: { x: 3, y: v0_base + a_base * 3, label: 'Chuẩn gốc' },
       markerNew: { x: 3, y: v0_val + a_val * 3, label: 'Giá trị hiện tại' },
     },
-  };
+    isConceptual: true,
+  });
 }

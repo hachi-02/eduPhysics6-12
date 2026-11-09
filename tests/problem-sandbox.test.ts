@@ -82,5 +82,20 @@ assert.strictEqual(newtonMod.simParameters.force, 70);
 assert.strictEqual(newtonMod.simParameters.pull, 70);
 assert.strictEqual(newtonMod.simParameters.m2, 10);
 assert.strictEqual(newtonMod.targetNumericAnswer, 7);
+assert.strictEqual(newtonMod.isConceptual, false);
+
+// 7. Test _bounds sync for 1:1 What-If to Simulation Lab
+assert.ok(newtonMod.simParameters._bounds, 'simParameters should contain _bounds map');
+assert.ok(newtonMod.simParameters._bounds.force, 'bounds should map force');
+assert.ok(newtonMod.simParameters._bounds.mass, 'bounds should map mass');
+assert.strictEqual(typeof newtonMod.simParameters._bounds.force.min, 'number');
+assert.strictEqual(typeof newtonMod.simParameters._bounds.force.max, 'number');
+
+// 8. Test Conceptual / Theory Question detection (no numbers in options or theory question)
+const sampleTheory =
+  'Phát biểu nào sau đây là đúng khi nói về hiện tượng quang điện trong?|||Hiện tượng giải phóng electron liên kết thành electron dẫn.|||Hiện tượng giải phóng electron liên kết thành electron dẫn';
+const theoryState = buildProblemSandboxState(sampleTheory, 'photoelectric_lab');
+assert.strictEqual(theoryState.isConceptual, true, 'Should detect pure conceptual question');
+assert.strictEqual(theoryState.sliders.length, 0, 'Should have 0 What-If sliders for conceptual questions');
 
 console.log('✅ All Problem-to-Sim Sandbox tests passed!');
