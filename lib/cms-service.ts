@@ -6,14 +6,22 @@ import {
   CheatsheetChapterItem,
   CheatsheetGradeData,
   CheatsheetTopicItem,
+  DailyActionRecommendation,
+  DifficultyBreakdownItem,
+  DifficultyLevel,
   ExampleItem,
   FormulaItem,
   GradeItem,
+  GradeProgressSummary,
   MistakeQuestionItem,
+  ProgressDashboardData,
   QuantityItem,
   QuestionItem,
+  RecentAttemptItem,
   SimulationItem,
   TopicDetail,
+  TopicMasteryStatus,
+  TopicProgressItem,
   TopicSummaryItem,
   TrueFalseStatement,
 } from '@/types/cms';
@@ -1325,5 +1333,528 @@ export function getProblemSandboxData(requestedQuestionId?: number) {
     initialQuestion,
   };
 }
+
+// ============================================================================
+// LEARNING PROGRESS & MASTERY ANALYTICS DASHBOARD (/progress)
+// ============================================================================
+
+function ensureProgressTable(): void {
+  const db = getDb();
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS topic_study_checkins (
+      topic_id INTEGER PRIMARY KEY,
+      completed INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+    );
+  `);
+}
+
+export function toggleTopicStudyCheckin(topicId: number, completed?: boolean): { topicId: number; completed: boolean } {
+  ensureDatabaseSeeded(false);
+  ensureProgressTable();
+  const db = getDb();
+
+  const existing = db.get<{ completed: number }>(
+    `SELECT completed FROM topic_study_checkins WHERE topic_id = ?`,
+    [topicId]
+  );
+
+  const nextCompleted = completed !== undefined ? completed : !(existing && existing.completed === 1);
+
+  db.run(
+    `INSERT INTO topic_study_checkins (topic_id, completed, updated_at)
+     VALUES (?, ?, datetime('now'))
+     ON CONFLICT(topic_id) DO UPDATE SET
+       completed = excluded.completed,
+       updated_at = datetime('now')`,
+    [topicId, nextCompleted ? 1 : 0]
+  );
+
+  return { topicId, completed: nextCompleted };
+}
+
+export function getProgressDashboardData(): ProgressDashboardData {
+  ensureDatabaseSeeded(false);
+  ensureProgressTable();
+  const db = getDb();
+
+  // 1. Load all topics with chapter, grade, formula count, and question count
+  const rawTopics = db.query<any>(`
+    SELECT
+      t.id as topic_id,
+      t.code,
+      t.title,
+      t.order_index,
+      c.id as chapter_id,
+      c.code as chapter_code,
+      c.title as chapter_title,
+      c.order_index as chapter_order,
+      g.grade_number,
+      g.title as grade_title,
+      (SELECT count(*) FROM formulas f WHERE f.topic_id = t.id) as formula_count,
+      (SELECT count(*) FROM questions q WHERE q.topic_id = t.id) as question_count
+    FROM topics t
+    JOIN chapters c ON c.id = t.chapter_id
+    JOIN grades g ON g.id = c.grade_id
+    ORDER BY g.grade_number ASC, c.order_index ASC, t.order_index ASC
+  `);
+
+  // 2. Load manual check-ins
+  const checkinRows = db.query<{ topic_id: number; completed: number; updated_at: string }>(
+    `SELECT topic_id, completed, updated_at FROM topic_study_checkins`
+  );
+  const checkinMap = new Map<number, { completed: boolean; updated_at: string }>();
+  for (const r of checkinRows) {
+    checkinMap.set(Number(r.topic_id), {
+      completed: Number(r.completed) === 1,
+      updated_at: r.updated_at,
+    });
+  }
+
+  // 3. Load all questions for difficulty & topic mapping
+  const allQuestions = db.query<{
+    id: number;
+    topic_id: number | null;
+    chapter_id: number;
+    difficulty: DifficultyLevel;
+    correct_index: number;
+  }>(`SELECT id, topic_id, chapter_id, difficulty, correct_index FROM questions`);
+
+  const questionMap = new Map<
+    number,
+    { topic_id: number | null; chapter_id: number; difficulty: DifficultyLevel; correct_index: number }
+  >();
+  const bankCountByDifficulty: Record<DifficultyLevel, number> = {
+    nhan_biet: 0,
+    thong_hieu: 0,
+    van_dung: 0,
+    van_dung_cao: 0,
+  };
+
+  for (const q of allQuestions) {
+    questionMap.set(Number(q.id), q);
+    if (bankCountByDifficulty[q.difficulty] !== undefined) {
+      bankCountByDifficulty[q.difficulty] += 1;
+    }
+  }
+
+  // 4. Load question_mistakes
+  const mistakeRows = db.query<{
+    question_id: number;
+    last_wrong_option: number;
+    wrong_count: number;
+    mastered: number;
+    updated_at: string;
+  }>(`SELECT question_id, last_wrong_option, wrong_count, mastered, updated_at FROM question_mistakes`);
+
+  const activeMistakesByTopic = new Map<number, number>();
+  const masteredMistakesByTopic = new Map<number, number>();
+  const lastMistakeDateByTopic = new Map<number, string>();
+
+  // Map chapter -> first topic in case a chapter-scoped question has topic_id = null
+  const firstTopicByChapter = new Map<number, number>();
+  for (const t of rawTopics) {
+    if (!firstTopicByChapter.has(Number(t.chapter_id))) {
+      firstTopicByChapter.set(Number(t.chapter_id), Number(t.topic_id));
+    }
+  }
+
+  let totalActiveMistakes = 0;
+  let totalMasteredMistakes = 0;
+
+  const diffAnswered: Record<DifficultyLevel, number> = {
+    nhan_biet: 0,
+    thong_hieu: 0,
+    van_dung: 0,
+    van_dung_cao: 0,
+  };
+  const diffCorrect: Record<DifficultyLevel, number> = {
+    nhan_biet: 0,
+    thong_hieu: 0,
+    van_dung: 0,
+    van_dung_cao: 0,
+  };
+
+  for (const m of mistakeRows) {
+    const qMeta = questionMap.get(Number(m.question_id));
+    if (!qMeta) continue;
+    const tId = qMeta.topic_id ? Number(qMeta.topic_id) : firstTopicByChapter.get(Number(qMeta.chapter_id));
+    if (m.mastered === 1) {
+      totalMasteredMistakes += 1;
+      if (tId) {
+        masteredMistakesByTopic.set(tId, (masteredMistakesByTopic.get(tId) || 0) + 1);
+      }
+      diffAnswered[qMeta.difficulty] += 1;
+      diffCorrect[qMeta.difficulty] += 1;
+    } else {
+      totalActiveMistakes += 1;
+      if (tId) {
+        activeMistakesByTopic.set(tId, (activeMistakesByTopic.get(tId) || 0) + 1);
+      }
+      diffAnswered[qMeta.difficulty] += 1;
+    }
+    if (tId) {
+      const prevDate = lastMistakeDateByTopic.get(tId);
+      if (!prevDate || m.updated_at > prevDate) {
+        lastMistakeDateByTopic.set(tId, m.updated_at);
+      }
+    }
+  }
+
+  // 5. Load quiz_attempts
+  const attemptRows = db.query<{
+    id: number;
+    scope_type: 'topic' | 'chapter';
+    scope_id: number;
+    score: number;
+    total_questions: number;
+    time_spent_sec: number;
+    answers_json: string;
+    created_at: string;
+  }>(`SELECT id, scope_type, scope_id, score, total_questions, time_spent_sec, answers_json, created_at FROM quiz_attempts ORDER BY created_at DESC, id DESC`);
+
+  const topicAttemptStats = new Map<
+    number,
+    { count: number; bestPct: number; lastScore10: number; lastAt: string }
+  >();
+
+  // Lookup maps for topic & chapter titles
+  const topicMetaMap = new Map<number, { code: string; title: string; grade_number: number }>();
+  const chapterMetaMap = new Map<number, { code: string; title: string; grade_number: number; topicIds: number[] }>();
+
+  for (const t of rawTopics) {
+    const tId = Number(t.topic_id);
+    const cId = Number(t.chapter_id);
+    topicMetaMap.set(tId, { code: t.code, title: t.title, grade_number: Number(t.grade_number) });
+    if (!chapterMetaMap.has(cId)) {
+      chapterMetaMap.set(cId, {
+        code: t.chapter_code,
+        title: t.chapter_title,
+        grade_number: Number(t.grade_number),
+        topicIds: [],
+      });
+    }
+    chapterMetaMap.get(cId)!.topicIds.push(tId);
+  }
+
+  const recentAttempts: RecentAttemptItem[] = [];
+  let sumScore10 = 0;
+  let totalTimeSpentSec = 0;
+  let totalQuestionsInAttempts = 0;
+
+  for (const att of attemptRows) {
+    const totalQ = Math.max(1, Number(att.total_questions));
+    const score = Number(att.score);
+    const pct = Math.round((score / totalQ) * 100);
+    const score10 = Number(((score / totalQ) * 10).toFixed(1));
+    const timeSec = Math.max(0, Number(att.time_spent_sec || 0));
+
+    sumScore10 += score10;
+    totalTimeSpentSec += timeSec;
+    totalQuestionsInAttempts += totalQ;
+
+    // Parse answers_json to enrich per-difficulty and per-topic stats
+    const answers = safeJsonParse<Record<string, number>>(att.answers_json, {});
+    for (const [qIdStr, chosenOpt] of Object.entries(answers)) {
+      const qMeta = questionMap.get(Number(qIdStr));
+      if (!qMeta) continue;
+      diffAnswered[qMeta.difficulty] += 1;
+      if (Number(chosenOpt) === Number(qMeta.correct_index)) {
+        diffCorrect[qMeta.difficulty] += 1;
+      }
+    }
+
+    if (att.scope_type === 'topic') {
+      const tId = Number(att.scope_id);
+      const existing = topicAttemptStats.get(tId);
+      if (!existing) {
+        topicAttemptStats.set(tId, {
+          count: 1,
+          bestPct: pct,
+          lastScore10: score10,
+          lastAt: att.created_at,
+        });
+      } else {
+        existing.count += 1;
+        existing.bestPct = Math.max(existing.bestPct, pct);
+      }
+
+      const meta = topicMetaMap.get(tId);
+      if (meta && recentAttempts.length < 15) {
+        recentAttempts.push({
+          id: Number(att.id),
+          scope_type: 'topic',
+          scope_id: tId,
+          scope_code: meta.code,
+          scope_title: meta.title,
+          grade_number: meta.grade_number,
+          score,
+          total_questions: totalQ,
+          score_10: score10,
+          time_spent_sec: timeSec,
+          avg_sec_per_question: timeSec > 0 ? Math.round(timeSec / totalQ) : 25,
+          created_at: att.created_at,
+        });
+      }
+    } else if (att.scope_type === 'chapter') {
+      const cId = Number(att.scope_id);
+      const cMeta = chapterMetaMap.get(cId);
+      if (cMeta) {
+        if (recentAttempts.length < 15) {
+          recentAttempts.push({
+            id: Number(att.id),
+            scope_type: 'chapter',
+            scope_id: cId,
+            scope_code: cMeta.code,
+            scope_title: `Tổng hợp ${cMeta.title}`,
+            grade_number: cMeta.grade_number,
+            score,
+            total_questions: totalQ,
+            score_10: score10,
+            time_spent_sec: timeSec,
+            avg_sec_per_question: timeSec > 0 ? Math.round(timeSec / totalQ) : 25,
+            created_at: att.created_at,
+          });
+        }
+      }
+    }
+  }
+
+  // 6. Build TopicProgressItem list for all 92 topics
+  const topics: TopicProgressItem[] = rawTopics.map((r) => {
+    const tId = Number(r.topic_id);
+    const checkin = checkinMap.get(tId);
+    const attStat = topicAttemptStats.get(tId);
+    const activeMistakes = activeMistakesByTopic.get(tId) || 0;
+    const masteredMistakes = masteredMistakesByTopic.get(tId) || 0;
+    const manualCompleted = checkin ? checkin.completed : false;
+    const attemptCount = attStat ? attStat.count : 0;
+    const bestScorePct = attStat ? attStat.bestPct : null;
+    const lastScore10 = attStat ? attStat.lastScore10 : null;
+    const lastStudiedAt =
+      attStat?.lastAt || checkin?.updated_at || lastMistakeDateByTopic.get(tId) || null;
+
+    let status: TopicMasteryStatus = 'not_started';
+    if (
+      manualCompleted ||
+      (bestScorePct !== null && bestScorePct >= 80 && activeMistakes === 0) ||
+      (masteredMistakes > 0 && activeMistakes === 0)
+    ) {
+      status = 'mastered';
+    } else if (activeMistakes >= 2 || (bestScorePct !== null && bestScorePct < 50)) {
+      status = 'needs_review';
+    } else if (attemptCount > 0 || activeMistakes > 0 || masteredMistakes > 0) {
+      status = 'in_progress';
+    }
+
+    return {
+      topic_id: tId,
+      code: r.code,
+      title: r.title,
+      order_index: Number(r.order_index),
+      chapter_id: Number(r.chapter_id),
+      chapter_code: r.chapter_code,
+      chapter_title: r.chapter_title,
+      grade_number: Number(r.grade_number),
+      status,
+      manual_completed: manualCompleted,
+      attempt_count: attemptCount,
+      best_score_pct: bestScorePct,
+      last_score_10: lastScore10,
+      active_mistakes: activeMistakes,
+      mastered_mistakes: masteredMistakes,
+      formula_count: Number(r.formula_count),
+      question_count: Number(r.question_count),
+      last_studied_at: lastStudiedAt,
+    };
+  });
+
+  // 7. Build GradeProgressSummary (Grades 6..12)
+  const gradeMap = new Map<number, GradeProgressSummary>();
+  for (const r of rawTopics) {
+    const gNum = Number(r.grade_number);
+    if (!gradeMap.has(gNum)) {
+      gradeMap.set(gNum, {
+        grade_number: gNum,
+        title: r.grade_title || `Vật lý Lớp ${gNum}`,
+        total_topics: 0,
+        mastered_topics: 0,
+        in_progress_topics: 0,
+        needs_review_topics: 0,
+        not_started_topics: 0,
+        completion_pct: 0,
+      });
+    }
+  }
+
+  for (const t of topics) {
+    const g = gradeMap.get(t.grade_number)!;
+    g.total_topics += 1;
+    if (t.status === 'mastered') g.mastered_topics += 1;
+    else if (t.status === 'in_progress') g.in_progress_topics += 1;
+    else if (t.status === 'needs_review') g.needs_review_topics += 1;
+    else g.not_started_topics += 1;
+  }
+
+  const gradeSummaries = Array.from(gradeMap.values()).map((g) => ({
+    ...g,
+    completion_pct:
+      g.total_topics > 0
+        ? Math.round(((g.mastered_topics + g.in_progress_topics * 0.5) / g.total_topics) * 100)
+        : 0,
+  }));
+
+  // 8. Build 4-Tier Difficulty Breakdown (Bloom's Taxonomy)
+  const diffConfigs: { key: DifficultyLevel; label: string; targetRangeLabel: string }[] = [
+    { key: 'nhan_biet', label: 'Mức 1: Nhận biết (Định nghĩa & Đơn vị)', targetRangeLabel: 'Mục tiêu: ≥ 90%' },
+    { key: 'thong_hieu', label: 'Mức 2: Thông hiểu (Bản chất & Giải thích)', targetRangeLabel: 'Mục tiêu: ≥ 80%' },
+    { key: 'van_dung', label: 'Mức 3: Vận dụng (Tính toán & Công thức)', targetRangeLabel: 'Mục tiêu: ≥ 70%' },
+    { key: 'van_dung_cao', label: 'Mức 4: Vận dụng cao (Bài toán tổng hợp)', targetRangeLabel: 'Mục tiêu: ≥ 55%' },
+  ];
+
+  const difficultyBreakdown: DifficultyBreakdownItem[] = diffConfigs.map((cfg) => {
+    const answered = diffAnswered[cfg.key];
+    const correct = diffCorrect[cfg.key];
+    const accuracyPct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+    return {
+      difficulty: cfg.key,
+      label: cfg.label,
+      targetRangeLabel: cfg.targetRangeLabel,
+      total_questions_in_bank: bankCountByDifficulty[cfg.key],
+      answered_count: answered,
+      correct_count: correct,
+      accuracy_pct: accuracyPct,
+    };
+  });
+
+  // 9. Build 3 Smart Daily Action Recommendations ("Hôm nay học gì?")
+  const recommendations: DailyActionRecommendation[] = [];
+
+  // Recommendation 1: Urgent Gap Fix (Topic with most active mistakes or needs_review)
+  const urgentTopic = [...topics]
+    .filter((t) => t.active_mistakes > 0 || t.status === 'needs_review')
+    .sort((a, b) => b.active_mistakes - a.active_mistakes)[0];
+
+  if (urgentTopic) {
+    recommendations.push({
+      type: 'urgent_fix',
+      badge: '🔥 Ưu tiên số 1 • Vá lỗ hổng ngay',
+      title: `${urgentTopic.code}: ${urgentTopic.title}`,
+      reason: `Chủ đề này đang có ${urgentTopic.active_mistakes} câu sai cần khắc phục. Ôn lại lý thuyết và công thức để gỡ điểm mù ngay!`,
+      href: `/topic/${urgentTopic.topic_id}`,
+      ctaLabel: 'Ôn lại bài này ngay →',
+      grade_number: urgentTopic.grade_number,
+      topic_code: urgentTopic.code,
+    });
+  } else {
+    const firstTopic = topics[0];
+    if (firstTopic) {
+      recommendations.push({
+        type: 'urgent_fix',
+        badge: '🔥 Nhiệm vụ trọng tâm',
+        title: `${firstTopic.code}: ${firstTopic.title}`,
+        reason: 'Bạn không có bài nào bị báo động đỏ! Hãy kiểm tra nhanh kiến thức nền tảng của chủ đề này.',
+        href: `/topic/${firstTopic.topic_id}`,
+        ctaLabel: 'Vào bài học →',
+        grade_number: firstTopic.grade_number,
+        topic_code: firstTopic.code,
+      });
+    }
+  }
+
+  // Recommendation 2: Spaced Review (Topic in_progress or mastered to reinforce)
+  const reviewTopic =
+    topics.find((t) => t.status === 'in_progress' && t.topic_id !== urgentTopic?.topic_id) ||
+    topics.find((t) => t.status === 'mastered' && t.topic_id !== urgentTopic?.topic_id) ||
+    topics[Math.min(1, topics.length - 1)];
+
+  if (reviewTopic) {
+    recommendations.push({
+      type: 'spaced_review',
+      badge: '🔄 Nhiệm vụ số 2 • Ôn tập chống quên',
+      title: `${reviewTopic.code}: ${reviewTopic.title}`,
+      reason:
+        reviewTopic.active_mistakes > 0
+          ? `Còn ${reviewTopic.active_mistakes} câu hỏi cần củng cố để chuyển sang trạng thái Đã tinh thông.`
+          : `Luyện lại 5 phút các câu hỏi trắc nghiệm và mô phỏng 2D của bài này để ghi nhớ dài hạn.`,
+      href: `/topic/${reviewTopic.topic_id}`,
+      ctaLabel: 'Luyện tập củng cố →',
+      grade_number: reviewTopic.grade_number,
+      topic_code: reviewTopic.code,
+    });
+  }
+
+  // Recommendation 3: Unlock Next New Topic
+  const lastTouchedIdx = topics.reduce(
+    (acc, t, idx) => (t.status !== 'not_started' ? idx : acc),
+    -1
+  );
+  const nextNewTopic =
+    topics.slice(lastTouchedIdx + 1).find((t) => t.status === 'not_started') ||
+    topics.find((t) => t.status === 'not_started') ||
+    topics[topics.length - 1];
+
+  if (nextNewTopic) {
+    recommendations.push({
+      type: 'next_new',
+      badge: '🚀 Nhiệm vụ số 3 • Mở khóa bài mới',
+      title: `${nextNewTopic.code}: ${nextNewTopic.title}`,
+      reason: `Chủ đề tiếp theo trong lộ trình Lớp ${nextNewTopic.grade_number} (${nextNewTopic.formula_count} công thức • ${nextNewTopic.question_count} câu hỏi).`,
+      href: `/topic/${nextNewTopic.topic_id}`,
+      ctaLabel: 'Học bài mới →',
+      grade_number: nextNewTopic.grade_number,
+      topic_code: nextNewTopic.code,
+    });
+  }
+
+  // 10. Overall KPI summary
+  const totalTopics = topics.length;
+  const completedTopics = topics.filter((t) => t.status === 'mastered').length;
+  const inProgressTopics = topics.filter((t) => t.status === 'in_progress').length;
+  const needsReviewTopics = topics.filter((t) => t.status === 'needs_review').length;
+  const notStartedTopics = topics.filter((t) => t.status === 'not_started').length;
+  const completionPct =
+    totalTopics > 0
+      ? Math.round(((completedTopics + inProgressTopics * 0.5) / totalTopics) * 100)
+      : 0;
+
+  const totalAttempts = attemptRows.length;
+  const averageScore10 =
+    totalAttempts > 0 ? Number((sumScore10 / totalAttempts).toFixed(1)) : 0;
+  const avgSecPerQuestion =
+    totalQuestionsInAttempts > 0 && totalTimeSpentSec > 0
+      ? Math.round(totalTimeSpentSec / totalQuestionsInAttempts)
+      : 28;
+
+  const totalMistakePool = totalActiveMistakes + totalMasteredMistakes;
+  const mistakeResolutionPct =
+    totalMistakePool > 0
+      ? Math.round((totalMasteredMistakes / totalMistakePool) * 100)
+      : 100;
+
+  return {
+    overall: {
+      totalTopics,
+      completedTopics,
+      inProgressTopics,
+      needsReviewTopics,
+      notStartedTopics,
+      completionPct,
+      averageScore10,
+      avgSecPerQuestion,
+      totalAttempts,
+      activeMistakes: totalActiveMistakes,
+      masteredMistakes: totalMasteredMistakes,
+      mistakeResolutionPct,
+    },
+    gradeSummaries,
+    difficultyBreakdown,
+    recentAttempts,
+    recommendations,
+    topics,
+  };
+}
+
 
 

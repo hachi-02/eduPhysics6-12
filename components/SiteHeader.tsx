@@ -13,8 +13,8 @@ import {
   Sparkles,
   GitBranch,
   Target,
-  FlaskConical,
   Brain,
+  BarChart3,
   Menu,
   X,
 } from 'lucide-react';
@@ -30,6 +30,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isHome = pathname === '/' || pathname.startsWith('/?');
+  const isProgress = pathname.startsWith('/progress');
   const isKnowledgeGraph = pathname.startsWith('/knowledge-graph');
   const isAdaptiveTest = pathname.startsWith('/adaptive-test');
   const isCognitiveTraps = pathname.startsWith('/cognitive-traps');
@@ -38,6 +39,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const isAdmin = pathname.startsWith('/admin');
 
   const isAnyUtilityActive =
+    isProgress ||
     isKnowledgeGraph ||
     isAdaptiveTest ||
     isCognitiveTraps ||
@@ -68,6 +70,16 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   }, [menuOpen]);
 
   const utilityItems = [
+    {
+      href: '/progress',
+      title: 'Tiến độ & Hồ sơ Năng lực',
+      desc: 'Theo dõi độ phủ 92 chủ đề, tháp năng lực 4 cấp độ Bộ GD&ĐT & nhiệm vụ học hôm nay',
+      icon: <BarChart3 className="h-5 w-5 text-emerald-600" />,
+      iconBg: 'bg-emerald-50 border-emerald-200/80',
+      active: isProgress,
+      badge: 'Mới • 360°',
+      badgeCls: 'bg-emerald-100 text-emerald-800',
+    },
     {
       href: '/knowledge-graph',
       title: 'Đồ thị Tri thức & Truy vết lỗ hổng',
@@ -165,6 +177,19 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
             >
               <BookOpen className="h-4 w-4" />
               <span className="hidden sm:inline">Chương trình</span>
+            </Link>
+
+            {/* Quick Link: Progress Dashboard */}
+            <Link
+              href="/progress"
+              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition duration-150 ease-snap ${
+                isProgress
+                  ? 'bg-emerald-50 text-emerald-700 shadow-soft ring-1 ring-emerald-200/80'
+                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+              }`}
+            >
+              <BarChart3 className="h-4 w-4 text-emerald-600" />
+              <span className="hidden md:inline">Tiến độ</span>
             </Link>
 
             {/* Right-edge Slide-out Drawer Trigger */}

@@ -285,3 +285,98 @@ export interface TrapMatrixStats {
   immunityScore: number; // 0 - 100
   radarValues: { axis: string; trapType: CognitiveTrapType; value: number }[];
 }
+
+// ============================================================================
+// LEARNING PROGRESS & MASTERY ANALYTICS DASHBOARD (/progress)
+// ============================================================================
+export type TopicMasteryStatus = 'mastered' | 'in_progress' | 'needs_review' | 'not_started';
+
+export interface TopicProgressItem {
+  topic_id: number;
+  code: string;
+  title: string;
+  order_index: number;
+  chapter_id: number;
+  chapter_code: string;
+  chapter_title: string;
+  grade_number: number;
+  status: TopicMasteryStatus;
+  manual_completed: boolean;
+  attempt_count: number;
+  best_score_pct: number | null;
+  last_score_10: number | null;
+  active_mistakes: number;
+  mastered_mistakes: number;
+  formula_count: number;
+  question_count: number;
+  last_studied_at: string | null;
+}
+
+export interface DifficultyBreakdownItem {
+  difficulty: DifficultyLevel;
+  label: string;
+  targetRangeLabel: string;
+  total_questions_in_bank: number;
+  answered_count: number;
+  correct_count: number;
+  accuracy_pct: number;
+}
+
+export interface RecentAttemptItem {
+  id: number;
+  scope_type: 'topic' | 'chapter';
+  scope_id: number;
+  scope_code: string;
+  scope_title: string;
+  grade_number: number;
+  score: number;
+  total_questions: number;
+  score_10: number;
+  time_spent_sec: number;
+  avg_sec_per_question: number;
+  created_at: string;
+}
+
+export interface DailyActionRecommendation {
+  type: 'urgent_fix' | 'spaced_review' | 'next_new';
+  badge: string;
+  title: string;
+  reason: string;
+  href: string;
+  ctaLabel: string;
+  grade_number: number;
+  topic_code: string;
+}
+
+export interface GradeProgressSummary {
+  grade_number: number;
+  title: string;
+  total_topics: number;
+  mastered_topics: number;
+  in_progress_topics: number;
+  needs_review_topics: number;
+  not_started_topics: number;
+  completion_pct: number;
+}
+
+export interface ProgressDashboardData {
+  overall: {
+    totalTopics: number;
+    completedTopics: number;
+    inProgressTopics: number;
+    needsReviewTopics: number;
+    notStartedTopics: number;
+    completionPct: number;
+    averageScore10: number;
+    avgSecPerQuestion: number;
+    totalAttempts: number;
+    activeMistakes: number;
+    masteredMistakes: number;
+    mistakeResolutionPct: number;
+  };
+  gradeSummaries: GradeProgressSummary[];
+  difficultyBreakdown: DifficultyBreakdownItem[];
+  recentAttempts: RecentAttemptItem[];
+  recommendations: DailyActionRecommendation[];
+  topics: TopicProgressItem[];
+}
