@@ -1347,6 +1347,23 @@ function ensureProgressTable(): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
     );
+    CREATE TABLE IF NOT EXISTS adaptive_cat_attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      scope_type TEXT NOT NULL,
+      scope_id INTEGER NOT NULL,
+      grade_number INTEGER,
+      total_questions INTEGER NOT NULL,
+      correct_count INTEGER NOT NULL,
+      final_theta REAL NOT NULL,
+      final_se REAL NOT NULL,
+      confidence_pct INTEGER NOT NULL,
+      predicted_score_10 REAL NOT NULL,
+      ability_tier_label TEXT NOT NULL,
+      time_spent_sec INTEGER NOT NULL,
+      history_json TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -1621,6 +1638,68 @@ export function getProgressDashboardData(): ProgressDashboardData {
     }
   }
 
+  // 5b. Also merge Adaptive CAT attempts (Mode 2: IRT 3PL) so ANY of the 3 exam modes counts toward conquering a topic
+  const catAttemptRows = db.query<{
+    id: number;
+    scope_type: string;
+    scope_id: number;
+    total_questions: number;
+    correct_count: number;
+    predicted_score_10: number;
+    time_spent_sec: number;
+    created_at: string;
+  }>(`SELECT id, scope_type, scope_id, total_questions, correct_count, predicted_score_10, time_spent_sec, created_at FROM adaptive_cat_attempts ORDER BY created_at DESC, id DESC`);
+
+  for (const cat of catAttemptRows) {
+    const totalQ = Math.max(1, Number(cat.total_questions || 10));
+    const score = Number(cat.correct_count || 0);
+    const score10 = Number(Number(cat.predicted_score_10 ?? (score / totalQ) * 10).toFixed(1));
+    const pct = Math.max(Math.round((score / totalQ) * 100), Math.round(score10 * 10));
+    const timeSec = Math.max(0, Number(cat.time_spent_sec || 0));
+
+    sumScore10 += score10;
+    totalTimeSpentSec += timeSec;
+    totalQuestionsInAttempts += totalQ;
+
+    if (cat.scope_type === 'topic') {
+      const tId = Number(cat.scope_id);
+      const existing = topicAttemptStats.get(tId);
+      if (!existing) {
+        topicAttemptStats.set(tId, {
+          count: 1,
+          bestPct: pct,
+          lastScore10: score10,
+          lastAt: cat.created_at,
+        });
+      } else {
+        existing.count += 1;
+        existing.bestPct = Math.max(existing.bestPct, pct);
+        if (cat.created_at > existing.lastAt) {
+          existing.lastScore10 = score10;
+          existing.lastAt = cat.created_at;
+        }
+      }
+
+      const meta = topicMetaMap.get(tId);
+      if (meta && recentAttempts.length < 15) {
+        recentAttempts.push({
+          id: 100000 + Number(cat.id),
+          scope_type: 'topic',
+          scope_id: tId,
+          scope_code: `${meta.code} • CAT`,
+          scope_title: meta.title,
+          grade_number: meta.grade_number,
+          score,
+          total_questions: totalQ,
+          score_10: score10,
+          time_spent_sec: timeSec,
+          avg_sec_per_question: timeSec > 0 ? Math.round(timeSec / totalQ) : 25,
+          created_at: cat.created_at,
+        });
+      }
+    }
+  }
+
   // 6. Build TopicProgressItem list for all 92 topics
   const topics: TopicProgressItem[] = rawTopics.map((r) => {
     const tId = Number(r.topic_id);
@@ -1819,7 +1898,7 @@ export function getProgressDashboardData(): ProgressDashboardData {
       ? Math.round(((completedTopics + inProgressTopics * 0.5) / totalTopics) * 100)
       : 0;
 
-  const totalAttempts = attemptRows.length;
+  const totalAttempts = attemptRows.length + catAttemptRows.length;
   const averageScore10 =
     totalAttempts > 0 ? Number((sumScore10 / totalAttempts).toFixed(1)) : 0;
   const avgSecPerQuestion =
