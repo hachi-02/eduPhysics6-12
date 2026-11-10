@@ -33,6 +33,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const isKnowledgeGraph = pathname.startsWith('/knowledge-graph');
   const isAdaptiveTest = pathname.startsWith('/adaptive-test');
   const isCognitiveTraps = pathname.startsWith('/cognitive-traps');
+  const isSocraticCoach = pathname.startsWith('/socratic-coach');
   const isMistakes = pathname.startsWith('/mistakes');
   const isCheatsheet = pathname.startsWith('/cheatsheet');
   const isAdmin = pathname.startsWith('/admin');
@@ -41,6 +42,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
     isKnowledgeGraph ||
     isAdaptiveTest ||
     isCognitiveTraps ||
+    isSocraticCoach ||
     isMistakes ||
     isCheatsheet ||
     isAdmin;
@@ -97,6 +99,16 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
       active: isCognitiveTraps,
       badge: 'Bẫy 2025',
       badgeCls: 'bg-rose-100 text-rose-800',
+    },
+    {
+      href: '/socratic-coach',
+      title: 'Gia sư Ảo Socrates (Không mớm đáp án)',
+      desc: 'Gợi mở tư duy 3 nấc nhận thức giúp học sinh tự giải quyết bài toán',
+      icon: <Sparkles className="h-5 w-5 text-emerald-600" />,
+      iconBg: 'bg-emerald-50 border-emerald-200/80',
+      active: isSocraticCoach,
+      badge: 'Socrates 3 Nấc',
+      badgeCls: 'bg-emerald-100 text-emerald-800',
     },
     {
       href: '/mistakes',

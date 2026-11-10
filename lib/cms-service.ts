@@ -1,5 +1,6 @@
 import getDb from './db';
 import { ensureDatabaseSeeded } from './seed';
+import { buildSocraticCoachSession } from './socratic-coach';
 import {
   ChapterItem,
   CheatsheetChapterItem,
@@ -1315,6 +1316,131 @@ export function getProblemSandboxData(requestedQuestionId?: number) {
     questionsByTopicId,
     initialQuestion,
   };
+}
+
+// ============================================================================
+// FEATURE 5: SOCRATIC AI PHYSICS COACH DATA SERVICE
+// ============================================================================
+
+export function getSocraticCoachHubData(gradeFilter?: number, chapterFilter?: number) {
+  ensureDatabaseSeeded(false);
+  const db = getDb();
+
+  let sql = `
+    SELECT 
+      q.id,
+      q.question_text,
+      q.options_json,
+      q.correct_index,
+      q.explanation,
+      t.id AS topic_id,
+      t.title AS topic_title,
+      t.code AS topic_code,
+      c.id AS chapter_id,
+      c.title AS chapter_title,
+      c.code AS chapter_code,
+      g.grade_number
+    FROM questions q
+    LEFT JOIN topics t ON t.id = q.topic_id
+    LEFT JOIN chapters c ON c.id = COALESCE(q.chapter_id, t.chapter_id)
+    LEFT JOIN grades g ON g.id = c.grade_id
+    WHERE q.options_json IS NOT NULL
+  `;
+  const params: any[] = [];
+
+  if (gradeFilter) {
+    sql += ` AND g.grade_number = ?`;
+    params.push(gradeFilter);
+  }
+  if (chapterFilter) {
+    sql += ` AND c.id = ?`;
+    params.push(chapterFilter);
+  }
+
+  sql += ` ORDER BY g.grade_number ASC, c.order_index ASC, q.order_index ASC LIMIT 250`;
+
+  const rows = db.query<any>(sql, params);
+  const questions: import('@/types/cms').SocraticQuestionItem[] = rows.map((r, idx) => ({
+    id: r.id,
+    scope_type: 'topic' as const,
+    topic_id: r.topic_id || null,
+    chapter_id: r.chapter_id || 0,
+    order_index: r.order_index ?? idx,
+    difficulty: (r.difficulty as import('@/types/cms').DifficultyLevel) || 'thong_hieu',
+    question_text: r.question_text,
+    options: safeJsonParse<string[]>(r.options_json, ['', '', '', '']),
+    correct_index: r.correct_index ?? 0,
+    explanation: r.explanation || '',
+    topic_title: r.topic_title || '',
+    topic_code: r.topic_code || '',
+    chapter_title: r.chapter_title || '',
+    chapter_code: r.chapter_code || '',
+    grade_number: r.grade_number || 10,
+  }));
+
+  const chapterMap = new Map<number, { id: number; title: string; code: string; grade_number: number }>();
+  for (const q of questions) {
+    if (q.chapter_id && !chapterMap.has(q.chapter_id)) {
+      chapterMap.set(q.chapter_id, {
+        id: q.chapter_id,
+        title: q.chapter_title || `Chương ${q.chapter_code}`,
+        code: q.chapter_code || '',
+        grade_number: q.grade_number || 10,
+      });
+    }
+  }
+
+  return {
+    questions,
+    chapters: Array.from(chapterMap.values()).sort((a, b) => a.id - b.id),
+  };
+}
+
+export function getSocraticSessionForQuestion(questionId: number) {
+  ensureDatabaseSeeded(false);
+  const db = getDb();
+  const row = db.get<any>(`
+    SELECT 
+      q.id,
+      q.question_text,
+      q.options_json,
+      q.correct_index,
+      q.explanation,
+      t.id AS topic_id,
+      t.title AS topic_title,
+      t.code AS topic_code,
+      c.id AS chapter_id,
+      c.title AS chapter_title,
+      c.code AS chapter_code,
+      g.grade_number
+    FROM questions q
+    LEFT JOIN topics t ON t.id = q.topic_id
+    LEFT JOIN chapters c ON c.id = COALESCE(q.chapter_id, t.chapter_id)
+    LEFT JOIN grades g ON g.id = c.grade_id
+    WHERE q.id = ?
+  `, [questionId]);
+
+  if (!row) return null;
+
+  const qObj = {
+    id: row.id,
+    scope_type: 'topic' as const,
+    topic_id: row.topic_id || null,
+    chapter_id: row.chapter_id || 0,
+    order_index: 0,
+    difficulty: (row.difficulty as import('@/types/cms').DifficultyLevel) || 'thong_hieu',
+    question_text: row.question_text,
+    options: safeJsonParse<string[]>(row.options_json, ['', '', '', '']),
+    correct_index: row.correct_index ?? 0,
+    explanation: row.explanation || '',
+    topic_title: row.topic_title || '',
+    topic_code: row.topic_code || '',
+    chapter_title: row.chapter_title || '',
+    chapter_code: row.chapter_code || '',
+    grade_number: row.grade_number || 10,
+  };
+
+  return buildSocraticCoachSession(qObj);
 }
 
 
