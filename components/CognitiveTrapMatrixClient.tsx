@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Award,
   BookOpen,
+  Layers,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -51,6 +52,7 @@ function getPaginationRange(current: number, total: number): (number | '...')[] 
 export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClientProps) {
   const [selectedTrap, setSelectedTrap] = useState<CognitiveTrapType | 'all'>('all');
   const [selectedGrade, setSelectedGrade] = useState<number | 'all'>('all');
+  const [selectedChapter, setSelectedChapter] = useState<number | 'all'>('all');
   const [practiceMode, setPracticeMode] = useState<boolean>(false);
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number>(0);
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
@@ -69,24 +71,74 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
     }
   };
 
+  const handleSelectGrade = (g: number | 'all') => {
+    setSelectedGrade(g);
+    setSelectedChapter('all');
+    setCurrentPage(1);
+  };
+
+  const handleSelectChapter = (chId: number | 'all') => {
+    setSelectedChapter(chId);
+    setCurrentPage(1);
+  };
+
   // Filter mistakes by grade
   const gradeFilteredMistakes = useMemo(() => {
     if (selectedGrade === 'all') return mistakes;
     return mistakes.filter((m) => m.grade_number === selectedGrade);
   }, [mistakes, selectedGrade]);
 
-  // Compute stats and trap classification for all mistakes
-  const stats = useMemo(() => {
-    return calculateTrapMatrixStats(gradeFilteredMistakes);
+  // Extract all distinct chapters available within current grade filter
+  const availableChapters = useMemo(() => {
+    const map = new Map<
+      number,
+      { id: number; title: string; code: string; gradeNumber: number; count: number }
+    >();
+    for (const m of gradeFilteredMistakes) {
+      if (!m.chapter_id) continue;
+      const existing = map.get(m.chapter_id);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(m.chapter_id, {
+          id: m.chapter_id,
+          title: m.chapter_title || `Chương ${m.chapter_code}`,
+          code: m.chapter_code || '',
+          gradeNumber: m.grade_number,
+          count: 1,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.gradeNumber !== b.gradeNumber) return a.gradeNumber - b.gradeNumber;
+      return a.id - b.id;
+    });
   }, [gradeFilteredMistakes]);
+
+  // Filter mistakes by chapter
+  const chapterFilteredMistakes = useMemo(() => {
+    if (selectedChapter === 'all') return gradeFilteredMistakes;
+    return gradeFilteredMistakes.filter((m) => m.chapter_id === selectedChapter);
+  }, [gradeFilteredMistakes, selectedChapter]);
+
+  // Current active chapter metadata
+  const currentChapterObj = useMemo(() => {
+    if (selectedChapter === 'all') return null;
+    return availableChapters.find((c) => c.id === selectedChapter) || null;
+  }, [availableChapters, selectedChapter]);
+
+  // Compute stats and trap classification for chapterFilteredMistakes
+  const stats = useMemo(() => {
+    return calculateTrapMatrixStats(chapterFilteredMistakes);
+  }, [chapterFilteredMistakes]);
 
   // Tag every mistake with its analyzed trap
   const analyzedMistakes = useMemo(() => {
-    return gradeFilteredMistakes.map((m) => ({
+    return chapterFilteredMistakes.map((m) => ({
       ...m,
       trapAnalysis: detectCognitiveTrap(m, m.last_wrong_option),
     }));
-  }, [gradeFilteredMistakes]);
+  }, [chapterFilteredMistakes]);
 
   // Filter by selected trap type
   const displayMistakes = useMemo(() => {
@@ -175,48 +227,138 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
         </div>
       </div>
 
-      {/* Grade Selector Pills */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-2 text-xs font-bold text-slate-500 flex items-center gap-1">
-            <Filter className="h-3.5 w-3.5" /> Lọc Khối Lớp:
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedGrade('all');
-              setCurrentPage(1);
-            }}
-            className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
-              selectedGrade === 'all'
-                ? 'bg-indigo-600 text-white shadow-soft'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Tất cả (Lớp 6 → 12)
-          </button>
-          {[6, 7, 8, 9, 10, 11, 12].map((g) => (
+      {/* Grade & Chapter Filter Section */}
+      <div className="space-y-3.5 border-b border-slate-200 pb-5">
+        {/* Row 1: Grade Selector Pills */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-2 text-xs font-bold text-slate-500 flex items-center gap-1">
+              <Filter className="h-3.5 w-3.5" /> Khối Lớp:
+            </span>
             <button
-              key={g}
               type="button"
-              onClick={() => {
-                setSelectedGrade(g);
-                setCurrentPage(1);
-              }}
+              onClick={() => handleSelectGrade('all')}
               className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
-                selectedGrade === g
+                selectedGrade === 'all'
                   ? 'bg-indigo-600 text-white shadow-soft'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              Lớp {g}
+              Tất cả (Lớp 6 → 12)
             </button>
-          ))}
+            {[6, 7, 8, 9, 10, 11, 12].map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => handleSelectGrade(g)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
+                  selectedGrade === g
+                    ? 'bg-indigo-600 text-white shadow-soft'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Lớp {g}
+              </button>
+            ))}
+          </div>
+
+          <div className="text-xs font-bold text-slate-500 flex items-center gap-2">
+            <span>
+              Đang phân tích: <strong className="text-slate-900">{stats.totalAnalyzed}</strong> câu hỏi có nguy cơ bẫy
+            </span>
+            {selectedChapter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => handleSelectChapter('all')}
+                className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
+              >
+                <RefreshCw className="h-3 w-3" /> Đặt lại chương
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="text-xs font-bold text-slate-500">
-          Đang phân tích: <strong className="text-slate-900">{stats.totalAnalyzed}</strong> câu hỏi có nguy cơ bẫy
-        </div>
+        {/* Row 2: Dynamic Chapter Selector (Pills for specific grade, Dropdown for 'all') */}
+        {availableChapters.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 shrink-0">
+              <Layers className="h-3.5 w-3.5 text-indigo-600" />
+              <span>Chương ({availableChapters.length}):</span>
+            </div>
+
+            {selectedGrade === 'all' ? (
+              /* Dropdown for All Grades to keep UI tidy */
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <select
+                  value={selectedChapter}
+                  onChange={(e) => {
+                    const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                    handleSelectChapter(val);
+                  }}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none w-full sm:w-96 cursor-pointer"
+                >
+                  <option value="all">Tất cả các chương ({gradeFilteredMistakes.length} câu)</option>
+                  {availableChapters.map((ch) => (
+                    <option key={ch.id} value={ch.id}>
+                      Lớp {ch.gradeNumber} • {ch.code ? `${ch.code}: ` : ''}{ch.title} ({ch.count} câu)
+                    </option>
+                  ))}
+                </select>
+                {selectedChapter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelectChapter('all')}
+                    className="text-xs font-bold text-slate-500 hover:text-indigo-600 shrink-0"
+                  >
+                    Xóa lọc
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* Interactive Pills for Specific Grade */
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleSelectChapter('all')}
+                  className={`rounded-xl px-2.5 py-1 text-xs font-extrabold transition ${
+                    selectedChapter === 'all'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  Tất cả chương ({gradeFilteredMistakes.length})
+                </button>
+                {availableChapters.map((ch) => {
+                  const isSelected = selectedChapter === ch.id;
+                  return (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      onClick={() => handleSelectChapter(isSelected ? 'all' : ch.id)}
+                      className={`rounded-xl px-2.5 py-1 text-xs font-extrabold transition flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white shadow-2xs ring-2 ring-indigo-400/30'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span>
+                        {ch.code ? `${ch.code}: ` : ''}
+                        {ch.title}
+                      </span>
+                      <span
+                        className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                          isSelected ? 'bg-indigo-800 text-white' : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {ch.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Dominant Trap Alert Banner */}
@@ -267,18 +409,29 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                   Biểu Đồ Radar Điểm Mù Tư Duy (6 Trục)
                 </h2>
               </div>
-              {selectedTrap !== 'all' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedTrap('all');
-                    setCurrentPage(1);
-                  }}
-                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                >
-                  <RefreshCw className="h-3 w-3" /> Xem tất cả
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedChapter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelectChapter('all')}
+                    className="text-xs font-bold text-slate-500 hover:text-indigo-600 flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Tất cả chương
+                  </button>
+                )}
+                {selectedTrap !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTrap('all');
+                      setCurrentPage(1);
+                    }}
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Tất cả bẫy
+                  </button>
+                )}
+              </div>
             </div>
             <p className="mt-2 text-xs text-slate-500 leading-relaxed">
               Mỗi đỉnh thể hiện một loại bẫy tư duy. Bấm vào bất kỳ đỉnh nào trên biểu đồ để lọc danh sách câu hỏi và
@@ -434,6 +587,18 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
             <h2 className="text-base font-black text-slate-900">
               Danh Sách Câu Hỏi & Chẩn Đoán Bẫy Chi Tiết ({displayMistakes.length})
             </h2>
+            {selectedGrade !== 'all' && (
+              <span className="rounded-full bg-slate-100 border border-slate-200 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+                Lớp {selectedGrade}
+              </span>
+            )}
+            {selectedChapter !== 'all' && currentChapterObj && (
+              <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-xs font-bold text-indigo-700 flex items-center gap-1">
+                <Layers className="h-3 w-3" />
+                {currentChapterObj.code ? `${currentChapterObj.code}: ` : ''}
+                {currentChapterObj.title}
+              </span>
+            )}
             {selectedTrap !== 'all' && (
               <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
                 {COGNITIVE_TRAP_REGISTRY[selectedTrap as CognitiveTrapType].name}

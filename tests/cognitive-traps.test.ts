@@ -151,4 +151,19 @@ describe('Feature 4: Cognitive Trap Matrix & Misconception Taxonomy', () => {
     expect(data.mistakes[0].question_text).toBeDefined();
     expect(data.mistakes[0].options.length).toBe(4);
   });
+
+  it('supports chapter-level filtering and correctly calculates chapter-specific trap stats', () => {
+    const data = getCognitiveTrapMatrixData();
+    const chapterIds = Array.from(new Set(data.mistakes.map((m) => m.chapter_id).filter(Boolean)));
+    expect(chapterIds.length).toBeGreaterThan(0);
+
+    const firstChapterId = chapterIds[0];
+    const chapterMistakes = data.mistakes.filter((m) => m.chapter_id === firstChapterId);
+    const chapterStats = calculateTrapMatrixStats(chapterMistakes);
+
+    expect(chapterStats.totalAnalyzed).toBe(chapterMistakes.length);
+    expect(chapterStats.radarValues.length).toBe(6);
+    expect(chapterStats.immunityScore).toBeGreaterThanOrEqual(20);
+    expect(chapterStats.immunityScore).toBeLessThanOrEqual(100);
+  });
 });
