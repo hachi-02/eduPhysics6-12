@@ -9,7 +9,6 @@ import {
 } from '@/types/cms';
 import { KatexFormula, RichPhysicsText } from './KatexRenderer';
 import {
-  Layers,
   RotateCcw,
   Shuffle,
   Search,
@@ -26,6 +25,12 @@ import {
   HelpCircle,
   Eye,
   Keyboard,
+  Flame,
+  Trophy,
+  Lightbulb,
+  Compass,
+  Zap,
+  RefreshCw,
 } from 'lucide-react';
 
 interface FlashcardsClientProps {
@@ -34,31 +39,41 @@ interface FlashcardsClientProps {
 
 const RATING_META: Record<
   FlashcardRating,
-  { label: string; badgeCls: string; borderCls: string; dotCls: string }
+  {
+    label: string;
+    badgeCls: string;
+    borderCls: string;
+    dotCls: string;
+    glowCls: string;
+  }
 > = {
   mastered: {
     label: 'Đã thuộc lòng',
-    badgeCls: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    badgeCls: 'bg-emerald-500/15 text-emerald-700 border-emerald-300',
     borderCls: 'border-emerald-300 bg-emerald-50/40',
     dotCls: 'bg-emerald-500',
+    glowCls: 'shadow-[0_20px_50px_-15px_rgba(16,185,129,0.28)]',
   },
   hard: {
     label: 'Hơi nhớ',
-    badgeCls: 'bg-amber-100 text-amber-800 border-amber-200',
+    badgeCls: 'bg-amber-500/15 text-amber-800 border-amber-300',
     borderCls: 'border-amber-300 bg-amber-50/40',
     dotCls: 'bg-amber-500',
+    glowCls: 'shadow-[0_20px_50px_-15px_rgba(245,158,11,0.25)]',
   },
   forgot: {
     label: 'Quên rồi',
-    badgeCls: 'bg-rose-100 text-rose-800 border-rose-200',
+    badgeCls: 'bg-rose-500/15 text-rose-700 border-rose-300',
     borderCls: 'border-rose-300 bg-rose-50/40',
     dotCls: 'bg-rose-500',
+    glowCls: 'shadow-[0_20px_50px_-15px_rgba(244,63,94,0.25)]',
   },
   unseen: {
-    label: 'Chưa lật',
-    badgeCls: 'bg-slate-100 text-slate-600 border-slate-200',
+    label: 'Thẻ mới',
+    badgeCls: 'bg-indigo-500/10 text-indigo-700 border-indigo-200',
     borderCls: 'border-slate-200 bg-white',
     dotCls: 'bg-slate-300',
+    glowCls: 'shadow-[0_20px_50px_-15px_rgba(79,70,229,0.18)]',
   },
 };
 
@@ -76,7 +91,13 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
 
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
+  const [showHintsOnFront, setShowHintsOnFront] = useState<boolean>(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [sessionReviewedCount, setSessionReviewedCount] = useState<number>(0);
+  const [lastRatedToast, setLastRatedToast] = useState<{
+    text: string;
+    tone: 'emerald' | 'amber' | 'rose';
+  } | null>(null);
 
   // Chapters filtered by selectedGrade
   const availableChapters = useMemo(() => {
@@ -84,7 +105,6 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
     return initialData.chapters.filter((ch) => ch.grade_number === selectedGrade);
   }, [initialData.chapters, selectedGrade]);
 
-  // Reset chapter filter if grade changes and chapter doesn't belong to grade
   useEffect(() => {
     if (
       selectedChapterId !== 'all' &&
@@ -138,7 +158,6 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
     shuffleSeed,
   ]);
 
-  // Keep currentIndex in bounds when filters change
   useEffect(() => {
     setCurrentIndex(0);
     setIsFlipped(false);
@@ -195,8 +214,17 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
       if (!activeCard || savingKey) return;
       const targetKey = activeCard.card_key;
       setSavingKey(targetKey);
+      setSessionReviewedCount((c) => c + 1);
 
-      // Optimistic update
+      if (rating === 'mastered') {
+        setLastRatedToast({ text: '🎉 Tuyệt vời! Đã ghi nhận Thuộc lòng (+1)', tone: 'emerald' });
+      } else if (rating === 'hard') {
+        setLastRatedToast({ text: '💪 Đã lưu vào nhóm Hơi nhớ để ôn lại', tone: 'amber' });
+      } else {
+        setLastRatedToast({ text: '🔥 Đã đánh dấu Cần ưu tiên học lại', tone: 'rose' });
+      }
+      setTimeout(() => setLastRatedToast(null), 1800);
+
       setCards((prev) =>
         prev.map((c) =>
           c.card_key === targetKey
@@ -229,7 +257,7 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
     [activeCard, savingKey, filteredCards.length]
   );
 
-  // Keyboard shortcuts: Space to flip, Left/Right arrows to navigate, 1/2/3 to rate
+  // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -264,39 +292,52 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
     setShuffleSeed((s) => s + 1);
   };
 
+  const progressInFilterPct =
+    filteredCards.length > 0
+      ? Math.round(((currentIndex + 1) / filteredCards.length) * 100)
+      : 0;
+
   return (
     <div className="mx-auto max-w-6xl animate-fade-up space-y-6 px-4 py-8 sm:px-6">
       {/* ============================================================ */}
       {/* HERO BANNER                                                  */}
       {/* ============================================================ */}
       <div className="relative overflow-hidden rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 p-6 text-white shadow-card sm:p-8">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 left-1/4 h-64 w-64 rounded-full bg-emerald-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-indigo-500/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-1/4 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl" />
 
         <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
           <div className="space-y-2.5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-3 py-1 text-xs font-extrabold text-indigo-200">
-              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-              <span>ACTIVE RECALL • SPACED REPETITION LỚP 6–12</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/30 bg-indigo-500/20 px-3 py-1 text-xs font-extrabold text-indigo-200">
+                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                <span>ACTIVE RECALL • SPACED REPETITION LỚP 6–12</span>
+              </span>
+              {sessionReviewedCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/20 px-3 py-1 text-xs font-extrabold text-amber-200">
+                  <Flame className="h-3.5 w-3.5 text-amber-300" />
+                  <span>Chuỗi phiên học: {sessionReviewedCount} thẻ liên tiếp</span>
+                </span>
+              )}
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-              🃏 Flashcard Lật Thẻ Công Thức &amp; Đơn Vị SI
+              🃏 Thẻ Bài Tri Thức: Công Thức &amp; Đơn Vị SI
             </h1>
             <p className="max-w-2xl text-xs leading-relaxed text-indigo-100/85 sm:text-sm">
-              Phương pháp tự gợi nhớ chủ động (Active Recall) giúp thuộc lòng toàn bộ biểu thức toán học,
-              đơn vị chuẩn SI và công thức suy diễn trước khi bước vào phòng thi.
+              Nhẩm công thức trong đầu trước khi lật thẻ giúp não bộ ghi nhớ sâu gấp 3 lần cách đọc
+              thụ động. Chinh phục trọn bộ công thức và đơn vị chuẩn SI từ Lớp 6 đến Lớp 12!
             </p>
           </div>
 
           {/* Mastery Progress Mini-Dashboard */}
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:shrink-0">
             <div className="rounded-2xl border border-white/15 bg-white/10 px-3.5 py-2.5 backdrop-blur">
-              <div className="text-[11px] font-bold text-indigo-200">Tổng số thẻ</div>
+              <div className="text-[11px] font-bold text-indigo-200">Bộ thẻ hiện tại</div>
               <div className="mt-0.5 text-xl font-extrabold text-white">{deckStats.total}</div>
-              <div className="text-[10px] text-indigo-200/80">Đã thuộc {deckStats.pct}%</div>
+              <div className="text-[10px] text-indigo-200/80">Chinh phục {deckStats.pct}%</div>
             </div>
             <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-3.5 py-2.5 backdrop-blur">
-              <div className="text-[11px] font-bold text-emerald-200">🟢 Đã thuộc lòng</div>
+              <div className="text-[11px] font-bold text-emerald-200">🟢 Thuộc lòng</div>
               <div className="mt-0.5 text-xl font-extrabold text-emerald-300">
                 {deckStats.mastered}
               </div>
@@ -305,7 +346,7 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
             <div className="rounded-2xl border border-amber-400/30 bg-amber-500/15 px-3.5 py-2.5 backdrop-blur">
               <div className="text-[11px] font-bold text-amber-200">🟡 Hơi nhớ</div>
               <div className="mt-0.5 text-xl font-extrabold text-amber-300">{deckStats.hard}</div>
-              <div className="text-[10px] text-amber-200/80">Cần nhẩm lại</div>
+              <div className="text-[10px] text-amber-200/80">Cần củng cố</div>
             </div>
             <div className="rounded-2xl border border-rose-400/30 bg-rose-500/15 px-3.5 py-2.5 backdrop-blur">
               <div className="text-[11px] font-bold text-rose-200">🔴 Quên rồi</div>
@@ -320,7 +361,6 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
       {/* FILTER BAR                                                   */}
       {/* ============================================================ */}
       <div className="edu-card space-y-4 p-4 sm:p-5">
-        {/* Row 1: Grade pills */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
             <button
@@ -357,7 +397,7 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
               className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-extrabold text-indigo-700 transition hover:bg-indigo-100"
             >
               <Shuffle className="h-3.5 w-3.5" />
-              <span>Trộn thẻ ngẫu nhiên</span>
+              <span>Trộn ngẫu nhiên</span>
             </button>
             {isShuffled && (
               <button
@@ -372,7 +412,6 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
           </div>
         </div>
 
-        {/* Row 2: Chapter + Type + Status + Search */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <select
             value={selectedChapterId}
@@ -425,316 +464,492 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
       </div>
 
       {/* ============================================================ */}
-      {/* INTERACTIVE 3D FLIP CARD ARENA                               */}
+      {/* COLLECTIBLE STUDY CARD STAGE                                 */}
       {/* ============================================================ */}
       {activeCard ? (
-        <div className="space-y-4">
-          {/* Card Progress Header */}
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-            <div className="flex items-center gap-2">
-              <span className="rounded-lg bg-indigo-100 px-2.5 py-1 font-extrabold text-indigo-800">
-                Thẻ {currentIndex + 1} / {filteredCards.length}
-              </span>
-              <span className="font-bold text-slate-700">
-                Lớp {activeCard.grade_number} • {activeCard.topic_code}: {activeCard.topic_title}
-              </span>
-              <span
-                className={`rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold ${
-                  RATING_META[activeCard.rating].badgeCls
-                }`}
-              >
-                {RATING_META[activeCard.rating].label}
-              </span>
-            </div>
-
-            <div className="hidden items-center gap-3 text-[11px] text-slate-400 sm:flex">
-              <span className="flex items-center gap-1">
-                <Keyboard className="h-3.5 w-3.5" />
-                Phím tắt: <strong className="text-slate-600">Space</strong> (Lật thẻ) •{' '}
-                <strong className="text-slate-600">←/→</strong> (Chuyển thẻ) •{' '}
-                <strong className="text-slate-600">1/2/3</strong> (Chấm mức nhớ)
-              </span>
-            </div>
-          </div>
-
-          {/* Main Flip Card Box */}
-          <div
-            onClick={() => setIsFlipped((f) => !f)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') setIsFlipped((f) => !f);
-            }}
-            className={`group relative min-h-[340px] cursor-pointer overflow-hidden rounded-3xl border-2 p-6 shadow-card transition-all duration-200 sm:min-h-[380px] sm:p-8 ${
-              isFlipped
-                ? 'border-emerald-300 bg-gradient-to-br from-white via-emerald-50/30 to-teal-50/40'
-                : 'border-indigo-200 bg-gradient-to-br from-white via-indigo-50/25 to-purple-50/30 hover:border-indigo-300'
-            }`}
-          >
-            {/* Top Bar inside Card */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-4">
+        <div className="mx-auto max-w-4xl space-y-5">
+          {/* Top Deck Progress Bar & Toast */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1 font-mono text-xs font-extrabold text-white shadow-2xs">
+                  <span>THẺ</span>
+                  <span className="text-amber-300">{currentIndex + 1}</span>
+                  <span className="text-slate-400">/</span>
+                  <span>{filteredCards.length}</span>
+                </span>
+
+                <span className="rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-bold text-indigo-800">
+                  Lớp {activeCard.grade_number} • {activeCard.chapter_code}
+                </span>
+
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-extrabold ${
-                    activeCard.card_type === 'formula'
-                      ? 'bg-indigo-100 text-indigo-800'
-                      : 'bg-amber-100 text-amber-900'
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1 font-extrabold ${
+                    RATING_META[activeCard.rating].badgeCls
                   }`}
                 >
-                  {activeCard.card_type === 'formula' ? (
-                    <>
-                      <Calculator className="h-3.5 w-3.5" />
-                      <span>THẺ CÔNG THỨC</span>
-                    </>
-                  ) : (
-                    <>
-                      <Ruler className="h-3.5 w-3.5" />
-                      <span>THẺ ĐẠI LƯỢNG &amp; ĐƠN VỊ SI</span>
-                    </>
+                  <span
+                    className={`h-2 w-2 rounded-full ${RATING_META[activeCard.rating].dotCls}`}
+                  />
+                  <span>{RATING_META[activeCard.rating].label}</span>
+                  {activeCard.review_count > 0 && (
+                    <span className="opacity-75">({activeCard.review_count} lần ôn)</span>
                   )}
                 </span>
-
-                <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                  {isFlipped ? '🔓 MẶT SAU: ĐÁP ÁN CHUẨN' : '🔒 MẶT TRƯỚC: CÂU HỎI GỢI NHỚ'}
-                </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/topic/${activeCard.topic_id}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700"
+              {lastRatedToast ? (
+                <span
+                  className={`animate-fade-in rounded-xl px-3 py-1 text-xs font-extrabold ${
+                    lastRatedToast.tone === 'emerald'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : lastRatedToast.tone === 'amber'
+                        ? 'bg-amber-100 text-amber-900'
+                        : 'bg-rose-100 text-rose-800'
+                  }`}
                 >
-                  <BookOpen className="h-3.5 w-3.5" />
-                  <span>Mở bài học</span>
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
-              </div>
+                  {lastRatedToast.text}
+                </span>
+              ) : (
+                <div className="hidden items-center gap-2 text-[11px] font-semibold text-slate-400 sm:flex">
+                  <Keyboard className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>
+                    Nhấn <kbd className="rounded border bg-white px-1.5 py-0.5 text-slate-700">Space</kbd> lật thẻ •{' '}
+                    <kbd className="rounded border bg-white px-1.5 py-0.5 text-slate-700">1</kbd>{' '}
+                    <kbd className="rounded border bg-white px-1.5 py-0.5 text-slate-700">2</kbd>{' '}
+                    <kbd className="rounded border bg-white px-1.5 py-0.5 text-slate-700">3</kbd> chấm mức nhớ
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Card Body: Front vs Back */}
-            {!isFlipped ? (
-              <div className="flex min-h-[240px] flex-col items-center justify-center py-6 text-center">
-                <div className="mb-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
-                  {activeCard.chapter_code} • {activeCard.chapter_title}
-                </div>
-                <h2 className="max-w-2xl text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
-                  <RichPhysicsText text={activeCard.front_title} />
-                </h2>
-                <p className="mt-3 max-w-xl text-xs leading-relaxed text-slate-600 sm:text-sm">
-                  {activeCard.front_prompt}
-                </p>
-
-                {activeCard.front_hints.length > 0 && (
-                  <div className="mt-5 flex max-w-2xl flex-wrap items-center justify-center gap-2">
-                    {activeCard.front_hints.map((hint, idx) => (
-                      <span
-                        key={idx}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-2xs"
-                      >
-                        <RichPhysicsText text={hint} />
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white shadow-soft transition group-hover:scale-105">
-                  <Eye className="h-4 w-4" />
-                  <span>Bấm vào thẻ (hoặc nhấn phím Space) để lật xem đáp án</span>
-                </div>
-              </div>
-            ) : (
-              <div className="animate-fade-in space-y-5 py-5">
-                <div className="text-center">
-                  <div className="text-xs font-bold uppercase tracking-wider text-emerald-700">
-                    Đáp án &amp; Công thức chuẩn SGK
-                  </div>
-                  <h3 className="mt-1 text-lg font-extrabold text-slate-900 sm:text-xl">
-                    <RichPhysicsText text={activeCard.front_title} />
-                  </h3>
-                </div>
-
-                {activeCard.card_type === 'formula' ? (
-                  <div className="space-y-4">
-                    {/* Main LaTeX Formula */}
-                    <div className="mx-auto max-w-2xl overflow-x-auto rounded-2xl border-2 border-emerald-200 bg-white p-5 text-center text-lg font-bold text-slate-900 shadow-soft">
-                      <KatexFormula
-                        latex={activeCard.latex_expression || activeCard.plain_expression || ''}
-                        displayMode={true}
-                      />
-                    </div>
-
-                    {/* Variables Table */}
-                    {activeCard.variables && activeCard.variables.length > 0 && (
-                      <div className="mx-auto max-w-3xl">
-                        <div className="mb-2 text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                          Giải thích các đại lượng &amp; Đơn vị chuẩn SI:
-                        </div>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {activeCard.variables.map((v, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="rounded-lg bg-indigo-50 px-2 py-0.5 font-bold text-indigo-800">
-                                  <KatexFormula latex={v.symbol} />
-                                </span>
-                                <span className="font-semibold text-slate-800">{v.name}</span>
-                              </div>
-                              <span className="shrink-0 rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-700">
-                                {v.unit}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Derived Formulas */}
-                    {activeCard.derived_formulas && activeCard.derived_formulas.length > 0 && (
-                      <div className="mx-auto max-w-3xl">
-                        <div className="mb-2 text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                          Công thức suy diễn / rút ẩn:
-                        </div>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {activeCard.derived_formulas.map((df, idx) => (
-                            <div
-                              key={idx}
-                              className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 text-xs"
-                            >
-                              <div className="font-bold text-indigo-950">
-                                <KatexFormula latex={df.expression} />
-                              </div>
-                              <div className="mt-1 text-slate-600">
-                                <RichPhysicsText text={df.description} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Usage Note */}
-                    {activeCard.usage_note && (
-                      <div className="mx-auto max-w-3xl rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-950">
-                        <strong className="font-extrabold">💡 Lưu ý &amp; Mẹo tránh bẫy: </strong>
-                        <RichPhysicsText text={activeCard.usage_note} />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="mx-auto max-w-3xl space-y-4">
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-emerald-200 bg-white p-4 text-center shadow-2xs">
-                        <div className="text-[11px] font-bold uppercase text-slate-400">
-                          Ký hiệu chuẩn
-                        </div>
-                        <div className="mt-1.5 text-2xl font-extrabold text-indigo-700">
-                          <KatexFormula latex={activeCard.symbol || ''} />
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-emerald-200 bg-white p-4 text-center shadow-2xs">
-                        <div className="text-[11px] font-bold uppercase text-slate-400">
-                          Đơn vị chuẩn Hệ SI
-                        </div>
-                        <div className="mt-1.5 text-xl font-extrabold text-emerald-700">
-                          {activeCard.si_unit}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-emerald-200 bg-white p-4 text-center shadow-2xs">
-                        <div className="text-[11px] font-bold uppercase text-slate-400">
-                          Dụng cụ đo
-                        </div>
-                        <div className="mt-1.5 text-sm font-extrabold text-slate-800">
-                          {activeCard.measuring_device || 'Tính qua công thức'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {activeCard.other_units && (
-                      <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-xs text-slate-700">
-                        <strong className="font-extrabold text-slate-900">
-                          Các đơn vị thường gặp khác:{' '}
-                        </strong>
-                        <RichPhysicsText text={activeCard.other_units} />
-                      </div>
-                    )}
-
-                    {activeCard.description && (
-                      <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 text-xs leading-relaxed text-indigo-950 sm:text-sm">
-                        <strong className="font-extrabold">Bản chất Vật lý: </strong>
-                        <RichPhysicsText text={activeCard.description} />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Smooth Progress Track */}
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200/80 p-0.5">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 transition-all duration-300"
+                style={{ width: `${progressInFilterPct}%` }}
+              />
+            </div>
           </div>
 
-          {/* Controls: Prev / 3 Rating Buttons / Next */}
-          <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft sm:flex-row">
-            <button
-              type="button"
-              onClick={handlePrev}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100 sm:w-auto"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span>Thẻ trước</span>
-            </button>
+          {/* 3D Stacked Deck Wrapper */}
+          <div className="relative pb-3 pt-1">
+            {/* Background Stack Layer 2 */}
+            <div className="pointer-events-none absolute inset-x-8 -bottom-1 top-6 rounded-[2rem] border border-slate-200/70 bg-slate-100/70 shadow-sm" />
+            {/* Background Stack Layer 1 */}
+            <div className="pointer-events-none absolute inset-x-4 bottom-0.5 top-3 rounded-[2rem] border border-slate-200/90 bg-white/90 shadow-md" />
 
-            <div className="grid w-full grid-cols-3 gap-2 sm:w-auto">
+            {/* ACTIVE COLLECTIBLE CARD */}
+            <div
+              onClick={() => setIsFlipped((f) => !f)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') setIsFlipped((f) => !f);
+              }}
+              className={`group relative min-h-[430px] cursor-pointer overflow-hidden rounded-[2rem] border-2 transition-all duration-300 sm:min-h-[460px] ${
+                isFlipped
+                  ? 'border-emerald-400/90 bg-white shadow-[0_25px_60px_-15px_rgba(16,185,129,0.28)]'
+                  : activeCard.card_type === 'formula'
+                    ? 'border-indigo-300/90 bg-white shadow-[0_25px_60px_-15px_rgba(79,70,229,0.22)] hover:-translate-y-0.5 hover:border-indigo-400'
+                    : 'border-amber-300/90 bg-white shadow-[0_25px_60px_-15px_rgba(245,158,11,0.22)] hover:-translate-y-0.5 hover:border-amber-400'
+              }`}
+            >
+              {/* TOP COLLECTIBLE RIBBON */}
+              <div
+                className={`relative overflow-hidden px-6 py-4 text-white sm:px-8 ${
+                  isFlipped
+                    ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700'
+                    : activeCard.card_type === 'formula'
+                      ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-700'
+                      : 'bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600'
+                }`}
+              >
+                <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
+
+                <div className="relative flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-1 text-xs font-extrabold tracking-wide text-white backdrop-blur">
+                      {activeCard.card_type === 'formula' ? (
+                        <>
+                          <Calculator className="h-3.5 w-3.5" />
+                          <span>THẺ CÔNG THỨC TRỌNG TÂM</span>
+                        </>
+                      ) : (
+                        <>
+                          <Ruler className="h-3.5 w-3.5" />
+                          <span>THẺ ĐẠI LƯỢNG &amp; ĐƠN VỊ SI</span>
+                        </>
+                      )}
+                    </span>
+
+                    <span className="rounded-lg bg-black/20 px-2.5 py-1 font-mono text-xs font-bold text-white/95">
+                      {activeCard.topic_code} • {activeCard.topic_title}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-white/30 bg-white/15 px-3 py-0.5 text-[11px] font-extrabold text-white backdrop-blur">
+                      {isFlipped ? '🔓 MẶT SAU • ĐÁP ÁN CHUẨN' : '🔒 MẶT TRƯỚC • THỬ THÁCH TRÍ NHỚ'}
+                    </span>
+
+                    <Link
+                      href={`/topic/${activeCard.topic_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      title="Mở trang bài học chi tiết"
+                      className="inline-flex items-center gap-1 rounded-xl bg-white/20 px-2.5 py-1 text-xs font-bold text-white backdrop-blur transition hover:bg-white/30"
+                    >
+                      <BookOpen className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Bài học</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================================================ */}
+              {/* CARD CONTENT: FRONT FACE VS BACK FACE                        */}
+              {/* ============================================================ */}
+              {!isFlipped ? (
+                /* ---------------- FRONT FACE (THE CHALLENGE) ---------------- */
+                <div
+                  className="relative flex min-h-[370px] flex-col justify-between p-6 sm:min-h-[395px] sm:p-8"
+                  style={{
+                    backgroundImage:
+                      'radial-gradient(rgba(99, 102, 241, 0.09) 1px, transparent 1px)',
+                    backgroundSize: '20px 20px',
+                  }}
+                >
+                  {/* Center Prompt Stage */}
+                  <div className="my-auto flex flex-col items-center text-center">
+                    {/* Floating Subject Emblem */}
+                    <div
+                      className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border-2 shadow-soft transition-transform duration-300 group-hover:scale-110 ${
+                        activeCard.card_type === 'formula'
+                          ? 'border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-100 text-indigo-600'
+                          : 'border-amber-200 bg-gradient-to-br from-amber-50 to-orange-100 text-amber-600'
+                      }`}
+                    >
+                      {activeCard.card_type === 'formula' ? (
+                        <Calculator className="h-8 w-8" />
+                      ) : (
+                        <Compass className="h-8 w-8" />
+                      )}
+                    </div>
+
+                    <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-0.5 text-[11px] font-bold text-slate-500">
+                      <span>{activeCard.chapter_code}</span>
+                      <span>•</span>
+                      <span>{activeCard.chapter_title}</span>
+                    </div>
+
+                    {/* Main Question Title */}
+                    <h2 className="mt-3 max-w-2xl text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+                      <RichPhysicsText text={activeCard.front_title} />
+                    </h2>
+
+                    {/* Challenge Prompt Box */}
+                    <div className="mt-4 max-w-xl rounded-2xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-xs font-medium leading-relaxed text-indigo-950 sm:text-sm">
+                      <span className="mr-1.5 font-extrabold text-indigo-700">
+                        🎯 Nhiệm vụ của bạn:
+                      </span>
+                      {activeCard.front_prompt}
+                    </div>
+
+                    {/* Interactive Hints (Variables / Clues) */}
+                    {activeCard.front_hints.length > 0 && (
+                      <div className="mt-5 w-full max-w-2xl">
+                        <div className="mb-2 flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowHintsOnFront((h) => !h);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-slate-600 shadow-2xs hover:border-indigo-300 hover:text-indigo-700"
+                          >
+                            <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+                            <span>
+                              {showHintsOnFront
+                                ? 'Ẩn gợi ý đại lượng'
+                                : `Mở gợi ý (${activeCard.front_hints.length} dữ kiện)`}
+                            </span>
+                          </button>
+                        </div>
+
+                        {showHintsOnFront && (
+                          <div className="flex flex-wrap items-center justify-center gap-2">
+                            {activeCard.front_hints.map((hint, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs"
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                                <RichPhysicsText text={hint} />
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Call-To-Flip Bar */}
+                  <div className="mt-6 flex items-center justify-center border-t border-slate-100 pt-4">
+                    <div className="inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-soft transition duration-200 group-hover:scale-105 group-hover:shadow-md sm:text-sm">
+                      <RefreshCw className="h-4 w-4 transition-transform duration-500 group-hover:rotate-180" />
+                      <span>Chạm vào thẻ hoặc nhấn [Phím Cách] để lật xem Đáp Án Chuẩn</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ---------------- BACK FACE (THE KNOWLEDGE REVEAL) ---------------- */
+                <div className="animate-fade-in flex min-h-[370px] flex-col justify-between space-y-5 bg-gradient-to-b from-emerald-50/30 via-white to-slate-50/40 p-6 sm:min-h-[395px] sm:p-8">
+                  {activeCard.card_type === 'formula' ? (
+                    <div className="space-y-5">
+                      {/* Formula Spotlight Stage */}
+                      <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-400/80 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 text-center text-white shadow-lg">
+                        <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-emerald-400/20 blur-2xl" />
+                        <div className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-indigo-400/20 blur-2xl" />
+
+                        <div className="relative">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-0.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-300">
+                            <Sparkles className="h-3 w-3" />
+                            <span>Biểu thức chuẩn SGK • {activeCard.front_title}</span>
+                          </span>
+
+                          <div className="mt-4 overflow-x-auto rounded-2xl bg-white/95 px-6 py-5 text-xl font-extrabold text-slate-900 shadow-inner sm:text-2xl">
+                            <KatexFormula
+                              latex={
+                                activeCard.latex_expression ||
+                                activeCard.plain_expression ||
+                                ''
+                              }
+                              displayMode={true}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Variables Breakdown Grid */}
+                      {activeCard.variables && activeCard.variables.length > 0 && (
+                        <div>
+                          <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-slate-600">
+                            <Ruler className="h-4 w-4 text-emerald-600" />
+                            <span>Ý nghĩa các đại lượng &amp; Đơn vị chuẩn Hệ SI:</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            {activeCard.variables.map((v, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white p-3 shadow-2xs"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <span className="flex h-9 min-w-[2.25rem] items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-2 font-bold text-indigo-900">
+                                    <KatexFormula latex={v.symbol} />
+                                  </span>
+                                  <span className="text-xs font-extrabold text-slate-800 sm:text-sm">
+                                    {v.name}
+                                  </span>
+                                </div>
+                                <span className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-xs font-extrabold text-emerald-700">
+                                  {v.unit}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Derived Formulas */}
+                      {activeCard.derived_formulas && activeCard.derived_formulas.length > 0 && (
+                        <div>
+                          <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-slate-600">
+                            <Zap className="h-4 w-4 text-indigo-600" />
+                            <span>Công thức suy diễn &amp; Rút ẩn nhanh:</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            {activeCard.derived_formulas.map((df, idx) => (
+                              <div
+                                key={idx}
+                                className="rounded-2xl border border-indigo-200/80 bg-indigo-50/50 p-3.5"
+                              >
+                                <div className="text-sm font-extrabold text-indigo-950">
+                                  <KatexFormula latex={df.expression} />
+                                </div>
+                                <div className="mt-1 text-xs font-medium text-slate-600">
+                                  <RichPhysicsText text={df.description} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pro-Tip Note */}
+                      {activeCard.usage_note && (
+                        <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-xs leading-relaxed text-amber-950 sm:text-sm">
+                          <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                          <div>
+                            <strong className="font-extrabold text-amber-900">
+                              Bí kíp phòng thi &amp; Bẫy cần tránh:{' '}
+                            </strong>
+                            <RichPhysicsText text={activeCard.usage_note} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* QUANTITY & SI UNIT BACK FACE */
+                    <div className="space-y-5">
+                      <div className="text-center">
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800">
+                          Hồ sơ Đại lượng Vật lý chuẩn Hệ SI
+                        </span>
+                        <h3 className="mt-2 text-2xl font-extrabold text-slate-900">
+                          <RichPhysicsText text={activeCard.front_title} />
+                        </h3>
+                      </div>
+
+                      {/* 3 Spotlight Pillars */}
+                      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+                        <div className="rounded-3xl border-2 border-indigo-200 bg-gradient-to-b from-indigo-50/70 to-white p-5 text-center shadow-soft">
+                          <div className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-600">
+                            1. Ký hiệu chuẩn
+                          </div>
+                          <div className="mt-3 text-3xl font-extrabold text-indigo-900">
+                            <KatexFormula latex={activeCard.symbol || ''} />
+                          </div>
+                        </div>
+
+                        <div className="rounded-3xl border-2 border-emerald-300 bg-gradient-to-b from-emerald-50/80 to-white p-5 text-center shadow-soft">
+                          <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-700">
+                            2. Đơn vị chuẩn Hệ SI
+                          </div>
+                          <div className="mt-3 font-mono text-2xl font-extrabold text-emerald-800">
+                            {activeCard.si_unit}
+                          </div>
+                        </div>
+
+                        <div className="rounded-3xl border-2 border-amber-200 bg-gradient-to-b from-amber-50/70 to-white p-5 text-center shadow-soft">
+                          <div className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700">
+                            3. Dụng cụ đo
+                          </div>
+                          <div className="mt-3 text-sm font-extrabold text-slate-800 sm:text-base">
+                            {activeCard.measuring_device || 'Xác định qua công thức'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {activeCard.other_units && (
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700 sm:text-sm">
+                          <strong className="font-extrabold text-slate-900">
+                            🔄 Các đơn vị thường gặp khác:{' '}
+                          </strong>
+                          <RichPhysicsText text={activeCard.other_units} />
+                        </div>
+                      )}
+
+                      {activeCard.description && (
+                        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs leading-relaxed text-indigo-950 sm:text-sm">
+                          <strong className="font-extrabold text-indigo-900">
+                            📖 Bản chất Vật lý cần nhớ:{' '}
+                          </strong>
+                          <RichPhysicsText text={activeCard.description} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Bottom Hint on Back Face */}
+                  <div className="flex items-center justify-between border-t border-slate-200/70 pt-3 text-xs text-slate-400">
+                    <span>💡 Hãy tự chấm mức độ nhớ của bạn bằng 3 nút bên dưới</span>
+                    <span className="font-semibold text-emerald-700">
+                      Bấm vào thẻ để lật lại mặt trước ↺
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ============================================================ */}
+          {/* TACTILE 3-BUTTON SPACED REPETITION DOCK                      */}
+          {/* ============================================================ */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-4 shadow-card sm:p-5">
+            <div className="mb-3 text-center text-xs font-extrabold uppercase tracking-wider text-slate-500">
+              Bạn nhớ thẻ này ở mức nào? (Chọn để lưu tiến độ &amp; qua thẻ tiếp theo)
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+              {/* Prev Card Button */}
+              <button
+                type="button"
+                onClick={handlePrev}
+                className="flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100 sm:col-span-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span>Trước</span>
+              </button>
+
+              {/* 1. Forgot */}
               <button
                 type="button"
                 onClick={() => handleRateCard('forgot')}
                 disabled={Boolean(savingKey)}
-                className="flex flex-col items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-extrabold text-rose-700 transition hover:bg-rose-100"
+                className="group flex flex-col items-center justify-center rounded-2xl border-2 border-rose-200 bg-gradient-to-b from-rose-50 to-white px-4 py-3 text-rose-700 shadow-2xs transition hover:-translate-y-0.5 hover:border-rose-400 hover:shadow-md sm:col-span-3"
               >
-                <span className="flex items-center gap-1">
-                  <XCircle className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-1.5 text-sm font-extrabold">
+                  <XCircle className="h-4 w-4 text-rose-600" />
                   <span>Quên rồi</span>
+                </div>
+                <span className="mt-0.5 text-[11px] font-semibold text-rose-500">
+                  Phím [1] • Ôn lại ngay
                 </span>
-                <span className="text-[10px] font-medium text-rose-500">Phím 1 • Hỏi lại</span>
               </button>
 
+              {/* 2. Hard / Somewhat Remembered */}
               <button
                 type="button"
                 onClick={() => handleRateCard('hard')}
                 disabled={Boolean(savingKey)}
-                className="flex flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-extrabold text-amber-800 transition hover:bg-amber-100"
+                className="group flex flex-col items-center justify-center rounded-2xl border-2 border-amber-200 bg-gradient-to-b from-amber-50 to-white px-4 py-3 text-amber-800 shadow-2xs transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md sm:col-span-2"
               >
-                <span className="flex items-center gap-1">
-                  <AlertTriangle className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-1.5 text-sm font-extrabold">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
                   <span>Hơi nhớ</span>
+                </div>
+                <span className="mt-0.5 text-[11px] font-semibold text-amber-600">
+                  Phím [2] • Cần nhẩm
                 </span>
-                <span className="text-[10px] font-medium text-amber-600">Phím 2 • Cần ôn</span>
               </button>
 
+              {/* 3. Mastered */}
               <button
                 type="button"
                 onClick={() => handleRateCard('mastered')}
                 disabled={Boolean(savingKey)}
-                className="flex flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 transition hover:bg-emerald-100"
+                className="group flex flex-col items-center justify-center rounded-2xl border-2 border-emerald-300 bg-gradient-to-b from-emerald-500 to-teal-600 px-4 py-3 text-white shadow-soft transition hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700 hover:shadow-lg sm:col-span-3"
               >
-                <span className="flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>Đã thuộc lòng</span>
+                <div className="flex items-center gap-1.5 text-sm font-extrabold">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Đã thuộc lòng!</span>
+                </div>
+                <span className="mt-0.5 text-[11px] font-semibold text-emerald-100">
+                  Phím [3] • Chinh phục
                 </span>
-                <span className="text-[10px] font-medium text-emerald-600">Phím 3 • Chinh phục</span>
+              </button>
+
+              {/* Next Card Button */}
+              <button
+                type="button"
+                onClick={handleNext}
+                className="flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100 sm:col-span-2"
+              >
+                <span>Tiếp</span>
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={handleNext}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-100 sm:w-auto"
-            >
-              <span>Thẻ tiếp</span>
-              <ChevronRight className="h-4 w-4" />
-            </button>
           </div>
         </div>
       ) : (
@@ -757,10 +972,10 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-extrabold text-slate-900 sm:text-base">
-                Danh sách nhanh bộ thẻ đang lọc ({filteredCards.length} thẻ)
+                Bộ sưu tập thẻ trong danh mục đang chọn ({filteredCards.length} thẻ)
               </h3>
               <p className="text-xs text-slate-500">
-                Bấm vào bất kỳ thẻ nào bên dưới để nhảy trực tiếp tới thẻ đó trên bàn lật
+                Bấm vào bất kỳ thẻ nào bên dưới để đưa lên bàn lật ngay lập tức
               </p>
             </div>
           </div>
