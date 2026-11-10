@@ -37,7 +37,7 @@ import {
   GitBranch,
   Brain,
 } from 'lucide-react';
-import { detectCognitiveTrap, COGNITIVE_TRAP_REGISTRY } from '@/lib/cognitive-traps';
+import { detectCognitiveTrap, COGNITIVE_TRAP_REGISTRY, pickRepresentativeTrapOption } from '@/lib/cognitive-traps';
 
 const DIFF_LABELS: Record<string, string> = {
   nhan_biet: 'Nhận biết',
@@ -1328,12 +1328,15 @@ export function MistakeNotebookClient({
                       {tGroup.items.map((q, idx) => {
                         const isExpanded = !!expandedExplanations[q.id];
                         const qFormat = classifyQuestionFormat(q);
-                        const wrongLetter =
-                          q.last_wrong_option >= 0 && q.last_wrong_option <= 3
-                            ? ['A', 'B', 'C', 'D'][q.last_wrong_option]
-                            : 'Bỏ trống';
+                        const hasPickedWrong = q.last_wrong_option >= 0 && q.last_wrong_option <= 3;
+                        const effectiveWrongOpt = hasPickedWrong
+                          ? q.last_wrong_option
+                          : pickRepresentativeTrapOption(q);
+                        const wrongLetter = hasPickedWrong
+                          ? `Đã chọn: ${['A', 'B', 'C', 'D'][q.last_wrong_option]}`
+                          : `Bỏ trống • Bẫy điển hình: ${['A', 'B', 'C', 'D'][effectiveWrongOpt]}`;
                         const rightLetter = ['A', 'B', 'C', 'D'][q.correct_index] || 'A';
-                        const trap = detectCognitiveTrap(q, q.last_wrong_option);
+                        const trap = detectCognitiveTrap(q, effectiveWrongOpt);
                         const trapMeta = COGNITIVE_TRAP_REGISTRY[trap.trapType];
 
                         return (
@@ -1366,7 +1369,7 @@ export function MistakeNotebookClient({
                                 </span>
 
                                 <span className="rounded-md bg-rose-50 px-2 py-0.5 font-bold text-rose-700">
-                                  Sai {q.wrong_count} lần (Đã chọn: {wrongLetter})
+                                  Sai {q.wrong_count} lần ({wrongLetter})
                                 </span>
 
                                 <span className={`rounded-md border px-2 py-0.5 font-bold text-xs ${trapMeta.badgeCls}`}>

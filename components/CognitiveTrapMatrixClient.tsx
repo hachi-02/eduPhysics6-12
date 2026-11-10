@@ -857,17 +857,21 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                 const isSelected = userAnswers[currentPracticeQ.id] === optIdx;
                 const isCorrect = optIdx === currentPracticeQ.correct_index;
                 let btnCls = 'border-slate-200 bg-slate-50 hover:border-indigo-300 hover:bg-white text-slate-700';
+                let badgeCircleCls = 'bg-slate-200 text-slate-700';
 
                 if (showAnswer) {
                   if (isCorrect) {
                     btnCls = 'border-emerald-500 bg-emerald-50 text-emerald-950 font-bold';
+                    badgeCircleCls = 'bg-emerald-600 text-white';
                   } else if (isSelected) {
                     btnCls = 'border-rose-500 bg-rose-50 text-rose-950 font-bold';
+                    badgeCircleCls = 'bg-rose-600 text-white';
                   } else {
                     btnCls = 'border-slate-200 bg-slate-50 text-slate-400 opacity-60';
                   }
                 } else if (isSelected) {
                   btnCls = 'border-indigo-600 bg-indigo-50 text-indigo-900 font-bold';
+                  badgeCircleCls = 'bg-indigo-600 text-white';
                 }
 
                 return (
@@ -878,11 +882,23 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                     onClick={() => handleSelectOption(currentPracticeQ.id, optIdx)}
                     className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left text-xs transition ${btnCls}`}
                   >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black">
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${badgeCircleCls}`}
+                    >
                       {String.fromCharCode(65 + optIdx)}
                     </span>
                     <div className="flex-1">
                       <RichPhysicsText text={opt} />
+                      {showAnswer && isCorrect && (
+                        <span className="ml-1.5 text-[10px] font-extrabold text-emerald-700">
+                          ✓ {isSelected ? 'Bạn đã chọn đúng' : 'Đáp án đúng'}
+                        </span>
+                      )}
+                      {showAnswer && isSelected && !isCorrect && (
+                        <span className="ml-1.5 text-[10px] font-extrabold text-rose-700">
+                          ✗ Phương án bạn chọn (Sập bẫy)
+                        </span>
+                      )}
                     </div>
                   </button>
                 );
@@ -890,32 +906,115 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
             </div>
 
             {/* Solution & Trap Analysis on Answer */}
-            {showAnswer && (
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 space-y-2 animate-in fade-in duration-150">
-                <div className="flex items-center gap-1.5 text-xs font-black text-indigo-950">
-                  <Brain className="h-4 w-4 text-indigo-600" />
-                  <span>Giải mã bẫy nhận thức:</span>
-                </div>
-                <p className="text-xs text-indigo-950 leading-relaxed">
-                  {currentPracticeQ.trapAnalysis.diagnosis}
-                </p>
-                <div className="pt-2 border-t border-indigo-200/50 flex items-center justify-between text-xs">
-                  <span className="text-slate-600">
-                    Đáp án đúng:{' '}
-                    <strong className="text-emerald-700 font-mono">
-                      {String.fromCharCode(65 + currentPracticeQ.correct_index)}
-                    </strong>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleNextPractice}
-                    className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-extrabold text-white shadow-soft hover:bg-indigo-700 transition"
+            {showAnswer &&
+              (() => {
+                const selectedPracticeOpt = userAnswers[currentPracticeQ.id];
+                const isPracticeCorrect = selectedPracticeOpt === currentPracticeQ.correct_index;
+                const livePracticeAnalysis =
+                  selectedPracticeOpt !== undefined && !isPracticeCorrect
+                    ? detectCognitiveTrap(currentPracticeQ, selectedPracticeOpt)
+                    : currentPracticeQ.trapAnalysis;
+                const correctOptText = currentPracticeQ.options[currentPracticeQ.correct_index] || '';
+                const trapOptIdx = currentPracticeQ.last_wrong_option;
+                const trapOptText =
+                  trapOptIdx !== undefined &&
+                  trapOptIdx >= 0 &&
+                  trapOptIdx !== currentPracticeQ.correct_index
+                    ? currentPracticeQ.options[trapOptIdx]
+                    : '';
+
+                return (
+                  <div
+                    className={`rounded-2xl border p-4 space-y-2 animate-in fade-in duration-150 ${
+                      isPracticeCorrect
+                        ? 'border-emerald-200 bg-emerald-50/80'
+                        : 'border-rose-200 bg-rose-50/70'
+                    }`}
                   >
-                    {activeQuestionIdx < practiceList.length - 1 ? 'Câu tiếp theo →' : 'Hoàn thành 🎉'}
-                  </button>
-                </div>
-              </div>
-            )}
+                    <div
+                      className={`flex items-center gap-1.5 text-xs font-black ${
+                        isPracticeCorrect ? 'text-emerald-900' : 'text-rose-900'
+                      }`}
+                    >
+                      {isPracticeCorrect ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          <span>Chính xác! Bạn đã nhận diện và vượt qua bẫy thành công:</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-4 w-4 text-rose-600" />
+                          <span>Giải mã bẫy nhận thức từ phương án bạn vừa chọn:</span>
+                        </>
+                      )}
+                    </div>
+
+                    {isPracticeCorrect ? (
+                      <div className="space-y-1.5 text-xs text-emerald-950 leading-relaxed">
+                        <p>
+                          Bạn đã chọn chính xác đáp án{' '}
+                          <strong>
+                            {String.fromCharCode(65 + currentPracticeQ.correct_index)} (&quot;{correctOptText}&quot;)
+                          </strong>
+                          {trapOptText ? (
+                            <>
+                              {' '}
+                              và né được phương án bẫy phổ biến{' '}
+                              <strong>&quot;{trapOptText}&quot;</strong> ({livePracticeAnalysis.trapName}).
+                            </>
+                          ) : (
+                            '.'
+                          )}
+                        </p>
+                        {currentPracticeQ.explanation && (
+                          <p className="text-emerald-900/90">
+                            <strong>Bản chất vật lý:</strong> {currentPracticeQ.explanation}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-rose-950 leading-relaxed">
+                        {livePracticeAnalysis.diagnosis}
+                      </p>
+                    )}
+
+                    <div
+                      className={`pt-2 border-t text-[11px] flex items-start gap-1.5 ${
+                        isPracticeCorrect
+                          ? 'border-emerald-200/70 text-emerald-800'
+                          : 'border-rose-200/70 text-rose-800'
+                      }`}
+                    >
+                      <span className="font-bold shrink-0">💡 Bí kíp né bẫy:</span>
+                      <span>{livePracticeAnalysis.remedyTip}</span>
+                    </div>
+
+                    <div
+                      className={`pt-2.5 border-t flex items-center justify-between text-xs ${
+                        isPracticeCorrect ? 'border-emerald-200/70' : 'border-rose-200/70'
+                      }`}
+                    >
+                      <span className="text-slate-700">
+                        Đáp án đúng:{' '}
+                        <strong className="text-emerald-700 font-mono">
+                          {String.fromCharCode(65 + currentPracticeQ.correct_index)}
+                        </strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleNextPractice}
+                        className={`rounded-xl px-4 py-1.5 text-xs font-extrabold text-white shadow-soft transition ${
+                          isPracticeCorrect
+                            ? 'bg-emerald-600 hover:bg-emerald-700'
+                            : 'bg-indigo-600 hover:bg-indigo-700'
+                        }`}
+                      >
+                        {activeQuestionIdx < practiceList.length - 1 ? 'Câu tiếp theo →' : 'Hoàn thành 🎉'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
           </div>
         </div>
       )}
