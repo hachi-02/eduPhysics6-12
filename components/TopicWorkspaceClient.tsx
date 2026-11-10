@@ -6,6 +6,7 @@ import { TopicDetail } from '@/types/cms';
 import { KatexFormula, RichPhysicsText } from './KatexRenderer';
 import { InteractivePhysicsLab } from './InteractivePhysicsLab';
 import { Quiz25Engine } from './Quiz25Engine';
+import { TopicStudyToggleButton } from './TopicStudyToggleButton';
 import {
   ArrowLeft,
   ArrowRight,
@@ -116,13 +117,20 @@ export function TopicWorkspaceClient({
                   Tổng hợp chuẩn 3 bộ SGK
                 </span>
               </div>
-              <Link
-                href={`/knowledge-graph?focus=${topic.code}`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-xs font-bold text-white backdrop-blur transition hover:bg-white/25"
-              >
-                <GitBranch className="h-3.5 w-3.5" />
-                <span>Cây tiền đề &amp; Truy vết lỗ hổng</span>
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <TopicStudyToggleButton
+                  topicId={topic.id}
+                  initialCompleted={Boolean(topic.is_completed)}
+                  variant="header"
+                />
+                <Link
+                  href={`/knowledge-graph?focus=${topic.code}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/25"
+                >
+                  <GitBranch className="h-3.5 w-3.5" />
+                  <span>Cây tiền đề &amp; Truy vết lỗ hổng</span>
+                </Link>
+              </div>
             </div>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">
               {topic.title}
@@ -213,7 +221,12 @@ export function TopicWorkspaceClient({
             )}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TopicStudyToggleButton
+              topicId={topic.id}
+              initialCompleted={Boolean(topic.is_completed)}
+              variant="footer"
+            />
             <button type="button" onClick={() => setActiveTab('formulas')} className="edu-btn-primary">
               <span>Tiếp theo: Công thức &amp; Đại lượng</span>
               <ArrowRight className="w-4 h-4" />

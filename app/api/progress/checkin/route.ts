@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { toggleTopicStudyCheckin, getProgressDashboardData } from '@/lib/cms-service';
 
 export async function POST(req: NextRequest) {
@@ -12,6 +13,14 @@ export async function POST(req: NextRequest) {
     const completed = typeof body.completed === 'boolean' ? body.completed : undefined;
     const result = toggleTopicStudyCheckin(topicId, completed);
     const dashboard = getProgressDashboardData();
+
+    try {
+      revalidatePath('/', 'layout');
+      revalidatePath('/topic/[id]', 'page');
+      revalidatePath('/progress', 'page');
+    } catch {
+      // Safe fallback in unit test environments outside Next.js request context
+    }
 
     return NextResponse.json({
       ok: true,

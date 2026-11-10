@@ -13,6 +13,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { ChapterActionsMenu } from '@/components/ChapterActionsMenu';
+import { TopicStudyToggleButton } from '@/components/TopicStudyToggleButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -352,8 +353,7 @@ export default function HomeBoardPage({
               {ch.topics && ch.topics.length > 0 ? (
                 <div className="divide-y divide-slate-100 overflow-hidden rounded-b-3xl">
                   {ch.topics.map((tp) => {
-                    const hasScore =
-                      tp.best_quiz_score !== null && tp.best_quiz_score !== undefined;
+                    const isCompleted = Boolean(tp.is_completed);
                     return (
                       <Link
                         key={tp.id}
@@ -363,7 +363,7 @@ export default function HomeBoardPage({
                         <div className="flex min-w-0 items-start gap-3.5">
                           <div
                             className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-extrabold transition-colors ${
-                              hasScore
+                              isCompleted
                                 ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
                                 : `${theme.num} ${theme.numHover}`
                             }`}
@@ -397,16 +397,11 @@ export default function HomeBoardPage({
                         </div>
 
                         <div className="flex shrink-0 items-center gap-3">
-                          {hasScore ? (
-                            <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>{tp.best_quiz_score}/25</span>
-                            </span>
-                          ) : (
-                            <span className="hidden text-xs font-medium text-slate-400 sm:inline-block">
-                              Lý thuyết • 25 câu
-                            </span>
-                          )}
+                          <TopicStudyToggleButton
+                            topicId={tp.id}
+                            initialCompleted={isCompleted}
+                            variant="row"
+                          />
                           <ChevronRight
                             className={`h-4 w-4 text-slate-300 transition-transform duration-150 group-hover/row:translate-x-0.5 ${theme.hoverText}`}
                           />

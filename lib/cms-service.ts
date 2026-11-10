@@ -69,6 +69,7 @@ export function getGradeCurriculumBoard(gradeNumber: number): {
   stats: import('@/types/cms').GradeProgressStats;
 } | null {
   ensureDatabaseSeeded(false);
+  ensureProgressTable();
   const db = getDb();
 
   const grade = db.get<GradeItem>('SELECT * FROM grades WHERE grade_number = ?', [gradeNumber]);
@@ -100,7 +101,10 @@ export function getGradeCurriculumBoard(gradeNumber: number): {
         (SELECT count(*) FROM examples e WHERE e.topic_id = t.id) as example_count,
         (SELECT count(*) FROM simulations s WHERE s.topic_id = t.id) as simulation_count,
         (SELECT count(*) FROM questions qu WHERE qu.scope_type = 'topic' AND qu.topic_id = t.id) as question_count,
-        (SELECT MAX(score) FROM quiz_attempts a WHERE a.scope_type = 'topic' AND a.scope_id = t.id) as best_quiz_score
+        (SELECT MAX(score) FROM quiz_attempts a WHERE a.scope_type = 'topic' AND a.scope_id = t.id) as best_quiz_score,
+        (SELECT completed FROM topic_study_checkins sc WHERE sc.topic_id = t.id) as manual_completed,
+        (SELECT count(*) FROM question_mistakes m JOIN questions qu2 ON qu2.id = m.question_id WHERE qu2.topic_id = t.id AND m.mastered = 0) as active_mistakes,
+        (SELECT count(*) FROM question_mistakes m JOIN questions qu3 ON qu3.id = m.question_id WHERE qu3.topic_id = t.id AND m.mastered = 1) as mastered_mistakes
        FROM topics t
        WHERE t.chapter_id = ?
        ORDER BY t.order_index ASC`,
@@ -109,13 +113,26 @@ export function getGradeCurriculumBoard(gradeNumber: number): {
 
     let chCompletedTopics = 0;
     let chScoreSum = 0;
+    let chScoredCount = 0;
 
     const topics: TopicSummaryItem[] = rawTopics.map((tp) => {
       const bestScore = tp.best_quiz_score !== null && tp.best_quiz_score !== undefined ? Number(tp.best_quiz_score) : null;
-      if (bestScore !== null) {
+      const activeMistakes = Number(tp.active_mistakes || 0);
+      const masteredMistakes = Number(tp.mastered_mistakes || 0);
+      const hasManualOverride = tp.manual_completed !== null && tp.manual_completed !== undefined;
+
+      const isCompleted = hasManualOverride
+        ? Number(tp.manual_completed) === 1
+        : (bestScore !== null && bestScore >= 20 && activeMistakes === 0) ||
+          (masteredMistakes > 0 && activeMistakes === 0);
+
+      if (isCompleted) {
         chCompletedTopics++;
-        chScoreSum += bestScore;
         completedTopics++;
+      }
+      if (bestScore !== null) {
+        chScoreSum += bestScore;
+        chScoredCount++;
         totalScoreSum += bestScore;
         totalScoredItems++;
       }
@@ -135,6 +152,7 @@ export function getGradeCurriculumBoard(gradeNumber: number): {
         simulation_count: Number(tp.simulation_count || 0),
         question_count: Number(tp.question_count || 0),
         best_quiz_score: bestScore,
+        is_completed: isCompleted,
       };
     });
 
@@ -161,7 +179,7 @@ export function getGradeCurriculumBoard(gradeNumber: number): {
       best_exam_score: bestExam,
       completed_topics_count: chCompletedTopics,
       total_topics_count: topics.length,
-      average_quiz_score: chCompletedTopics > 0 ? Number((chScoreSum / chCompletedTopics).toFixed(1)) : null,
+      average_quiz_score: chScoredCount > 0 ? Number((chScoreSum / chScoredCount).toFixed(1)) : null,
     };
   });
 
@@ -289,6 +307,30 @@ export function getTopicFullDetail(topicId: number): (TopicDetail & {
     [topicId]
   );
 
+  ensureProgressTable();
+  const checkinRow = db.get<{ completed: number }>(
+    `SELECT completed FROM topic_study_checkins WHERE topic_id = ?`,
+    [topicId]
+  );
+  const mistakeStat = db.get<{ active_cnt: number; mastered_cnt: number }>(
+    `SELECT
+       SUM(CASE WHEN m.mastered = 0 THEN 1 ELSE 0 END) as active_cnt,
+       SUM(CASE WHEN m.mastered = 1 THEN 1 ELSE 0 END) as mastered_cnt
+     FROM question_mistakes m
+     JOIN questions qu ON qu.id = m.question_id
+     WHERE qu.topic_id = ?`,
+    [topicId]
+  );
+  const bestQuizScore =
+    recentAttempts.length > 0 ? Math.max(...recentAttempts.map((a) => Number(a.score || 0))) : null;
+  const activeMistakesCnt = Number(mistakeStat?.active_cnt || 0);
+  const masteredMistakesCnt = Number(mistakeStat?.mastered_cnt || 0);
+  const isCompleted =
+    checkinRow !== undefined && checkinRow !== null
+      ? Number(checkinRow.completed) === 1
+      : (bestQuizScore !== null && bestQuizScore >= 20 && activeMistakesCnt === 0) ||
+        (masteredMistakesCnt > 0 && activeMistakesCnt === 0);
+
   return {
     id: row.id,
     chapter_id: row.chapter_id,
@@ -307,6 +349,8 @@ export function getTopicFullDetail(topicId: number): (TopicDetail & {
     example_count: examples.length,
     simulation_count: simulations.length,
     question_count: questions.length,
+    best_quiz_score: bestQuizScore,
+    is_completed: isCompleted,
     quantities,
     formulas,
     examples,

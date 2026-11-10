@@ -77,6 +77,7 @@ export interface TopicSummaryItem {
   simulation_count: number;
   question_count: number;
   best_quiz_score?: number | null;
+  is_completed?: boolean;
 }
 
 export interface QuantityItem {
