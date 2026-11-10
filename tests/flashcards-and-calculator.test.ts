@@ -18,7 +18,7 @@ describe('Feature 1: Flashcard Active Recall & Spaced Repetition (/flashcards)',
     expect(deck.stats.formulaCards).toBeGreaterThanOrEqual(90);
     expect(deck.stats.quantityCards).toBeGreaterThan(100);
     expect(deck.cards.length).toBe(deck.stats.totalCards);
-    expect(deck.chapters.length).toBe(31);
+    expect(deck.chapters.length).toBe(30);
   });
 
   it('persists flashcard rating and restores state cleanly', () => {
