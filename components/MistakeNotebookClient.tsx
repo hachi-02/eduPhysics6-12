@@ -1504,25 +1504,15 @@ export function MistakeNotebookClient({
                             )}
 
                             <div>
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleExplanation(q.id)}
-                                  className="text-xs font-bold text-brand-600 transition hover:text-brand-800"
-                                >
-                                  {isExpanded
-                                    ? '▲ Ẩn đáp án đúng & lời giải'
-                                    : '▼ Xem đáp án đúng & lời giải chi tiết'}
-                                </button>
-
-                                <Link
-                                  href={`/socratic-coach?questionId=${q.id}`}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
-                                >
-                                  <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                                  <span>Gia sư Socrates (3 nấc) ➔</span>
-                                </Link>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleExplanation(q.id)}
+                                className="text-xs font-bold text-brand-600 transition hover:text-brand-800"
+                              >
+                                {isExpanded
+                                  ? '▲ Ẩn đáp án đúng & lời giải'
+                                  : '▼ Xem đáp án đúng & lời giải chi tiết'}
+                              </button>
 
                               {isExpanded && (
                                 <div className="animate-fade-in mt-2.5 space-y-1.5 rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 text-xs text-slate-700 sm:text-sm">

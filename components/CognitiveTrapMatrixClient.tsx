@@ -736,17 +736,6 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                           <span>{item.trapAnalysis.remedyTip}</span>
                         </div>
                       </div>
-
-                      {/* Socratic Coach Action Trigger */}
-                      <div className="pt-1 flex items-center justify-end">
-                        <Link
-                          href={`/socratic-coach?questionId=${item.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-900 hover:bg-emerald-100 hover:border-emerald-400 transition shadow-2xs"
-                        >
-                          <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                          <span>Học cách giải với Gia sư Socrates (3 nấc) ➔</span>
-                        </Link>
-                      </div>
                     </div>
                   </div>
                 );
