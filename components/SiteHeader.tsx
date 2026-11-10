@@ -15,6 +15,8 @@ import {
   Target,
   Brain,
   BarChart3,
+  Layers,
+  Calculator,
   Menu,
   X,
 } from 'lucide-react';
@@ -31,6 +33,8 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
 
   const isHome = pathname === '/' || pathname.startsWith('/?');
   const isProgress = pathname.startsWith('/progress');
+  const isFlashcards = pathname.startsWith('/flashcards');
+  const isCalculator = pathname.startsWith('/calculator');
   const isKnowledgeGraph = pathname.startsWith('/knowledge-graph');
   const isAdaptiveTest = pathname.startsWith('/adaptive-test');
   const isCognitiveTraps = pathname.startsWith('/cognitive-traps');
@@ -40,6 +44,8 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
 
   const isAnyUtilityActive =
     isProgress ||
+    isFlashcards ||
+    isCalculator ||
     isKnowledgeGraph ||
     isAdaptiveTest ||
     isCognitiveTraps ||
@@ -71,13 +77,33 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
 
   const utilityItems = [
     {
+      href: '/flashcards',
+      title: 'Flashcard Lật Thẻ Công Thức & Đơn Vị SI',
+      desc: 'Ôn tập chủ động (Active Recall) toàn bộ công thức Vật lý, đơn vị chuẩn SI & công thức suy diễn',
+      icon: <Layers className="h-5 w-5 text-indigo-600" />,
+      iconBg: 'bg-indigo-50 border-indigo-200/80',
+      active: isFlashcards,
+      badge: 'Active Recall',
+      badgeCls: 'bg-indigo-100 text-indigo-800',
+    },
+    {
+      href: '/calculator',
+      title: 'Quy Đổi Đơn Vị SI & Giải Công Thức Tức Thì',
+      desc: 'Đổi chuẩn xác 12 nhóm đơn vị về hệ SI, rút ẩn & thay số từng bước công thức Vật lý 6–12',
+      icon: <Calculator className="h-5 w-5 text-teal-600" />,
+      iconBg: 'bg-teal-50 border-teal-200/80',
+      active: isCalculator,
+      badge: 'SI • Solver',
+      badgeCls: 'bg-teal-100 text-teal-800',
+    },
+    {
       href: '/progress',
       title: 'Tiến độ & Hồ sơ Năng lực',
       desc: 'Theo dõi độ phủ 92 chủ đề, tháp năng lực 4 cấp độ Bộ GD&ĐT & nhiệm vụ học hôm nay',
       icon: <BarChart3 className="h-5 w-5 text-emerald-600" />,
       iconBg: 'bg-emerald-50 border-emerald-200/80',
       active: isProgress,
-      badge: 'Mới • 360°',
+      badge: '360°',
       badgeCls: 'bg-emerald-100 text-emerald-800',
     },
     {
@@ -165,11 +191,11 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
           </div>
 
           {/* Right Navigation Flush to Right Edge */}
-          <nav className="flex shrink-0 items-center gap-2">
+          <nav className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {/* Main Link: Curriculum */}
             <Link
               href="/"
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition duration-150 ease-snap ${
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
                 isHome
                   ? 'bg-brand-50 text-brand-700 shadow-soft ring-1 ring-brand-200/80'
                   : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
@@ -179,10 +205,36 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
               <span className="hidden sm:inline">Chương trình</span>
             </Link>
 
+            {/* Quick Link: Flashcards */}
+            <Link
+              href="/flashcards"
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
+                isFlashcards
+                  ? 'bg-indigo-50 text-indigo-700 shadow-soft ring-1 ring-indigo-200/80'
+                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+              }`}
+            >
+              <Layers className="h-4 w-4 text-indigo-600" />
+              <span className="hidden lg:inline">Flashcard</span>
+            </Link>
+
+            {/* Quick Link: SI Converter & Formula Solver */}
+            <Link
+              href="/calculator"
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
+                isCalculator
+                  ? 'bg-teal-50 text-teal-700 shadow-soft ring-1 ring-teal-200/80'
+                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+              }`}
+            >
+              <Calculator className="h-4 w-4 text-teal-600" />
+              <span className="hidden lg:inline">Đổi đơn vị &amp; Giải nhanh</span>
+            </Link>
+
             {/* Quick Link: Progress Dashboard */}
             <Link
               href="/progress"
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition duration-150 ease-snap ${
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
                 isProgress
                   ? 'bg-emerald-50 text-emerald-700 shadow-soft ring-1 ring-emerald-200/80'
                   : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'

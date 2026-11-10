@@ -381,3 +381,60 @@ export interface ProgressDashboardData {
   recommendations: DailyActionRecommendation[];
   topics: TopicProgressItem[];
 }
+
+// ============================================================================
+// FLASHCARDS ACTIVE RECALL & SPACED REPETITION (/flashcards)
+// ============================================================================
+export type FlashcardRating = 'unseen' | 'forgot' | 'hard' | 'mastered';
+
+export interface FlashcardItem {
+  card_key: string; // 'formula_<id>' | 'quantity_<id>'
+  card_type: 'formula' | 'quantity';
+  source_id: number;
+  topic_id: number;
+  topic_code: string;
+  topic_title: string;
+  chapter_id: number;
+  chapter_code: string;
+  chapter_title: string;
+  grade_number: number;
+  front_title: string;
+  front_prompt: string;
+  front_hints: string[];
+  // Formula fields
+  latex_expression?: string;
+  plain_expression?: string;
+  variables?: FormulaVariable[];
+  derived_formulas?: DerivedFormula[];
+  usage_note?: string;
+  // Quantity fields
+  symbol?: string;
+  si_unit?: string;
+  other_units?: string;
+  measuring_device?: string;
+  description?: string;
+  // Review state
+  rating: FlashcardRating;
+  review_count: number;
+  updated_at: string | null;
+}
+
+export interface FlashcardDeckData {
+  cards: FlashcardItem[];
+  chapters: {
+    id: number;
+    code: string;
+    title: string;
+    grade_number: number;
+  }[];
+  stats: {
+    totalCards: number;
+    formulaCards: number;
+    quantityCards: number;
+    masteredCount: number;
+    hardCount: number;
+    forgotCount: number;
+    unseenCount: number;
+  };
+}
+

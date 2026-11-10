@@ -7,10 +7,15 @@ import {
   CheatsheetGradeData,
   CheatsheetTopicItem,
   DailyActionRecommendation,
+  DerivedFormula,
   DifficultyBreakdownItem,
   DifficultyLevel,
   ExampleItem,
+  FlashcardDeckData,
+  FlashcardItem,
+  FlashcardRating,
   FormulaItem,
+  FormulaVariable,
   GradeItem,
   GradeProgressSummary,
   MistakeQuestionItem,
@@ -1978,6 +1983,261 @@ export function getProgressDashboardData(): ProgressDashboardData {
     topics,
   };
 }
+
+// ============================================================================
+// FLASHCARDS ACTIVE RECALL & SPACED REPETITION (/flashcards)
+// ============================================================================
+
+function ensureFlashcardsTable(): void {
+  const db = getDb();
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS flashcard_reviews (
+      card_key TEXT PRIMARY KEY,
+      rating TEXT NOT NULL DEFAULT 'unseen',
+      review_count INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+}
+
+export function recordFlashcardReview(
+  cardKey: string,
+  rating: FlashcardRating
+): { cardKey: string; rating: FlashcardRating; reviewCount: number } {
+  ensureDatabaseSeeded(false);
+  ensureFlashcardsTable();
+  const db = getDb();
+
+  const existing = db.get<{ review_count: number }>(
+    `SELECT review_count FROM flashcard_reviews WHERE card_key = ?`,
+    [cardKey]
+  );
+  const nextCount = existing ? Number(existing.review_count || 0) + 1 : 1;
+
+  db.run(
+    `INSERT INTO flashcard_reviews (card_key, rating, review_count, updated_at)
+     VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(card_key) DO UPDATE SET
+       rating = excluded.rating,
+       review_count = excluded.review_count,
+       updated_at = datetime('now')`,
+    [cardKey, rating, nextCount]
+  );
+
+  return { cardKey, rating, reviewCount: nextCount };
+}
+
+export function resetFlashcardReviews(gradeNumber?: number): void {
+  ensureDatabaseSeeded(false);
+  ensureFlashcardsTable();
+  const db = getDb();
+  if (!gradeNumber) {
+    db.run(`DELETE FROM flashcard_reviews`);
+    return;
+  }
+  const deck = getFlashcardDeckData();
+  const keys = deck.cards
+    .filter((c) => c.grade_number === gradeNumber)
+    .map((c) => c.card_key);
+  for (const k of keys) {
+    db.run(`DELETE FROM flashcard_reviews WHERE card_key = ?`, [k]);
+  }
+}
+
+export function getFlashcardDeckData(): FlashcardDeckData {
+  ensureDatabaseSeeded(false);
+  ensureFlashcardsTable();
+  const db = getDb();
+
+  const reviewRows = db.query<{
+    card_key: string;
+    rating: FlashcardRating;
+    review_count: number;
+    updated_at: string;
+  }>(`SELECT card_key, rating, review_count, updated_at FROM flashcard_reviews`);
+
+  const reviewMap = new Map<
+    string,
+    { rating: FlashcardRating; review_count: number; updated_at: string }
+  >();
+  for (const r of reviewRows) {
+    reviewMap.set(r.card_key, {
+      rating: r.rating,
+      review_count: Number(r.review_count || 1),
+      updated_at: r.updated_at,
+    });
+  }
+
+  const chapters = db.query<{
+    id: number;
+    code: string;
+    title: string;
+    grade_number: number;
+  }>(`
+    SELECT c.id, c.code, c.title, g.grade_number
+    FROM chapters c
+    JOIN grades g ON g.id = c.grade_id
+    ORDER BY g.grade_number ASC, c.order_index ASC
+  `);
+
+  const formulaRows = db.query<{
+    id: number;
+    topic_id: number;
+    name: string;
+    latex_expression: string;
+    plain_expression: string;
+    variables_json: string;
+    derived_formulas_json: string;
+    usage_note: string;
+    topic_code: string;
+    topic_title: string;
+    chapter_id: number;
+    chapter_code: string;
+    chapter_title: string;
+    grade_number: number;
+  }>(`
+    SELECT
+      f.id, f.topic_id, f.name, f.latex_expression, f.plain_expression,
+      f.variables_json, f.derived_formulas_json, f.usage_note,
+      t.code as topic_code, t.title as topic_title,
+      c.id as chapter_id, c.code as chapter_code, c.title as chapter_title,
+      g.grade_number
+    FROM formulas f
+    JOIN topics t ON t.id = f.topic_id
+    JOIN chapters c ON c.id = t.chapter_id
+    JOIN grades g ON g.id = c.grade_id
+    ORDER BY g.grade_number ASC, c.order_index ASC, t.order_index ASC, f.order_index ASC, f.id ASC
+  `);
+
+  const quantityRows = db.query<{
+    id: number;
+    topic_id: number;
+    name: string;
+    symbol: string;
+    si_unit: string;
+    other_units: string;
+    measuring_device: string;
+    description: string;
+    topic_code: string;
+    topic_title: string;
+    chapter_id: number;
+    chapter_code: string;
+    chapter_title: string;
+    grade_number: number;
+  }>(`
+    SELECT
+      q.id, q.topic_id, q.name, q.symbol, q.si_unit, q.other_units, q.measuring_device, q.description,
+      t.code as topic_code, t.title as topic_title,
+      c.id as chapter_id, c.code as chapter_code, c.title as chapter_title,
+      g.grade_number
+    FROM quantities q
+    JOIN topics t ON t.id = q.topic_id
+    JOIN chapters c ON c.id = t.chapter_id
+    JOIN grades g ON g.id = c.grade_id
+    ORDER BY g.grade_number ASC, c.order_index ASC, t.order_index ASC, q.order_index ASC, q.id ASC
+  `);
+
+  const cards: FlashcardItem[] = [];
+
+  for (const f of formulaRows) {
+    const cardKey = `formula_${f.id}`;
+    const rev = reviewMap.get(cardKey);
+    const vars = safeJsonParse<FormulaVariable[]>(f.variables_json, []);
+    const derived = safeJsonParse<DerivedFormula[]>(f.derived_formulas_json, []);
+
+    const hints = vars.map((v) => `${v.name} (đơn vị: ${v.unit})`);
+
+    cards.push({
+      card_key: cardKey,
+      card_type: 'formula',
+      source_id: Number(f.id),
+      topic_id: Number(f.topic_id),
+      topic_code: f.topic_code,
+      topic_title: f.topic_title,
+      chapter_id: Number(f.chapter_id),
+      chapter_code: f.chapter_code,
+      chapter_title: f.chapter_title,
+      grade_number: Number(f.grade_number),
+      front_title: f.name,
+      front_prompt:
+        'Hãy nhẩm lại biểu thức toán học, các công thức suy diễn và đơn vị chuẩn SI của từng đại lượng trước khi lật thẻ:',
+      front_hints: hints,
+      latex_expression: f.latex_expression,
+      plain_expression: f.plain_expression,
+      variables: vars,
+      derived_formulas: derived,
+      usage_note: f.usage_note,
+      rating: rev ? rev.rating : 'unseen',
+      review_count: rev ? rev.review_count : 0,
+      updated_at: rev ? rev.updated_at : null,
+    });
+  }
+
+  for (const q of quantityRows) {
+    const cardKey = `quantity_${q.id}`;
+    const rev = reviewMap.get(cardKey);
+    const hints: string[] = [];
+    if (q.measuring_device) hints.push(`Dụng cụ đo: ${q.measuring_device}`);
+    if (q.other_units) hints.push(`Đơn vị khác: ${q.other_units}`);
+
+    cards.push({
+      card_key: cardKey,
+      card_type: 'quantity',
+      source_id: Number(q.id),
+      topic_id: Number(q.topic_id),
+      topic_code: q.topic_code,
+      topic_title: q.topic_title,
+      chapter_id: Number(q.chapter_id),
+      chapter_code: q.chapter_code,
+      chapter_title: q.chapter_title,
+      grade_number: Number(q.grade_number),
+      front_title: `Đại lượng: ${q.name}`,
+      front_prompt:
+        'Ký hiệu chuẩn, đơn vị đo hợp pháp trong hệ SI và ý nghĩa vật lý của đại lượng này là gì?',
+      front_hints: hints,
+      symbol: q.symbol,
+      si_unit: q.si_unit,
+      other_units: q.other_units,
+      measuring_device: q.measuring_device,
+      description: q.description,
+      rating: rev ? rev.rating : 'unseen',
+      review_count: rev ? rev.review_count : 0,
+      updated_at: rev ? rev.updated_at : null,
+    });
+  }
+
+  let masteredCount = 0;
+  let hardCount = 0;
+  let forgotCount = 0;
+  let unseenCount = 0;
+
+  for (const c of cards) {
+    if (c.rating === 'mastered') masteredCount++;
+    else if (c.rating === 'hard') hardCount++;
+    else if (c.rating === 'forgot') forgotCount++;
+    else unseenCount++;
+  }
+
+  return {
+    cards,
+    chapters: chapters.map((ch) => ({
+      id: Number(ch.id),
+      code: ch.code,
+      title: ch.title,
+      grade_number: Number(ch.grade_number),
+    })),
+    stats: {
+      totalCards: cards.length,
+      formulaCards: formulaRows.length,
+      quantityCards: quantityRows.length,
+      masteredCount,
+      hardCount,
+      forgotCount,
+      unseenCount,
+    },
+  };
+}
+
 
 
 
