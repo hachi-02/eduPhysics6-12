@@ -1334,9 +1334,9 @@ export function MistakeNotebookClient({
                           : pickRepresentativeTrapOption(q);
                         const wrongLetter = hasPickedWrong
                           ? `Đã chọn: ${['A', 'B', 'C', 'D'][q.last_wrong_option]}`
-                          : `Bỏ trống • Bẫy điển hình: ${['A', 'B', 'C', 'D'][effectiveWrongOpt]}`;
+                          : 'Đã chọn: Bỏ trống';
                         const rightLetter = ['A', 'B', 'C', 'D'][q.correct_index] || 'A';
-                        const trap = detectCognitiveTrap(q, effectiveWrongOpt);
+                        const trap = detectCognitiveTrap(q, q.last_wrong_option);
                         const trapMeta = COGNITIVE_TRAP_REGISTRY[trap.trapType];
 
                         return (
@@ -1409,6 +1409,7 @@ export function MistakeNotebookClient({
                                 {q.options.map((opt, oIdx) => {
                                   const letter = ['A', 'B', 'C', 'D'][oIdx];
                                   const isWrongChoice = oIdx === q.last_wrong_option;
+                                  const isTrapWarning = isExpanded && !hasPickedWrong && oIdx === effectiveWrongOpt;
                                   const isCorrectChoice = oIdx === q.correct_index;
 
                                   return (
@@ -1419,7 +1420,9 @@ export function MistakeNotebookClient({
                                           ? 'border-emerald-400 bg-emerald-50/70 font-semibold text-emerald-950'
                                           : isWrongChoice
                                             ? 'border-rose-300 bg-rose-50/60 text-rose-900'
-                                            : 'border-slate-200/80 bg-slate-50/40 text-slate-700'
+                                            : isTrapWarning
+                                              ? 'border-amber-300 bg-amber-50/60 text-amber-950'
+                                              : 'border-slate-200/80 bg-slate-50/40 text-slate-700'
                                       }`}
                                     >
                                       <span
@@ -1428,13 +1431,20 @@ export function MistakeNotebookClient({
                                             ? 'bg-emerald-600 text-white'
                                             : isWrongChoice
                                               ? 'bg-rose-500 text-white'
-                                              : 'bg-slate-200 text-slate-700'
+                                              : isTrapWarning
+                                                ? 'bg-amber-500 text-white'
+                                                : 'bg-slate-200 text-slate-700'
                                         }`}
                                       >
                                         {letter}
                                       </span>
                                       <span className="flex-1">
                                         <RichPhysicsText text={opt} />
+                                        {isTrapWarning && (
+                                          <span className="ml-1.5 text-[11px] font-bold text-amber-700">
+                                            ⚠️ Bẫy dễ nhầm
+                                          </span>
+                                        )}
                                       </span>
                                     </div>
                                   );

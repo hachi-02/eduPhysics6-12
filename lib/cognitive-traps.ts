@@ -281,17 +281,26 @@ export function pickRepresentativeTrapOption(question: {
 }
 
 /**
- * Ghép nối lời giải gốc từ Database vào chẩn đoán sao cho mạch lạc, không lặp ý
+ * Điều chỉnh câu chữ chẩn đoán:
+ * - Nếu học sinh thực sự khoanh sai (isUnanswered = false): Giữ nguyên lời chẩn đoán trực diện ("Bạn đã chọn...").
+ * - Nếu học sinh bỏ trống (isUnanswered = true): Chuyển sang lời cảnh báo bẫy ("Bạn đã bỏ trống câu này. Lưu ý bẫy: học sinh rất dễ...")
+ * - Không nối lặp lại explanation của Database vào đuôi để tránh trùng với mục "Giải thích / Lời giải chi tiết".
  */
-function appendDatabaseExplanation(diagnosisCore: string, explanationRaw?: string): string {
-  const cleanExp = cleanDisplay(explanationRaw || '');
-  if (!cleanExp) return diagnosisCore;
-
-  // Nếu câu chẩn đoán đã chứa nguyên văn lời giải thì không nối lặp lại
-  if (diagnosisCore.toLowerCase().includes(cleanExp.toLowerCase().slice(0, 40))) {
-    return diagnosisCore;
+function finalizeDiagnosisText(diagnosisCore: string, isUnanswered: boolean): string {
+  const cleanCore = cleanDisplay(diagnosisCore);
+  if (!isUnanswered) {
+    return cleanCore;
   }
-  return `${diagnosisCore} Bản chất vật lý: ${cleanExp}`;
+
+  const adapted = cleanCore
+    .replace(/^Phương án bạn chọn/i, 'Phương án bẫy dễ mắc nhất là')
+    .replace(/^Kết quả bạn chọn/i, 'Kết quả bẫy dễ mắc nhất là')
+    .replace(/^Khi chọn/i, 'Nhiều học sinh dễ chọn nhầm')
+    .replace(/^Bạn đã chọn/i, 'Nhiều học sinh rất dễ chọn nhầm')
+    .replace(/^Bạn đã/i, 'Nhiều học sinh rất dễ')
+    .replace(/nhưng bạn đã sập bẫy đọc lướt nên chọn nhầm/i, 'học sinh rất dễ đọc lướt và chọn nhầm');
+
+  return `Bạn đã bỏ trống (chưa chọn đáp án) ở câu hỏi này. Lưu ý bẫy: ${adapted}`;
 }
 
 /**
@@ -419,19 +428,21 @@ export function detectCognitiveTrap(
       ? question.correct_index
       : 0;
 
-  // Nếu học sinh để trống (wrongOptionIndex = -1 / undefined) hoặc trùng đáp án đúng, tự động chọn phương án bẫy điển hình nhất
-  const effectiveWrongIdx =
-    wrongOptionIndex !== undefined &&
-    wrongOptionIndex >= 0 &&
-    wrongOptionIndex < options.length &&
-    wrongOptionIndex !== correctIdx
-      ? wrongOptionIndex
-      : pickRepresentativeTrapOption({
-          question_text: stemRaw,
-          options,
-          correct_index: correctIdx,
-          explanation: explanationRaw,
-        });
+  const isUnanswered =
+    wrongOptionIndex === undefined ||
+    wrongOptionIndex < 0 ||
+    wrongOptionIndex >= options.length ||
+    wrongOptionIndex === correctIdx;
+
+  // Nếu học sinh để trống (wrongOptionIndex = -1 / undefined) hoặc trùng đáp án đúng, tự động chọn phương án bẫy điển hình nhất để cảnh báo
+  const effectiveWrongIdx = !isUnanswered
+    ? wrongOptionIndex
+    : pickRepresentativeTrapOption({
+        question_text: stemRaw,
+        options,
+        correct_index: correctIdx,
+        explanation: explanationRaw,
+      });
 
   const correctTextRaw = cleanDisplay(options[correctIdx] || '');
   const wrongTextRaw = cleanDisplay(options[effectiveWrongIdx] || '');
@@ -459,7 +470,7 @@ export function detectCognitiveTrap(
       trapType: 'TRAP_KEYWORD',
       trapName: COGNITIVE_TRAP_REGISTRY.TRAP_KEYWORD.name,
       severity: 'Thường gặp',
-      diagnosis: appendDatabaseExplanation(core, explanationRaw),
+      diagnosis: finalizeDiagnosisText(core, isUnanswered),
       remedyTip: buildQuestionSpecificRemedy('TRAP_KEYWORD', stem, correctTextRaw, wrongTextRaw, explanation),
       confidence: 0.95,
     };
@@ -492,7 +503,7 @@ export function detectCognitiveTrap(
       trapType: 'TRAP_KEYWORD',
       trapName: COGNITIVE_TRAP_REGISTRY.TRAP_KEYWORD.name,
       severity: 'Thường gặp',
-      diagnosis: appendDatabaseExplanation(specificMsg, explanationRaw),
+      diagnosis: finalizeDiagnosisText(specificMsg, isUnanswered),
       remedyTip: buildQuestionSpecificRemedy('TRAP_KEYWORD', stem, correctTextRaw, wrongTextRaw, explanation),
       confidence: 0.92,
     };
@@ -507,7 +518,7 @@ export function detectCognitiveTrap(
       trapType: 'TRAP_SIGN',
       trapName: COGNITIVE_TRAP_REGISTRY.TRAP_SIGN.name,
       severity: 'Cao',
-      diagnosis: appendDatabaseExplanation(core, explanationRaw),
+      diagnosis: finalizeDiagnosisText(core, isUnanswered),
       remedyTip: buildQuestionSpecificRemedy('TRAP_SIGN', stem, correctTextRaw, wrongTextRaw, explanation),
       confidence: 0.96,
     };
@@ -530,7 +541,7 @@ export function detectCognitiveTrap(
       trapType: 'TRAP_SIGN',
       trapName: COGNITIVE_TRAP_REGISTRY.TRAP_SIGN.name,
       severity: 'Cao',
-      diagnosis: appendDatabaseExplanation(core, explanationRaw),
+      diagnosis: finalizeDiagnosisText(core, isUnanswered),
       remedyTip: buildQuestionSpecificRemedy('TRAP_SIGN', stem, correctTextRaw, wrongTextRaw, explanation),
       confidence: 0.9,
     };
@@ -554,7 +565,7 @@ export function detectCognitiveTrap(
       trapType: 'TRAP_SIGN',
       trapName: COGNITIVE_TRAP_REGISTRY.TRAP_SIGN.name,
       severity: 'Cao',
-      diagnosis: appendDatabaseExplanation(core, explanationRaw),
+      diagnosis: finalizeDiagnosisText(core, isUnanswered),
       remedyTip: buildQuestionSpecificRemedy('TRAP_SIGN', stem, correctTextRaw, wrongTextRaw, explanation),
       confidence: 0.91,
     };
@@ -593,7 +604,7 @@ export function detectCognitiveTrap(
         trapType: 'TRAP_UNIT',
         trapName: COGNITIVE_TRAP_REGISTRY.TRAP_UNIT.name,
         severity: 'Cao',
-        diagnosis: appendDatabaseExplanation(core, explanationRaw),
+        diagnosis: finalizeDiagnosisText(core, isUnanswered),
         remedyTip: buildQuestionSpecificRemedy('TRAP_UNIT', stem, correctTextRaw, wrongTextRaw, explanation),
         confidence: 0.94,
       };
@@ -633,7 +644,7 @@ export function detectCognitiveTrap(
       trapType: 'TRAP_UNIT',
       trapName: COGNITIVE_TRAP_REGISTRY.TRAP_UNIT.name,
       severity: 'Cao',
-      diagnosis: appendDatabaseExplanation(specificUnitMsg, explanationRaw),
+      diagnosis: finalizeDiagnosisText(specificUnitMsg, isUnanswered),
       remedyTip: buildQuestionSpecificRemedy('TRAP_UNIT', stem, correctTextRaw, wrongTextRaw, explanation),
       confidence: 0.91,
     };
@@ -685,7 +696,7 @@ export function detectCognitiveTrap(
       trapType: 'TRAP_INTUITION',
       trapName: COGNITIVE_TRAP_REGISTRY.TRAP_INTUITION.name,
       severity: 'Thường gặp',
-      diagnosis: appendDatabaseExplanation(intuitionCore, explanationRaw),
+      diagnosis: finalizeDiagnosisText(intuitionCore, isUnanswered),
       remedyTip: buildQuestionSpecificRemedy('TRAP_INTUITION', stem, correctTextRaw, wrongTextRaw, explanation),
       confidence: 0.89,
     };
@@ -727,7 +738,7 @@ export function detectCognitiveTrap(
       trapType: 'TRAP_CONDITION',
       trapName: COGNITIVE_TRAP_REGISTRY.TRAP_CONDITION.name,
       severity: 'Trung bình',
-      diagnosis: appendDatabaseExplanation(condCore, explanationRaw),
+      diagnosis: finalizeDiagnosisText(condCore, isUnanswered),
       remedyTip: buildQuestionSpecificRemedy('TRAP_CONDITION', stem, correctTextRaw, wrongTextRaw, explanation),
       confidence: 0.87,
     };
@@ -747,7 +758,7 @@ export function detectCognitiveTrap(
     trapType: 'TRAP_FORMULA_CONFUSION',
     trapName: COGNITIVE_TRAP_REGISTRY.TRAP_FORMULA_CONFUSION.name,
     severity: 'Trung bình',
-    diagnosis: appendDatabaseExplanation(formulaCore, explanationRaw),
+    diagnosis: finalizeDiagnosisText(formulaCore, isUnanswered),
     remedyTip: buildQuestionSpecificRemedy('TRAP_FORMULA_CONFUSION', stem, correctTextRaw, wrongTextRaw, explanation),
     confidence: 0.83,
   };

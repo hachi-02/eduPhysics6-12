@@ -207,16 +207,30 @@ describe('Feature 4: Cognitive Trap Matrix & Misconception Taxonomy', () => {
     expect(diag2.remedyTip).not.toContain('con lắc đơn');
   });
 
-  it('ensures every item in getCognitiveTrapMatrixData has a valid trap option and unique diagnosis', () => {
+  it('distinguishes between answered wrong option and unanswered (-1) without duplicating explanation', () => {
+    const siQuestion = {
+      question_text:
+        'Đơn vị đo chiều dài hợp pháp trong hệ thống đo lường chính thức của nước ta và quốc tế (hệ SI) là gì?',
+      options: ['Mét (m)', 'Xen-ti-mét (cm)', 'Ki-lô-mét (km)', 'Đề-xi-mét (dm)'],
+      correct_index: 0,
+      explanation: 'Trong hệ đơn vị đo lường quốc tế SI và của Việt Nam, đơn vị cơ bản đo độ dài là mét (ký hiệu: m).',
+    };
+
+    const unansweredRes = detectCognitiveTrap(siQuestion, -1);
+    expect(unansweredRes.diagnosis).toContain('Bạn đã bỏ trống');
+    expect(unansweredRes.diagnosis).not.toContain('Bạn đã chọn');
+    expect(unansweredRes.diagnosis).not.toContain('Bản chất vật lý:');
+
+    const answeredWrongRes = detectCognitiveTrap(siQuestion, 1);
+    expect(answeredWrongRes.diagnosis).toContain('Bạn đã chọn');
+    expect(answeredWrongRes.diagnosis).toContain('Xen-ti-mét (cm)');
+    expect(answeredWrongRes.diagnosis).not.toContain('Bản chất vật lý:');
+
     const data = getCognitiveTrapMatrixData();
     const sample = data.mistakes.slice(0, 10);
     const diagnoses = new Set<string>();
 
     for (const item of sample) {
-      expect(item.last_wrong_option).toBeGreaterThanOrEqual(0);
-      expect(item.last_wrong_option).toBeLessThan(item.options.length);
-      expect(item.last_wrong_option).not.toBe(item.correct_index);
-
       const res = detectCognitiveTrap(item, item.last_wrong_option);
       diagnoses.add(res.diagnosis);
     }

@@ -683,34 +683,20 @@ export function getCognitiveTrapMatrixData(gradeFilter?: number): { mistakes: Mi
     const existingIds = new Set(mistakes.map((m) => m.id));
     for (const c of mappedCurated) {
       if (!existingIds.has(c.id)) {
-        mistakes.push(c);
+        mistakes.push({
+          ...c,
+          last_wrong_option: pickRepresentativeTrapOption({
+            question_text: c.question_text,
+            options: c.options || [],
+            correct_index: c.correct_index,
+            explanation: c.explanation,
+          }),
+        });
       }
     }
   }
 
-  // Ensure every item in the Cognitive Trap Matrix has a valid representative trap distractor option
-  const normalizedMistakes = mistakes.map((m) => {
-    const opts = m.options || [];
-    const isValidWrongOption =
-      typeof m.last_wrong_option === 'number' &&
-      m.last_wrong_option >= 0 &&
-      m.last_wrong_option < opts.length &&
-      m.last_wrong_option !== m.correct_index;
-
-    return {
-      ...m,
-      last_wrong_option: isValidWrongOption
-        ? m.last_wrong_option
-        : pickRepresentativeTrapOption({
-            question_text: m.question_text,
-            options: opts,
-            correct_index: m.correct_index,
-            explanation: m.explanation,
-          }),
-    };
-  });
-
-  return { mistakes: normalizedMistakes };
+  return { mistakes };
 }
 
 export function searchKnowledgeBase(term: string, gradeFilter?: number): import('@/types/cms').SearchResults {

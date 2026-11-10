@@ -7,6 +7,7 @@ import {
   COGNITIVE_TRAP_REGISTRY,
   detectCognitiveTrap,
   calculateTrapMatrixStats,
+  pickRepresentativeTrapOption,
 } from '@/lib/cognitive-traps';
 import { CognitiveTrapType, MistakeQuestionItem } from '@/types/cms';
 import { CognitiveTrapRadar } from './CognitiveTrapRadar';
@@ -645,6 +646,12 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
               {paginatedMistakes.map((item, idx) => {
                 const globalIndex = (safeCurrentPage - 1) * pageSize + idx + 1;
                 const meta = COGNITIVE_TRAP_REGISTRY[item.trapAnalysis.trapType];
+                const hasPickedWrong =
+                  item.last_wrong_option >= 0 && item.last_wrong_option < item.options.length;
+                const repTrapIdx = hasPickedWrong
+                  ? item.last_wrong_option
+                  : pickRepresentativeTrapOption(item);
+
                 return (
                   <div
                     key={item.id}
@@ -659,6 +666,11 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                         <span className="text-xs font-bold text-slate-700">
                           Lớp {item.grade_number} • {item.chapter_code} {item.topic_code ? `• ${item.topic_code}` : ''}
                         </span>
+                        {!hasPickedWrong && (
+                          <span className="rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                            Đã chọn: Bỏ trống
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -681,7 +693,8 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         {item.options.map((opt, optIdx) => {
                           const isCorrect = optIdx === item.correct_index;
-                          const isWrongSelected = optIdx === item.last_wrong_option;
+                          const isWrongSelected = hasPickedWrong && optIdx === item.last_wrong_option;
+                          const isTrapWarning = !hasPickedWrong && optIdx === repTrapIdx;
                           return (
                             <div
                               key={optIdx}
@@ -690,6 +703,8 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                                   ? 'border-emerald-300 bg-emerald-50/90 text-emerald-950 font-semibold'
                                   : isWrongSelected
                                   ? 'border-rose-300 bg-rose-50/90 text-rose-950 font-semibold'
+                                  : isTrapWarning
+                                  ? 'border-amber-300 bg-amber-50/80 text-amber-950 font-semibold'
                                   : 'border-slate-200 bg-slate-50/50 text-slate-700'
                               }`}
                             >
@@ -699,6 +714,8 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                                     ? 'bg-emerald-600 text-white'
                                     : isWrongSelected
                                     ? 'bg-rose-600 text-white'
+                                    : isTrapWarning
+                                    ? 'bg-amber-500 text-white'
                                     : 'bg-slate-200 text-slate-700'
                                 }`}
                               >
@@ -713,7 +730,12 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                                 )}
                                 {isWrongSelected && (
                                   <span className="ml-1.5 text-[10px] font-extrabold text-rose-700">
-                                    ✗ Phương án sập bẫy
+                                    ✗ Phương án bạn chọn (Sập bẫy)
+                                  </span>
+                                )}
+                                {isTrapWarning && (
+                                  <span className="ml-1.5 text-[10px] font-extrabold text-amber-700">
+                                    ⚠️ Phương án bẫy dễ nhầm
                                   </span>
                                 )}
                               </div>
@@ -721,6 +743,14 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
                           );
                         })}
                       </div>
+
+                      {/* Official Explanation */}
+                      {item.explanation && (
+                        <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-2.5 text-xs text-slate-700 leading-relaxed">
+                          <strong className="text-slate-900">Giải thích / Lời giải chi tiết: </strong>
+                          <RichPhysicsText text={item.explanation} />
+                        </div>
+                      )}
 
                       {/* Cognitive Diagnosis Card */}
                       <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-2">
