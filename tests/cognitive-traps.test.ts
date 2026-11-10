@@ -166,4 +166,61 @@ describe('Feature 4: Cognitive Trap Matrix & Misconception Taxonomy', () => {
     expect(chapterStats.immunityScore).toBeGreaterThanOrEqual(20);
     expect(chapterStats.immunityScore).toBeLessThanOrEqual(100);
   });
+
+  it('generates distinct, question-specific diagnoses for thermal physics questions (#1 & #2)', () => {
+    const q1 = {
+      question_text: 'Khi nhiệt độ của một vật tăng lên thì:',
+      options: [
+        'Tốc độ chuyển động nhiệt của các phân tử tăng lên',
+        'Tốc độ chuyển động nhiệt của các phân tử giảm đi',
+        'Khối lượng của từng phân tử tăng lên',
+        'Kích thước của từng phân tử nở to ra',
+      ],
+      correct_index: 0,
+      explanation:
+        'Nhiệt độ là số đo động năng nhiệt trung bình của các phân tử, do đó khi nhiệt độ tăng thì tốc độ chuyển động nhiệt của các phân tử tăng.',
+    };
+
+    const q2 = {
+      question_text: 'Theo mô hình động học phân tử, nhiệt độ của một vật là đại lượng đo:',
+      options: [
+        'Động năng tịnh tiến trung bình của các phân tử',
+        'Thế năng tương tác trung bình của các phân tử',
+        'Tổng số phân tử có trong vật',
+        'Khối lượng của từng phân tử',
+      ],
+      correct_index: 0,
+      explanation:
+        'Nhiệt độ là số đo động năng chuyển động nhiệt hỗn loạn tịnh tiến trung bình của các phân tử cấu tạo nên vật.',
+    };
+
+    const diag1 = detectCognitiveTrap(q1, 3);
+    const diag2 = detectCognitiveTrap(q2, 2);
+
+    expect(diag1.trapType).toBe('TRAP_INTUITION');
+    expect(diag2.trapType).toBe('TRAP_KEYWORD');
+    expect(diag1.diagnosis).not.toBe(diag2.diagnosis);
+    expect(diag1.remedyTip).not.toBe(diag2.remedyTip);
+    expect(diag1.diagnosis).toContain('Kích thước của từng phân tử nở to ra');
+    expect(diag2.diagnosis).toContain('Tổng số phân tử có trong vật');
+    expect(diag1.remedyTip).not.toContain('con lắc đơn');
+    expect(diag2.remedyTip).not.toContain('con lắc đơn');
+  });
+
+  it('ensures every item in getCognitiveTrapMatrixData has a valid trap option and unique diagnosis', () => {
+    const data = getCognitiveTrapMatrixData();
+    const sample = data.mistakes.slice(0, 10);
+    const diagnoses = new Set<string>();
+
+    for (const item of sample) {
+      expect(item.last_wrong_option).toBeGreaterThanOrEqual(0);
+      expect(item.last_wrong_option).toBeLessThan(item.options.length);
+      expect(item.last_wrong_option).not.toBe(item.correct_index);
+
+      const res = detectCognitiveTrap(item, item.last_wrong_option);
+      diagnoses.add(res.diagnosis);
+    }
+
+    expect(diagnoses.size).toBe(sample.length);
+  });
 });

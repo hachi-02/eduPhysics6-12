@@ -1,5 +1,6 @@
 import getDb from './db';
 import { ensureDatabaseSeeded } from './seed';
+import { pickRepresentativeTrapOption } from './cognitive-traps';
 import {
   ChapterItem,
   CheatsheetChapterItem,
@@ -687,7 +688,29 @@ export function getCognitiveTrapMatrixData(gradeFilter?: number): { mistakes: Mi
     }
   }
 
-  return { mistakes };
+  // Ensure every item in the Cognitive Trap Matrix has a valid representative trap distractor option
+  const normalizedMistakes = mistakes.map((m) => {
+    const opts = m.options || [];
+    const isValidWrongOption =
+      typeof m.last_wrong_option === 'number' &&
+      m.last_wrong_option >= 0 &&
+      m.last_wrong_option < opts.length &&
+      m.last_wrong_option !== m.correct_index;
+
+    return {
+      ...m,
+      last_wrong_option: isValidWrongOption
+        ? m.last_wrong_option
+        : pickRepresentativeTrapOption({
+            question_text: m.question_text,
+            options: opts,
+            correct_index: m.correct_index,
+            explanation: m.explanation,
+          }),
+    };
+  });
+
+  return { mistakes: normalizedMistakes };
 }
 
 export function searchKnowledgeBase(term: string, gradeFilter?: number): import('@/types/cms').SearchResults {
