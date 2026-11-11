@@ -72,11 +72,11 @@
 
   /* Elevated Glass & Surface Cards */
   .edu-card {
-    @apply rounded-3xl border border-slate-200/80 bg-white/95 shadow-card backdrop-blur-xs transition-all duration-300 ease-snap;
+    @apply rounded-3xl border border-slate-200/80 bg-white/95 shadow-card backdrop-blur-sm transition-all duration-300 ease-snap;
   }
 
   .edu-card-hover {
-    @apply rounded-3xl border border-slate-200/80 bg-white/95 shadow-card backdrop-blur-xs transition-all duration-300 ease-snap hover:-translate-y-1 hover:border-brand-300/90 hover:shadow-lift;
+    @apply rounded-3xl border border-slate-200/80 bg-white/95 shadow-card backdrop-blur-sm transition-all duration-300 ease-snap hover:-translate-y-1 hover:border-brand-300/90 hover:shadow-lift;
   }
 
   .edu-glass-dark {
@@ -96,7 +96,7 @@
   }
 
   .edu-btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-gradient px-4.5 py-2.5 text-xs font-extrabold text-white shadow-glow transition-all duration-200 ease-snap hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_14px_34px_-8px_rgba(79,70,229,0.65)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 sm:text-sm;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-gradient px-4 py-2.5 text-xs font-extrabold text-white shadow-glow transition-all duration-200 ease-snap hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_14px_34px_-8px_rgba(79,70,229,0.65)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 sm:text-sm;
   }
 
   .edu-btn-secondary {
@@ -104,7 +104,7 @@
   }
 
   .edu-btn-ghost {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200/90 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 shadow-2xs transition-all duration-200 ease-snap hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-50/50 hover:text-brand-700 sm:text-sm;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200/90 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 shadow-soft transition-all duration-200 ease-snap hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-50/50 hover:text-brand-700 sm:text-sm;
   }
 
   .edu-btn-danger {
