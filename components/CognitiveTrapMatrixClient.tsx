@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { getSavedActiveGrade, saveActiveGrade } from '@/lib/grade-context';
 import {
   ALL_TRAP_TYPES,
   COGNITIVE_TRAP_REGISTRY,
@@ -62,6 +63,10 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
   const [pageSize, setPageSize] = useState<number>(5);
   const drillSectionRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    setSelectedGrade(getSavedActiveGrade(6));
+  }, []);
+
   const handleFocusTrap = (trap: CognitiveTrapType | 'all') => {
     setSelectedTrap(trap);
     setCurrentPage(1);
@@ -74,6 +79,9 @@ export function CognitiveTrapMatrixClient({ mistakes }: CognitiveTrapMatrixClien
 
   const handleSelectGrade = (g: number | 'all') => {
     setSelectedGrade(g);
+    if (g !== 'all') {
+      saveActiveGrade(g);
+    }
     setSelectedChapter('all');
     setCurrentPage(1);
   };

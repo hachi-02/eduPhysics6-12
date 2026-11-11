@@ -1,6 +1,9 @@
 import React from 'react';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { getAllGradesWithStats, getGradeCurriculumBoard } from '@/lib/cms-service';
+import { GRADE_COOKIE_NAME, isValidGradeNumber } from '@/lib/grade-context';
+import { GradeContextSync } from '@/components/GradeContextSync';
 import {
   ChevronRight,
   FileCheck,
@@ -91,9 +94,11 @@ export default function HomeBoardPage({
   searchParams?: { grade?: string };
 }) {
   const allGrades = getAllGradesWithStats();
-  const requestedGrade = Number(searchParams?.grade || 6);
+  const cookieGradeRaw = cookies().get(GRADE_COOKIE_NAME)?.value;
+  const fallbackGrade = isValidGradeNumber(cookieGradeRaw) ? Number(cookieGradeRaw) : 6;
+  const requestedGrade = searchParams?.grade ? Number(searchParams.grade) : fallbackGrade;
   const selectedGradeNum =
-    requestedGrade >= 6 && requestedGrade <= 12 ? requestedGrade : 6;
+    requestedGrade >= 6 && requestedGrade <= 12 ? requestedGrade : fallbackGrade;
 
   const board = getGradeCurriculumBoard(selectedGradeNum) || getGradeCurriculumBoard(6)!;
   const { grade, chapters, stats } = board;
@@ -142,6 +147,7 @@ export default function HomeBoardPage({
 
   return (
     <div className="edu-page-shell">
+      <GradeContextSync grade={selectedGradeNum} />
       {/* ============================================================ */}
       {/* QUANTUM AURORA HERO & GRADE SELECTOR                         */}
       {/* ============================================================ */}

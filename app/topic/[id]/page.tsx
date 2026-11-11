@@ -1,6 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { getTopicFullDetail } from '@/lib/cms-service';
+import { GradeContextSync } from '@/components/GradeContextSync';
 import { TopicWorkspaceClient } from '@/components/TopicWorkspaceClient';
 
 export const dynamic = 'force-dynamic';
@@ -16,5 +17,10 @@ export default function TopicDetailPage({ params }: { params: { id: string } }) 
     notFound();
   }
 
-  return <TopicWorkspaceClient topic={topic} />;
+  return (
+    <>
+      <GradeContextSync grade={topic.grade.grade_number} />
+      <TopicWorkspaceClient topic={topic} />
+    </>
+  );
 }

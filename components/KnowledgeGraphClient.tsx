@@ -13,6 +13,7 @@ import {
   tracePrerequisiteGaps,
 } from '@/lib/knowledge-graph';
 import { QuestionItem } from '@/types/cms';
+import { getSavedActiveGrade, saveActiveGrade } from '@/lib/grade-context';
 import { RichPhysicsText } from './KatexRenderer';
 import {
   GitBranch,
@@ -229,36 +230,49 @@ export function KnowledgeGraphClient({
     return nonEmpty.length > 0 ? nonEmpty : allGrades;
   }, [nodesByGrade, selectedGradeFilter, onlyFocusedChain, searchQuery]);
 
-  const handleSelectGradeFilter = (filter: 'all' | 'thcs' | 'thpt' | number) => {
-    setSelectedGradeFilter(filter);
-    if (filter === 'all') return;
-
-    const currentNode = graphState.nodeMap[selectedCode];
-    const currentMatches =
-      currentNode &&
-      (filter === 'thcs'
-        ? currentNode.grade_number <= 9
-        : filter === 'thpt'
-          ? currentNode.grade_number >= 10
-          : currentNode.grade_number === filter);
-
-    if (!currentMatches) {
-      const candidates = graphState.nodes.filter((n) =>
-        filter === 'thcs'
-          ? n.grade_number <= 9
-          : filter === 'thpt'
-            ? n.grade_number >= 10
-            : n.grade_number === filter
-      );
-      const priorityNode =
-        candidates.find((n) => n.status === 'broken') ||
-        candidates.find((n) => n.status === 'warning') ||
-        candidates[0];
-      if (priorityNode) {
-        setSelectedCode(priorityNode.code);
+  const handleSelectGradeFilter = useCallback(
+    (filter: 'all' | 'thcs' | 'thpt' | number) => {
+      setSelectedGradeFilter(filter);
+      if (typeof filter === 'number') {
+        saveActiveGrade(filter);
       }
+      if (filter === 'all') return;
+
+      const currentNode = graphState.nodeMap[selectedCode];
+      const currentMatches =
+        currentNode &&
+        (filter === 'thcs'
+          ? currentNode.grade_number <= 9
+          : filter === 'thpt'
+            ? currentNode.grade_number >= 10
+            : currentNode.grade_number === filter);
+
+      if (!currentMatches) {
+        const candidates = graphState.nodes.filter((n) =>
+          filter === 'thcs'
+            ? n.grade_number <= 9
+            : filter === 'thpt'
+              ? n.grade_number >= 10
+              : n.grade_number === filter
+        );
+        const priorityNode =
+          candidates.find((n) => n.status === 'broken') ||
+          candidates.find((n) => n.status === 'warning') ||
+          candidates[0];
+        if (priorityNode) {
+          setSelectedCode(priorityNode.code);
+        }
+      }
+    },
+    [graphState.nodeMap, graphState.nodes, selectedCode]
+  );
+
+  useEffect(() => {
+    if (!focusParam) {
+      handleSelectGradeFilter(getSavedActiveGrade(6));
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // SVG overlay coordinates measurement & Drag-to-pan canvas state
   const boardContainerRef = useRef<HTMLDivElement | null>(null);

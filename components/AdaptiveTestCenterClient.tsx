@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { QuestionItem } from '@/types/cms';
+import { getSavedActiveGrade, saveActiveGrade } from '@/lib/grade-context';
 import { AdaptiveCatRunner, CatAttemptReviewData } from './AdaptiveCatRunner';
 import { CatResponseStep } from '@/lib/adaptive-cat';
 import {
@@ -83,6 +84,10 @@ export function AdaptiveTestCenterClient({
   const [targetLength, setTargetLength] = useState<number>(10);
   const [running, setRunning] = useState<boolean>(false);
   const [reviewData, setReviewData] = useState<CatAttemptReviewData | null>(null);
+
+  useEffect(() => {
+    setSelectedGrade(getSavedActiveGrade(12));
+  }, []);
 
   // Saved CAT Report History
   const [catHistory, setCatHistory] = useState<SavedCatAttemptRow[]>([]);
@@ -315,7 +320,10 @@ export function AdaptiveTestCenterClient({
                   <button
                     key={g}
                     type="button"
-                    onClick={() => setSelectedGrade(g)}
+                    onClick={() => {
+                      setSelectedGrade(g);
+                      saveActiveGrade(g);
+                    }}
                     className={`rounded-2xl border py-2.5 text-center text-xs font-extrabold transition ${
                       active
                         ? 'border-indigo-600 bg-indigo-600 text-white shadow-soft'

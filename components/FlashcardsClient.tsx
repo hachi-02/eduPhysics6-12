@@ -7,6 +7,7 @@ import {
   FlashcardItem,
   FlashcardRating,
 } from '@/types/cms';
+import { getSavedActiveGrade, saveActiveGrade } from '@/lib/grade-context';
 import { KatexFormula, RichPhysicsText } from './KatexRenderer';
 import {
   RotateCcw,
@@ -80,6 +81,10 @@ const RATING_META: Record<
 export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
   const [cards, setCards] = useState<FlashcardItem[]>(initialData.cards);
   const [selectedGrade, setSelectedGrade] = useState<number | 'all'>('all');
+
+  useEffect(() => {
+    setSelectedGrade(getSavedActiveGrade(6));
+  }, []);
   const [selectedChapterId, setSelectedChapterId] = useState<number | 'all'>('all');
   const [selectedType, setSelectedType] = useState<'all' | 'formula' | 'quantity'>('all');
   const [selectedStatus, setSelectedStatus] = useState<
@@ -381,7 +386,10 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
               <button
                 key={g}
                 type="button"
-                onClick={() => setSelectedGrade(g)}
+                onClick={() => {
+                  setSelectedGrade(g);
+                  saveActiveGrade(g);
+                }}
                 className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
                   selectedGrade === g
                     ? 'bg-indigo-600 text-white shadow-soft'

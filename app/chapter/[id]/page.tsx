@@ -1,6 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { getChapterFullDetail } from '@/lib/cms-service';
+import { GradeContextSync } from '@/components/GradeContextSync';
 import { ChapterWorkspaceClient } from '@/components/ChapterWorkspaceClient';
 
 export const dynamic = 'force-dynamic';
@@ -26,13 +27,16 @@ export default function ChapterSummaryAndExamPage({
     searchParams?.tab === 'exam' ? 'exam' : searchParams?.tab === 'summary' ? 'summary' : undefined;
 
   return (
-    <ChapterWorkspaceClient
-      chapter={detail.chapter}
-      grade={detail.grade}
-      topics={detail.topics}
-      allQuantities={detail.allQuantities}
-      examQuestions={detail.examQuestions}
-      initialTab={initialTab}
-    />
+    <>
+      <GradeContextSync grade={detail.grade.grade_number} />
+      <ChapterWorkspaceClient
+        chapter={detail.chapter}
+        grade={detail.grade}
+        topics={detail.topics}
+        allQuantities={detail.allQuantities}
+        examQuestions={detail.examQuestions}
+        initialTab={initialTab}
+      />
+    </>
   );
 }

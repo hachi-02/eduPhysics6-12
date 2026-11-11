@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CheatsheetGradeData, GradeItem } from '@/types/cms';
+import { saveActiveGrade } from '@/lib/grade-context';
 import { KatexFormula, RichPhysicsText } from './KatexRenderer';
 import { DropdownMenu, DropdownItem } from './ui/DropdownMenu';
 import { SlidersHorizontal, ChevronDown, Printer, ArrowLeft, BookMarked, Sigma } from 'lucide-react';
@@ -124,6 +125,7 @@ export default function CheatsheetViewer({
                 <button
                   key={g.id}
                   onClick={() => {
+                    saveActiveGrade(g.grade_number);
                     setSelectedChapterId('all');
                     router.push(`/cheatsheet?grade=${g.grade_number}`);
                   }}

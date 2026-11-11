@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MistakeQuestionItem, QuestionType } from '@/types/cms';
+import { saveActiveGrade } from '@/lib/grade-context';
 import { RichPhysicsText } from './KatexRenderer';
 import { DropdownMenu, DropdownItem } from './ui/DropdownMenu';
 import {
@@ -225,7 +226,7 @@ export function MistakeNotebookClient({
     const items: DropdownItem[] = [
       {
         label: 'Tất cả khối lớp',
-        href: `/mistakes?mastered=${showMastered ? 1 : 0}`,
+        href: `/mistakes?grade=all&mastered=${showMastered ? 1 : 0}`,
         active: !selectedGrade,
         badge: mistakes.length,
         onClick: () => {
@@ -244,6 +245,7 @@ export function MistakeNotebookClient({
         active: selectedGrade === g,
         badge: count,
         onClick: () => {
+          saveActiveGrade(g);
           setSelectedChapterId('all');
           setSelectedTopicKey('all');
         },

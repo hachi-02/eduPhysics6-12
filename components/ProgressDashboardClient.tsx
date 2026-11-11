@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ProgressDashboardData,
   TopicMasteryStatus,
   TopicProgressItem,
 } from '@/types/cms';
+import { getSavedActiveGrade, saveActiveGrade } from '@/lib/grade-context';
 import {
   Award,
   BarChart3,
@@ -78,6 +79,10 @@ export function ProgressDashboardClient({ initialData }: ProgressDashboardClient
   const [selectedStatus, setSelectedStatus] = useState<TopicMasteryStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setSelectedGrade(getSavedActiveGrade(6));
+  }, []);
 
   const handleToggleCheckin = async (topic: TopicProgressItem) => {
     try {
@@ -594,7 +599,14 @@ export function ProgressDashboardClient({ initialData }: ProgressDashboardClient
               <button
                 key={g.grade_number}
                 type="button"
-                onClick={() => setSelectedGrade(isSelected ? 'all' : g.grade_number)}
+                onClick={() => {
+                  if (isSelected) {
+                    setSelectedGrade('all');
+                  } else {
+                    setSelectedGrade(g.grade_number);
+                    saveActiveGrade(g.grade_number);
+                  }
+                }}
                 className={`rounded-2xl border p-3 text-left transition ${
                   isSelected
                     ? 'border-indigo-600 bg-indigo-600 text-white shadow-soft'
