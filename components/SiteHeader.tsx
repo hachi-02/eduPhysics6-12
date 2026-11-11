@@ -206,19 +206,6 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
               <span className="hidden sm:inline">Chương trình</span>
             </Link>
 
-            {/* Quick Link: Flashcards */}
-            <Link
-              href="/flashcards"
-              className={`flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-xs font-extrabold transition-all duration-200 ease-snap ${
-                isFlashcards
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-glow'
-                  : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700'
-              }`}
-            >
-              <Layers className={`h-4 w-4 ${isFlashcards ? 'text-white' : 'text-indigo-600'}`} />
-              <span className="hidden lg:inline">Flashcard</span>
-            </Link>
-
             {/* Quick Link: SI Converter & Formula Solver */}
             <Link
               href="/calculator"
