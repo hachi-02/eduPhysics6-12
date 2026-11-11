@@ -147,7 +147,10 @@ export default function HomeBoardPage({
 
   return (
     <div className="edu-page-shell">
-      <GradeContextSync grade={selectedGradeNum} />
+      <GradeContextSync
+        grade={selectedGradeNum}
+        isExplicit={Boolean(searchParams?.grade)}
+      />
       {/* ============================================================ */}
       {/* QUANTUM AURORA HERO & GRADE SELECTOR                         */}
       {/* ============================================================ */}

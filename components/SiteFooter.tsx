@@ -1,5 +1,8 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getSavedActiveGrade } from '@/lib/grade-context';
 import {
   Atom,
   BookOpen,
@@ -15,13 +18,29 @@ import {
 } from 'lucide-react';
 
 export function SiteFooter() {
+  const [activeGrade, setActiveGrade] = useState<number>(6);
+
+  useEffect(() => {
+    setActiveGrade(getSavedActiveGrade(6));
+    const onGradeChange = (e: Event) => {
+      const custom = e as CustomEvent<{ grade?: number }>;
+      if (custom.detail?.grade) {
+        setActiveGrade(custom.detail.grade);
+      } else {
+        setActiveGrade(getSavedActiveGrade(6));
+      }
+    };
+    window.addEventListener('eduphysics-grade-change', onGradeChange);
+    return () => window.removeEventListener('eduphysics-grade-change', onGradeChange);
+  }, []);
+
   return (
     <footer className="no-print mt-12 border-t border-slate-200/80 bg-white/80 backdrop-blur-md print:hidden">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-12">
           {/* Brand Column */}
           <div className="space-y-3 md:col-span-5">
-            <Link href="/" className="inline-flex items-center gap-2.5">
+            <Link href={`/?grade=${activeGrade}`} className="inline-flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-glow">
                 <Atom className="h-5 w-5" />
               </div>

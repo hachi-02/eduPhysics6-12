@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { GlobalSearchModal } from './GlobalSearchModal';
+import { getSavedActiveGrade } from '@/lib/grade-context';
 
 interface SiteHeaderProps {
   admin: any;
@@ -30,6 +31,21 @@ interface SiteHeaderProps {
 export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeGrade, setActiveGrade] = useState<number>(6);
+
+  useEffect(() => {
+    setActiveGrade(getSavedActiveGrade(6));
+    const onGradeChange = (e: Event) => {
+      const custom = e as CustomEvent<{ grade?: number }>;
+      if (custom.detail?.grade) {
+        setActiveGrade(custom.detail.grade);
+      } else {
+        setActiveGrade(getSavedActiveGrade(6));
+      }
+    };
+    window.addEventListener('eduphysics-grade-change', onGradeChange);
+    return () => window.removeEventListener('eduphysics-grade-change', onGradeChange);
+  }, [pathname]);
 
   const isHome = pathname === '/' || pathname.startsWith('/?');
   const isProgress = pathname.startsWith('/progress');
@@ -135,7 +151,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
       badgeCls: 'bg-rose-100 text-rose-800',
     },
     {
-      href: '/mistakes',
+      href: `/mistakes?grade=${activeGrade}`,
       title: 'Sổ tay lỗi sai thông minh',
       desc: 'Lưu trữ tự động các câu làm sai & luyện tập khắc phục lỗ hổng',
       icon: <AlertCircle className="h-5 w-5 text-rose-600" />,
@@ -148,7 +164,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
           : 'bg-rose-100 text-rose-800',
     },
     {
-      href: '/cheatsheet',
+      href: `/cheatsheet?grade=${activeGrade}`,
       title: 'Cẩm nang công thức A4 (In / PDF)',
       desc: 'Bảng tóm tắt toàn bộ công thức & đại lượng Vật lý chuẩn in ấn',
       icon: <Printer className="h-5 w-5 text-amber-600" />,
@@ -159,6 +175,8 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
     },
   ];
 
+  const homeHref = `/?grade=${activeGrade}`;
+
   return (
     <>
       <header className="no-print sticky top-0 z-40 border-b border-indigo-100/80 bg-white/85 shadow-[0_4px_24px_-6px_rgba(30,27,75,0.08)] backdrop-blur-xl print:hidden">
@@ -167,7 +185,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
 
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* Brand Logo (Left) */}
-          <Link href="/" className="group flex shrink-0 items-center gap-3">
+          <Link href={homeHref} className="group flex shrink-0 items-center gap-3">
             <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-glow transition duration-300 ease-snap group-hover:scale-105 group-active:scale-95">
               <Atom className="h-5 w-5 transition-transform duration-700 group-hover:rotate-180" />
             </div>
@@ -195,7 +213,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
           <nav className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {/* Main Link: Curriculum */}
             <Link
-              href="/"
+              href={homeHref}
               className={`flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-xs font-extrabold transition-all duration-200 ease-snap ${
                 isHome
                   ? 'bg-brand-gradient text-white shadow-glow'
@@ -351,7 +369,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
                 Điều hướng nhanh
               </div>
               <Link
-                href="/"
+                href={homeHref}
                 onClick={() => setMenuOpen(false)}
                 className={`flex items-center justify-between rounded-2xl border p-3.5 text-xs font-extrabold transition ${
                   isHome
