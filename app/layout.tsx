@@ -3,11 +3,12 @@ import './globals.css';
 import { getAdminFromCookie } from '@/lib/auth';
 import { getActiveMistakeCount } from '@/lib/cms-service';
 import { SiteHeader } from '@/components/SiteHeader';
+import { SiteFooter } from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Vật Lí 6–12 | Tự học Vật lí chuẩn SGK',
+  title: 'eduPhysics 6–12 | Hệ Sinh Thái Học & Mô Phỏng Vật Lý Chuẩn GDPT 2018',
   description:
-    'Nền tảng tự học Vật lí từ Lớp 6 đến Lớp 12: Lý thuyết, Công thức, Đại lượng, Mô phỏng và Trắc nghiệm 25 câu.',
+    'Nền tảng tự học Vật lí từ Lớp 6 đến Lớp 12: Lý thuyết, Công thức, Mô phỏng 2D tương tác, Flashcard, Khảo thí CAT và Trắc nghiệm chuẩn 2025.',
 };
 
 export default function RootLayout({
@@ -28,9 +29,26 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen flex flex-col bg-slate-50 bg-mesh-light bg-no-repeat text-slate-800 antialiased selection:bg-brand-600 selection:text-white">
+      <body className="relative flex min-h-screen flex-col text-slate-800 antialiased selection:bg-brand-600 selection:text-white">
+        {/* Global Ambient Floating Orbs (Non-interactive decorative depth) */}
+        <div
+          aria-hidden="true"
+          className="no-print pointer-events-none fixed inset-0 -z-10 overflow-hidden print:hidden"
+        >
+          <div className="animate-blob absolute -left-28 top-12 h-96 w-96 rounded-full bg-indigo-400/10 blur-3xl" />
+          <div
+            className="animate-blob absolute -right-28 top-1/4 h-96 w-96 rounded-full bg-cyan-400/10 blur-3xl"
+            style={{ animationDelay: '2.5s' }}
+          />
+          <div
+            className="animate-blob absolute bottom-10 left-1/3 h-80 w-80 rounded-full bg-purple-400/10 blur-3xl"
+            style={{ animationDelay: '5s' }}
+          />
+        </div>
+
         <SiteHeader admin={admin} activeMistakeCount={activeMistakeCount} />
         <main className="flex-1">{children}</main>
+        <SiteFooter />
       </body>
     </html>
   );

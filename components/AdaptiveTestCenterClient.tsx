@@ -226,7 +226,7 @@ export function AdaptiveTestCenterClient({
 
   if (running) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className="edu-page-shell">
         <AdaptiveCatRunner
           title={reviewData ? reviewData.title : sessionTitle}
           scopeType={scopeMode}
@@ -250,41 +250,47 @@ export function AdaptiveTestCenterClient({
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="edu-page-shell">
       {/* 1. HERO HEADER */}
-      <div className="edu-surface relative overflow-hidden rounded-3xl border border-slate-200/80 p-6 shadow-card sm:p-8">
-        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+      <div className="edu-hero-aurora p-6 sm:p-9">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 animate-blob rounded-full bg-indigo-500/25 blur-3xl" />
+        <div
+          className="pointer-events-none absolute -left-16 -bottom-16 h-64 w-64 animate-blob rounded-full bg-purple-500/20 blur-3xl"
+          style={{ animationDelay: '3s' }}
+        />
+
+        <div className="relative z-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
           <div className="max-w-2xl space-y-2.5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-extrabold text-indigo-700">
-              <Target className="h-3.5 w-3.5" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/20 px-3.5 py-1 text-xs font-extrabold text-indigo-200">
+              <Target className="h-3.5 w-3.5 text-cyan-300" />
               <span>COMPUTERIZED ADAPTIVE TESTING • MÔ HÌNH IRT 3 THAM SỐ</span>
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-              Phòng Khảo thí Thích ứng Thông minh (Adaptive CAT)
+            <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+              Phòng Khảo Thí Thích Ứng Thông Minh (Adaptive CAT)
             </h1>
-            <p className="text-sm leading-relaxed text-slate-600">
+            <p className="text-xs leading-relaxed text-indigo-100/85 sm:text-sm">
               Thay vì làm một đề cố định dài 25–40 câu, hệ thống trích xuất từ{' '}
-              <strong>ngân hàng 3.050 câu hỏi chuẩn GDPT 2018</strong> và tự động{' '}
-              <strong>tăng hoặc giảm độ khó sau từng câu trả lời</strong> theo hàm thông tin Fisher cực đại.
-              Chỉ cần 8–15 câu để định vị chính xác năng lực <span className="font-mono font-bold">θ</span> và dự báo điểm thi thang 10.
+              <strong className="text-white">ngân hàng 3.050 câu hỏi chuẩn GDPT 2018</strong> và tự động{' '}
+              <strong className="text-white">tăng hoặc giảm độ khó sau từng câu trả lời</strong> theo hàm thông tin Fisher cực đại.
+              Chỉ cần 8–15 câu để định vị chính xác năng lực <span className="font-mono font-bold text-cyan-300">θ</span> và dự báo điểm thi thang 10.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:shrink-0">
-            <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/70 p-3.5 text-center">
-              <div className="text-2xl font-extrabold text-indigo-700">3.050</div>
-              <div className="text-[11px] font-bold text-indigo-950">Ngân hàng Câu hỏi</div>
-              <div className="text-[10px] text-indigo-600">Đã hiệu chuẩn IRT</div>
+            <div className="edu-glass-dark p-3.5 text-center">
+              <div className="text-2xl font-black text-white">3.050</div>
+              <div className="text-[11px] font-bold text-indigo-200">Ngân hàng Câu hỏi</div>
+              <div className="text-[10px] text-indigo-300/80">Đã hiệu chuẩn IRT</div>
             </div>
-            <div className="rounded-2xl border border-purple-200/80 bg-purple-50/70 p-3.5 text-center">
-              <div className="text-2xl font-extrabold text-purple-700">3PL IRT</div>
-              <div className="text-[11px] font-bold text-purple-950">Độ khó • Phân loại</div>
-              <div className="text-[10px] text-purple-600">Chống đoán mò</div>
+            <div className="edu-glass-dark p-3.5 text-center">
+              <div className="text-2xl font-black text-purple-300">3PL IRT</div>
+              <div className="text-[11px] font-bold text-purple-200">Độ khó • Phân loại</div>
+              <div className="text-[10px] text-purple-300/80">Chống đoán mò</div>
             </div>
-            <div className="col-span-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-3.5 text-center sm:col-span-1">
-              <div className="text-2xl font-extrabold text-emerald-700">8–15 câu</div>
-              <div className="text-[11px] font-bold text-emerald-950">Hội tụ Năng lực</div>
-              <div className="text-[10px] text-emerald-600">Tiết kiệm 60% thời gian</div>
+            <div className="edu-glass-dark col-span-2 p-3.5 text-center sm:col-span-1">
+              <div className="text-2xl font-black text-emerald-300">8–15 câu</div>
+              <div className="text-[11px] font-bold text-emerald-200">Hội tụ Năng lực</div>
+              <div className="text-[10px] text-emerald-300/80">Tiết kiệm 60% thời gian</div>
             </div>
           </div>
         </div>

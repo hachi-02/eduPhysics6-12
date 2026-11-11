@@ -298,13 +298,16 @@ export function FlashcardsClient({ initialData }: FlashcardsClientProps) {
       : 0;
 
   return (
-    <div className="mx-auto max-w-6xl animate-fade-up space-y-6 px-4 py-8 sm:px-6">
+    <div className="edu-page-shell">
       {/* ============================================================ */}
       {/* HERO BANNER                                                  */}
       {/* ============================================================ */}
-      <div className="relative overflow-hidden rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 p-6 text-white shadow-card sm:p-8">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-indigo-500/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 left-1/4 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl" />
+      <div className="edu-hero-aurora p-6 sm:p-9">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 animate-blob rounded-full bg-indigo-500/25 blur-3xl" />
+        <div
+          className="pointer-events-none absolute -bottom-24 left-1/4 h-64 w-64 animate-blob rounded-full bg-emerald-500/20 blur-3xl"
+          style={{ animationDelay: '3s' }}
+        />
 
         <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
           <div className="space-y-2.5">

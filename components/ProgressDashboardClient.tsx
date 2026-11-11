@@ -158,11 +158,14 @@ export function ProgressDashboardClient({ initialData }: ProgressDashboardClient
   }, [recentAttempts]);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="edu-page-shell">
       {/* 1. Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-slate-900 p-6 sm:p-10 text-white shadow-lift border border-slate-800">
-        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-500/15 blur-3xl" />
-        <div className="absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
+      <div className="edu-hero-aurora p-6 sm:p-9">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 animate-blob rounded-full bg-emerald-500/20 blur-3xl" />
+        <div
+          className="pointer-events-none absolute -left-16 -bottom-16 h-64 w-64 animate-blob rounded-full bg-indigo-500/20 blur-3xl"
+          style={{ animationDelay: '3s' }}
+        />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">

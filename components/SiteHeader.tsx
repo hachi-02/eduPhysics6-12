@@ -53,12 +53,10 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
     isCheatsheet ||
     isAdmin;
 
-  // Close drawer when route changes
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
 
-  // Close on Escape & lock body scroll when drawer is open
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setMenuOpen(false);
@@ -163,42 +161,45 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
 
   return (
     <>
-      <header className="no-print sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 shadow-soft backdrop-blur-xl print:hidden">
-        <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+      <header className="no-print sticky top-0 z-40 border-b border-indigo-100/80 bg-white/85 shadow-[0_4px_24px_-6px_rgba(30,27,75,0.08)] backdrop-blur-xl print:hidden">
+        {/* Top Luminous Aurora Accent Line */}
+        <div className="h-1 w-full bg-gradient-to-r from-indigo-600 via-purple-500 to-cyan-500" />
+
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* Brand Logo (Left) */}
-          <Link href="/" className="group flex shrink-0 items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-glow transition duration-150 ease-snap group-hover:scale-105 group-active:scale-95">
-              <Atom className="h-5 w-5" />
+          <Link href="/" className="group flex shrink-0 items-center gap-3">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-glow transition duration-300 ease-snap group-hover:scale-105 group-active:scale-95">
+              <Atom className="h-5 w-5 transition-transform duration-700 group-hover:rotate-180" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5 leading-none">
-                <span className="text-sm font-extrabold tracking-tight text-slate-900 transition-colors group-hover:text-brand-700 sm:text-base">
+                <span className="bg-gradient-to-r from-slate-900 via-indigo-950 to-brand-700 bg-clip-text text-sm font-extrabold tracking-tight text-transparent sm:text-base">
                   eduPhysics
                 </span>
-                <span className="rounded-md bg-brand-50 px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-brand-700">
+                <span className="rounded-lg bg-gradient-to-r from-brand-600 to-violetBrand-600 px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-white shadow-2xs">
                   6–12
                 </span>
               </div>
-              <span className="hidden text-[9px] font-semibold tracking-[0.14em] text-slate-500 sm:block">
-                CHUẨN GDPT 2018
+              <span className="hidden text-[9px] font-bold tracking-[0.15em] text-slate-400 sm:block">
+                QUANTUM LAB • GDPT 2018
               </span>
             </div>
           </Link>
 
           {/* Global Search Bar (Center) */}
-          <div className="mx-2 flex-1 max-w-md">
+          <div className="mx-2 max-w-md flex-1">
             <GlobalSearchModal />
           </div>
 
-          {/* Right Navigation Flush to Right Edge */}
+          {/* Right Navigation Dock */}
           <nav className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {/* Main Link: Curriculum */}
             <Link
               href="/"
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
+              className={`flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-xs font-extrabold transition-all duration-200 ease-snap ${
                 isHome
-                  ? 'bg-brand-50 text-brand-700 shadow-soft ring-1 ring-brand-200/80'
-                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                  ? 'bg-brand-gradient text-white shadow-glow'
+                  : 'text-slate-600 hover:bg-slate-100/90 hover:text-slate-900'
               }`}
             >
               <BookOpen className="h-4 w-4" />
@@ -208,39 +209,39 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
             {/* Quick Link: Flashcards */}
             <Link
               href="/flashcards"
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
+              className={`flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-xs font-extrabold transition-all duration-200 ease-snap ${
                 isFlashcards
-                  ? 'bg-indigo-50 text-indigo-700 shadow-soft ring-1 ring-indigo-200/80'
-                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-glow'
+                  : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700'
               }`}
             >
-              <Layers className="h-4 w-4 text-indigo-600" />
+              <Layers className={`h-4 w-4 ${isFlashcards ? 'text-white' : 'text-indigo-600'}`} />
               <span className="hidden lg:inline">Flashcard</span>
             </Link>
 
             {/* Quick Link: SI Converter & Formula Solver */}
             <Link
               href="/calculator"
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
+              className={`flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-xs font-extrabold transition-all duration-200 ease-snap ${
                 isCalculator
-                  ? 'bg-teal-50 text-teal-700 shadow-soft ring-1 ring-teal-200/80'
-                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                  ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-glow-emerald'
+                  : 'text-slate-600 hover:bg-teal-50 hover:text-teal-700'
               }`}
             >
-              <Calculator className="h-4 w-4 text-teal-600" />
-              <span className="hidden lg:inline">Đổi đơn vị &amp; Giải nhanh</span>
+              <Calculator className={`h-4 w-4 ${isCalculator ? 'text-white' : 'text-teal-600'}`} />
+              <span className="hidden xl:inline">Đổi đơn vị &amp; Giải nhanh</span>
             </Link>
 
             {/* Quick Link: Progress Dashboard */}
             <Link
               href="/progress"
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition duration-150 ease-snap ${
+              className={`flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-xs font-extrabold transition-all duration-200 ease-snap ${
                 isProgress
-                  ? 'bg-emerald-50 text-emerald-700 shadow-soft ring-1 ring-emerald-200/80'
-                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-glow-emerald'
+                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
               }`}
             >
-              <BarChart3 className="h-4 w-4 text-emerald-600" />
+              <BarChart3 className={`h-4 w-4 ${isProgress ? 'text-white' : 'text-emerald-600'}`} />
               <span className="hidden md:inline">Tiến độ</span>
             </Link>
 
@@ -249,16 +250,16 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-expanded={menuOpen}
-              className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition duration-150 ease-snap ${
+              className={`flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-xs font-extrabold transition-all duration-200 ease-snap ${
                 menuOpen || isAnyUtilityActive
-                  ? 'border-indigo-300 bg-indigo-50/90 text-indigo-800 shadow-soft'
-                  : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50'
+                  ? 'border-indigo-300 bg-indigo-50/90 text-indigo-900 shadow-soft'
+                  : 'border-slate-200/90 bg-white text-slate-800 shadow-2xs hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50/40'
               }`}
             >
               <Sparkles className="h-4 w-4 text-indigo-600" />
               <span>Tiện ích</span>
               {activeMistakeCount > 0 && (
-                <span className="rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                <span className="rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-2xs">
                   {activeMistakeCount}
                 </span>
               )}
@@ -268,7 +269,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
         </div>
       </header>
 
-      {/* Right-to-Left Slide-Over Drawer (Outside header so fixed covers full viewport height) */}
+      {/* Right-to-Left Slide-Over Drawer */}
       <div
         className={`no-print fixed inset-0 z-50 transition-visibility duration-300 print:hidden ${
           menuOpen ? 'pointer-events-auto visible' : 'pointer-events-none invisible'
@@ -278,46 +279,49 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
         {/* Backdrop */}
         <div
           onClick={() => setMenuOpen(false)}
-          className={`fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300 ${
+          className={`fixed inset-0 bg-slate-950/50 backdrop-blur-xs transition-opacity duration-300 ${
             menuOpen ? 'opacity-100' : 'opacity-0'
           }`}
         />
 
-        {/* Drawer Panel Sliding in from the Right */}
+        {/* Drawer Panel */}
         <aside
           className={`fixed inset-y-0 right-0 z-10 flex w-full max-w-sm flex-col border-l border-slate-200/90 bg-white shadow-2xl transition-transform duration-300 ease-out sm:max-w-md ${
             menuOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
           {/* Drawer Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 px-5 py-4 text-white">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-amber-300 ring-1 ring-white/20">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <div>
-                <h2 className="text-sm font-extrabold tracking-tight text-white">
-                  Trung tâm Tiện ích Học tập
-                </h2>
-                <p className="text-[11px] text-purple-200">
-                  Hệ thống công cụ thông minh eduPhysics 6–12
-                </p>
+          <div className="relative overflow-hidden border-b border-slate-100 bg-aurora-dark px-5 py-5 text-white">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-400/20 blur-2xl" />
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 text-amber-300 ring-1 ring-white/25 backdrop-blur">
+                  <Sparkles className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-extrabold tracking-tight text-white sm:text-base">
+                    Trung tâm Tiện ích Học tập
+                  </h2>
+                  <p className="text-[11px] text-indigo-200">
+                    8 Phân hệ thông minh eduPhysics 6–12
+                  </p>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="rounded-xl bg-white/10 p-2 text-white/80 transition hover:bg-white/20 hover:text-white"
+                title="Đóng menu"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setMenuOpen(false)}
-              className="rounded-xl bg-white/10 p-2 text-white/80 transition hover:bg-white/20 hover:text-white"
-              title="Đóng menu"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
 
           {/* Drawer Body: All Utilities List */}
-          <div className="flex-1 space-y-3 overflow-y-auto p-5">
+          <div className="flex-1 space-y-2.5 overflow-y-auto p-5">
             <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-              Công cụ Học tập &amp; Khảo thí
+              Công cụ Học tập &amp; Khảo thí ({utilityItems.length} tính năng)
             </div>
 
             {utilityItems.map((item) => (
@@ -325,14 +329,14 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
-                className={`group flex items-start gap-3.5 rounded-2xl border p-3.5 transition duration-150 ${
+                className={`group flex items-start gap-3.5 rounded-2xl border p-3.5 transition-all duration-200 ${
                   item.active
-                    ? 'border-indigo-400 bg-indigo-50/70 shadow-soft ring-1 ring-indigo-400/20'
-                    : 'border-slate-200/80 bg-white hover:border-indigo-200 hover:bg-slate-50/80'
+                    ? 'border-indigo-400 bg-indigo-50/80 shadow-soft ring-1 ring-indigo-400/20'
+                    : 'border-slate-200/80 bg-white hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-slate-50/80 hover:shadow-soft'
                 }`}
               >
                 <div
-                  className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${item.iconBg}`}
+                  className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-transform duration-200 group-hover:scale-105 ${item.iconBg}`}
                 >
                   {item.icon}
                 </div>
@@ -362,7 +366,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
               <Link
                 href="/"
                 onClick={() => setMenuOpen(false)}
-                className={`flex items-center justify-between rounded-2xl border p-3.5 text-xs font-bold transition ${
+                className={`flex items-center justify-between rounded-2xl border p-3.5 text-xs font-extrabold transition ${
                   isHome
                     ? 'border-brand-300 bg-brand-50 text-brand-800'
                     : 'border-slate-200/80 bg-slate-50/60 text-slate-700 hover:bg-slate-100'
@@ -382,7 +386,7 @@ export function SiteHeader({ admin, activeMistakeCount }: SiteHeaderProps) {
             <Link
               href={admin ? '/admin' : '/admin/login'}
               onClick={() => setMenuOpen(false)}
-              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-extrabold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-extrabold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
             >
               <span className="flex items-center gap-2.5">
                 <Settings className="h-4 w-4 text-slate-500" />

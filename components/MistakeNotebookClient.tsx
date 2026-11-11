@@ -897,32 +897,38 @@ export function MistakeNotebookClient({
   // MAIN NOTEBOOK LIST VIEW
   // ----------------------------------------------------
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-      {/* Header & Filter Bar */}
-      <div className="edu-card space-y-4 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="edu-eyebrow text-rose-600">
-              <AlertCircle className="h-4 w-4" />
-              <span>Sổ tay Ôn tập Thông minh • Lọc theo Định dạng 2025 & Khối lớp</span>
+    <div className="edu-page-shell">
+      {/* Hero Banner */}
+      <div className="edu-hero-aurora p-6 sm:p-9">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 animate-blob rounded-full bg-rose-500/25 blur-3xl" />
+        <div
+          className="pointer-events-none absolute -left-16 -bottom-16 h-64 w-64 animate-blob rounded-full bg-indigo-500/25 blur-3xl"
+          style={{ animationDelay: '3s' }}
+        />
+
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-rose-400/35 bg-rose-500/20 px-3.5 py-1 text-xs font-extrabold text-rose-200">
+              <AlertCircle className="h-4 w-4 text-rose-300" />
+              <span>SỔ TAY ÔN TẬP THÔNG MINH • LỌC THEO ĐỊNH DẠNG 2025 &amp; KHỐI LỚP</span>
             </div>
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
-              Sổ tay Câu hỏi làm sai
+            <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+              Sổ Tay Câu Hỏi Làm Sai &amp; Luyện Tập Khắc Phục
             </h1>
-            <p className="max-w-2xl text-xs leading-relaxed text-slate-500 sm:text-sm">
-              Tự động phân loại theo <strong className="text-slate-700">Định dạng thi mới 2025</strong> (4 lựa chọn, Đúng/Sai, Điền số),{' '}
-              <strong className="text-slate-700">Khối lớp</strong>,{' '}
-              <strong className="text-slate-700">Chương</strong> và{' '}
-              <strong className="text-slate-700">Chủ đề</strong>.
+            <p className="max-w-2xl text-xs leading-relaxed text-indigo-100/85 sm:text-sm">
+              Tự động phân loại câu sai theo <strong className="text-white">Định dạng thi mới 2025</strong> (4 lựa chọn, Đúng/Sai, Điền số),{' '}
+              <strong className="text-white">Khối lớp</strong>,{' '}
+              <strong className="text-white">Chương</strong> và{' '}
+              <strong className="text-white">Chủ đề</strong>.
             </p>
           </div>
 
           {!showMastered && filteredMistakes.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => handleStartPractice(filteredMistakes, 'format2025')}
-                className="edu-btn-primary px-4 py-2.5 text-xs shadow-soft"
+                className="edu-btn-primary px-4 py-2.5 text-xs shadow-glow"
               >
                 <Sparkles className="h-4 w-4 fill-current text-amber-300" />
                 <span>Luyện Format 2025 ({filteredMistakes.length} câu)</span>
@@ -931,24 +937,27 @@ export function MistakeNotebookClient({
               <button
                 type="button"
                 onClick={() => handleStartPractice(filteredMistakes, 'standard')}
-                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+                className="rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20"
               >
                 Luyện 4 lựa chọn
               </button>
 
               <Link
                 href="/cognitive-traps"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-800 transition hover:bg-rose-100 shadow-2xs"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/40 bg-rose-500/20 px-3.5 py-2.5 text-xs font-bold text-rose-200 backdrop-blur transition hover:bg-rose-500/30"
               >
-                <Brain className="h-4 w-4 text-rose-600" />
+                <Brain className="h-4 w-4 text-rose-300" />
                 <span>Ma trận Bẫy Nhận thức</span>
               </Link>
             </div>
           )}
         </div>
+      </div>
 
+      {/* Filter Bar */}
+      <div className="edu-card space-y-4 p-5">
         {/* Toolbar: Status Switcher & Dropdown Filter Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Status Tabs (Segmented Control) */}
           <div className="inline-flex items-center rounded-xl bg-slate-100 p-1">
             <Link

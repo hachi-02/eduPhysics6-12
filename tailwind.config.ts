@@ -62,27 +62,30 @@ const config: Config = {
         '4xl': '2rem',
       },
       boxShadow: {
-        soft: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 1px rgb(15 23 42 / 0.06)',
-        card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 8px 24px -8px rgb(15 23 42 / 0.12)',
-        lift: '0 2px 4px -1px rgb(15 23 42 / 0.06), 0 16px 40px -12px rgb(15 23 42 / 0.18)',
-        glow: '0 10px 30px -10px rgb(79 70 229 / 0.45)',
-        'glow-emerald': '0 10px 30px -10px rgb(16 185 129 / 0.45)',
+        soft: '0 2px 8px -2px rgb(15 23 42 / 0.05), 0 1px 3px 0 rgb(15 23 42 / 0.04)',
+        card: '0 4px 20px -4px rgb(15 23 42 / 0.07), 0 12px 32px -8px rgb(79 70 229 / 0.06)',
+        lift: '0 8px 25px -5px rgb(15 23 42 / 0.10), 0 20px 45px -12px rgb(79 70 229 / 0.18)',
+        glow: '0 10px 30px -8px rgb(79 70 229 / 0.50)',
+        'glow-emerald': '0 10px 30px -8px rgb(16 185 129 / 0.45)',
+        'glow-cyan': '0 10px 30px -8px rgb(6 182 212 / 0.45)',
       },
       backgroundImage: {
         'mesh-light':
-          'radial-gradient(at 8% 0%, rgba(99,102,241,0.10) 0px, transparent 55%), radial-gradient(at 92% 4%, rgba(6,182,212,0.10) 0px, transparent 50%), radial-gradient(at 50% 100%, rgba(139,92,246,0.08) 0px, transparent 55%)',
+          'radial-gradient(at 0% 0%, rgba(99,102,241,0.12) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(6,182,212,0.12) 0px, transparent 50%), radial-gradient(at 50% 50%, rgba(139,92,246,0.06) 0px, transparent 55%), radial-gradient(at 90% 100%, rgba(16,185,129,0.08) 0px, transparent 50%)',
         'hero-glow':
-          'radial-gradient(1200px 500px at 10% -10%, rgba(99,102,241,0.18), transparent 60%), radial-gradient(900px 420px at 100% 0%, rgba(6,182,212,0.16), transparent 55%), linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-        'brand-gradient': 'linear-gradient(120deg, #4f46e5 0%, #7c3aed 55%, #0891b2 100%)',
+          'radial-gradient(1200px 500px at 10% -10%, rgba(99,102,241,0.22), transparent 60%), radial-gradient(900px 420px at 100% 0%, rgba(6,182,212,0.18), transparent 55%), linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+        'aurora-dark':
+          'radial-gradient(at 15% 10%, rgba(99,102,241,0.35) 0px, transparent 55%), radial-gradient(at 85% 15%, rgba(6,182,212,0.30) 0px, transparent 55%), radial-gradient(at 50% 100%, rgba(16,185,129,0.22) 0px, transparent 60%), linear-gradient(135deg, #090d16 0%, #131b36 50%, #1a1238 100%)',
+        'brand-gradient': 'linear-gradient(120deg, #4f46e5 0%, #7c3aed 52%, #0891b2 100%)',
         'grid-light':
-          'linear-gradient(to right, rgba(100,116,139,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(100,116,139,0.08) 1px, transparent 1px)',
+          'linear-gradient(to right, rgba(99,102,241,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(99,102,241,0.06) 1px, transparent 1px)',
       },
       backgroundSize: {
         grid: '28px 28px',
       },
       keyframes: {
         'fade-up': {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '0%': { opacity: '0', transform: 'translateY(14px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         'fade-in': {
@@ -90,19 +93,36 @@ const config: Config = {
           '100%': { opacity: '1' },
         },
         pop: {
-          '0%': { opacity: '0', transform: 'scale(0.96)' },
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
         float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-6px)' },
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-8px)' },
+        },
+        blob: {
+          '0%, 100%': { transform: 'translate(0px, 0px) scale(1)' },
+          '33%': { transform: 'translate(18px, -14px) scale(1.06)' },
+          '66%': { transform: 'translate(-12px, 12px) scale(0.96)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+        'pulse-glow': {
+          '0%, 100%': { opacity: '0.6', transform: 'scale(1)' },
+          '50%': { opacity: '1', transform: 'scale(1.04)' },
         },
       },
       animation: {
-        'fade-up': 'fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'fade-up': 'fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
         'fade-in': 'fade-in 0.35s ease-out both',
-        pop: 'pop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both',
-        float: 'float 6s ease-in-out infinite',
+        pop: 'pop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both',
+        float: 'float 5s ease-in-out infinite',
+        blob: 'blob 9s ease-in-out infinite',
+        shimmer: 'shimmer 3.5s linear infinite',
+        'pulse-glow': 'pulse-glow 3s ease-in-out infinite',
+        'spin-slow': 'spin 14s linear infinite',
       },
       transitionTimingFunction: {
         snap: 'cubic-bezier(0.22, 1, 0.36, 1)',
