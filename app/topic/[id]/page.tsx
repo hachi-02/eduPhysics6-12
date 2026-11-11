@@ -19,7 +19,7 @@ export default function TopicDetailPage({ params }: { params: { id: string } }) 
 
   return (
     <>
-      <GradeContextSync grade={topic.grade.grade_number} />
+      <GradeContextSync grade={topic.grade_number} />
       <TopicWorkspaceClient topic={topic} />
     </>
   );
