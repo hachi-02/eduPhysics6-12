@@ -62,7 +62,12 @@
 
   /* Unified Quantum Aurora Hero Banner */
   .edu-hero-aurora {
-    @apply relative overflow-hidden rounded-3xl border border-indigo-400/25 bg-aurora-dark p-6 text-white shadow-[0_25px_60px_-15px_rgba(30,27,75,0.45)] sm:p-8;
+    @apply relative overflow-hidden rounded-3xl border border-indigo-400/25 p-6 text-white shadow-[0_25px_60px_-15px_rgba(30,27,75,0.45)] sm:p-8;
+    background-image:
+      radial-gradient(at 15% 10%, rgba(99, 102, 241, 0.35) 0px, transparent 55%),
+      radial-gradient(at 85% 15%, rgba(6, 182, 212, 0.30) 0px, transparent 55%),
+      radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.22) 0px, transparent 60%),
+      linear-gradient(135deg, #090d16 0%, #131b36 50%, #1a1238 100%);
   }
 
   /* Elevated Glass & Surface Cards */
@@ -180,6 +185,49 @@
 
   .katex-display {
     @apply my-0;
+  }
+}
+
+@keyframes edu-blob {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(18px, -14px) scale(1.06);
+  }
+  66% {
+    transform: translate(-12px, 12px) scale(0.96);
+  }
+}
+
+@keyframes edu-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@layer utilities {
+  .bg-aurora-dark {
+    background-image:
+      radial-gradient(at 15% 10%, rgba(99, 102, 241, 0.35) 0px, transparent 55%),
+      radial-gradient(at 85% 15%, rgba(6, 182, 212, 0.30) 0px, transparent 55%),
+      radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.22) 0px, transparent 60%),
+      linear-gradient(135deg, #090d16 0%, #131b36 50%, #1a1238 100%);
+  }
+
+  .animate-blob {
+    animation: edu-blob 9s ease-in-out infinite;
+  }
+
+  .animate-float {
+    animation: edu-float 5s ease-in-out infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin 16s linear infinite;
   }
 }
 
