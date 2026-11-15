@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 2,
+  "provider": "xai",
+  "kind": "video",
+  "route": "rest",
+  "apiBase": "https://api.x.ai/v1",
+  "endpoint": "https://api.x.ai/v1/videos/generations",
+  "requestedModel": "grok-imagine-video-1.5",
+  "options": {
+    "model": "grok-imagine-video-1.5",
+    "duration": 6,
+    "resolution": "720p",
+    "generate_audio": false
+  },
+  "promptSha256": "53de3c0ad9796b214a621f8928e42b171ba67d28784a73f5013d94fd19bd6640",
+  "references": [
+    {
+      "path": "C:\\Users\\pkatt\\.gemini\\antigravity\\brain\\7faee0e2-0f5e-4a4b-86fc-84eadf652eb7\\grade_6_water_hero_1794364642728.jpg",
+      "sha256": "cdc61578f0c6a6d8c25044dbd28701a7d01cd2184da26704c08b3f19c0f274bf",
+      "size": [
+        1376,
+        768
+      ],
+      "mime": "image/jpeg",
+      "bytes": 475247
+    }
+  ],
+  "lastFrame": {
+    "path": "C:\\Users\\pkatt\\.gemini\\antigravity\\brain\\7faee0e2-0f5e-4a4b-86fc-84eadf652eb7\\grade_6_water_hero_1794364642728.jpg",
+    "sha256": "cdc61578f0c6a6d8c25044dbd28701a7d01cd2184da26704c08b3f19c0f274bf",
+    "size": [
+      1376,
+      768
+    ],
+    "mime": "image/jpeg",
+    "bytes": 475247
+  },
+  "keyEnv": "XAI_API_KEY",
+  "paidRequests": 1,
+  "automaticPostRetries": 0,
+  "outDir": "D:\\physics_cms_6_12\\public\\themes\\grade6_video_job",
+  "execution": "execute",
+  "capability": {
+    "verifiedAt": "2026-10-06",
+    "docs": [
+      "https://docs.x.ai/developers/models/grok-imagine-video-1.5",
+      "https://docs.x.ai/developers/model-capabilities/video/reference-to-video"
+    ],
+    "async": true
+  },
+  "pricing": {
+    "unit": "output_second",
+    "quantity": 6,
+    "qualifiers": {
+      "resolution": "720p"
+    },
+    "inputs": 2
+  },
+  "fingerprint": "6ce6ef6901f5ae89c49f57ab7fba8a5308fd7b74d750fa9b2c8788e70f723bee",
+  "estimate": {
+    "usd": 0.86,
+    "currency": "USD",
+    "basis": "6 output_second x 0.14 + 2 input_image x 0.01 = 0.86 USD list price (verified 2026-10-06); excludes tax and rejected attempts",
+    "pricesVersion": "2026-10-06",
+    "items": [
+      {
+        "unit": "output_second",
+        "quantity": 6,
+        "usdEach": 0.14,
+        "usd": 0.84,
+        "source": "https://docs.x.ai/developers/pricing",
+        "verifiedAt": "2026-10-06",
+        "resolution": "720p"
+      },
+      {
+        "unit": "input_image",
+        "quantity": 2,
+        "usdEach": 0.01,
+        "usd": 0.02,
+        "source": "https://docs.x.ai/developers/pricing",
+        "verifiedAt": "2026-10-06"
+      }
+    ]
+  },
+  "consent": {
+    "provider": "xai",
+    "model": "grok-imagine-video-1.5",
+    "calls": 1,
+    "estimateUsd": 0.86,
+    "apiHost": "api.x.ai"
+  },
+  "status": "failed",
+  "clientRequestId": "1ef6b410990849458af422aa5e20a592",
+  "receipt": {
+    "startedAt": "2026-11-11T02:40:36.623Z",
+    "submittedAt": "2026-11-11T02:40:36.640Z",
+    "completedAt": "2026-11-11T02:40:37.368Z",
+    "wallMs": 745,
+    "providerMs": null,
+    "attempt": 1,
+    "purpose": "route_media video",
+    "toolVersion": "generate_media/0.4.0",
+    "outcomeCode": "auth"
+  },
+  "ledger": {
+    "projectDir": "D:\\physics_cms_6_12",
+    "reservationId": "8dd6a49a108b4228a45fb4a0239e1903",
+    "status": "failed"
+  },
+  "error": {
+    "httpStatus": 400,
+    "code": "invalid-argument",
+    "message": "Incorrect API key provided. You can obtain an API key from [url]"
+  },
+  "errorType": "MediaError"
+}

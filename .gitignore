@@ -1,13 +1,21 @@
-node_modules
-.next
-out
-*.db
-*.db-shm
-*.db-wal
-.env*.local
-.agents
-.21st
-tsconfig.tsbuildinfo
+# Dependencies
+**/node_modules/
 
-deverr.txt
-devout.txt
+# Next.js build outputs
+**/.next/
+**/out/
+
+# Databases & local env
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/.env*.local
+
+# Tooling & logs
+**/.agents/
+**/.21st/
+**/.forge/
+**/*.tsbuildinfo
+**/deverr.txt
+**/devout.txt
+**/scratch/
