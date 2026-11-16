@@ -222,7 +222,6 @@ const KINETIC_STATEMENT_WORDS = [
 ];
 
 function AnimatedCount({ value }: { value: number }) {
-  const [display, setDisplay] = useState(0);
   const elRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -230,7 +229,7 @@ function AnimatedCount({ value }: { value: number }) {
     if (!el) return;
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduced) {
-      setDisplay(value);
+      el.textContent = String(value);
       return;
     }
     const obj = { val: 0 };
@@ -243,7 +242,9 @@ function AnimatedCount({ value }: { value: number }) {
         start: 'top 92%',
         once: true,
       },
-      onUpdate: () => setDisplay(Math.round(obj.val)),
+      onUpdate: () => {
+        el.textContent = String(Math.round(obj.val));
+      },
     });
     return () => {
       tween.kill();
@@ -252,7 +253,7 @@ function AnimatedCount({ value }: { value: number }) {
 
   return (
     <span ref={elRef} className="tabular-nums">
-      {display}
+      0
     </span>
   );
 }
@@ -392,7 +393,21 @@ export function V2HomeDemoClient({
   const [isPickingGrade, setIsPickingGrade] = useState<boolean>(false);
   const [hasConfirmedGrade, setHasConfirmedGrade] = useState<boolean>(Boolean(hasInitialSavedGrade));
   const [selectedChapterId, setSelectedChapterId] = useState<number | 'all'>('all');
-  const [activeActIdx, setActiveActIdx] = useState<number>(0);
+  const actButtonsRef = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const syncActiveActButton = (activeIdx: number) => {
+    actButtonsRef.current.forEach((btn, i) => {
+      if (!btn) return;
+      const isActive = i === activeIdx;
+      btn.classList.toggle('bg-amber-400/20', isActive);
+      btn.classList.toggle('text-amber-200', isActive);
+      btn.classList.toggle('border-amber-400/50', isActive);
+      btn.classList.toggle('bg-white/[0.04]', !isActive);
+      btn.classList.toggle('text-slate-400', !isActive);
+      btn.classList.toggle('border-white/10', !isActive);
+      btn.classList.toggle('hover:text-white', !isActive);
+    });
+  };
 
   // Scroll progress fed cleanly to the single 3D WebGL stage
   const scrollProgressRef = useRef<number>(0);
@@ -567,7 +582,7 @@ export function V2HomeDemoClient({
   const jumpToOdysseyAct = (idx: number) => {
     const st = stageTriggerRef.current;
     if (!st) {
-      setActiveActIdx(idx);
+      syncActiveActButton(idx);
       scrollToY(0);
       return;
     }
@@ -705,7 +720,7 @@ export function V2HomeDemoClient({
               const idx = p < 0.335 ? 0 : p < 0.55 ? 1 : p < 0.77 ? 2 : 3;
               if (idx !== lastActIndex) {
                 lastActIndex = idx;
-                setActiveActIdx(idx);
+                syncActiveActButton(idx);
               }
 
               const era = COSMIC_ERAS[idx];
@@ -1073,7 +1088,7 @@ export function V2HomeDemoClient({
         <header className="fixed top-0 inset-x-0 z-50 px-4 sm:px-6 pt-3 pointer-events-none">
           <nav
             aria-label="Điều hướng chính"
-            className="cosmic-glass pointer-events-auto max-w-[1440px] mx-auto h-14 px-4 sm:px-6 rounded-2xl bg-[#070b1a]/75 backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_40px_-12px_rgba(0,0,0,0.8)] flex items-center justify-between gap-4"
+            className="cosmic-glass pointer-events-auto max-w-[1440px] mx-auto h-14 px-4 sm:px-6 rounded-2xl bg-[#070b1a]/75 backdrop-blur-sm border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_40px_-12px_rgba(0,0,0,0.8)] flex items-center justify-between gap-4"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 via-orange-500 to-indigo-600 p-[1px] shrink-0 shadow-[0_0_20px_rgba(245,158,11,0.35)]">
@@ -1170,7 +1185,7 @@ export function V2HomeDemoClient({
                 ref={heroIntroPanelRef}
                 className="hero-intro-panel lg:absolute lg:inset-0 pointer-events-auto flex flex-col justify-center space-y-5 rounded-3xl p-4 sm:p-6 bg-[#03040b]/60 lg:bg-transparent backdrop-blur-sm lg:backdrop-blur-none"
               >
-                <div className="hero-fade-up inline-flex self-start items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] border border-amber-400/25 text-amber-200/95 text-xs font-medium backdrop-blur-md">
+                <div className="hero-fade-up inline-flex self-start items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] border border-amber-400/25 text-amber-200/95 text-xs font-medium backdrop-blur-sm">
                   <GraduationCap className="w-3.5 h-3.5 text-amber-400" />
                   <span>Nền tảng Học &amp; Luyện thi Vật lý 6–12 • Chuẩn GDPT 2018</span>
                 </div>
@@ -1203,7 +1218,7 @@ export function V2HomeDemoClient({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -6, scale: 0.97 }}
                         transition={{ duration: 0.22 }}
-                        className="cosmic-glass rounded-2xl p-3.5 bg-[#080e24]/88 backdrop-blur-xl border border-amber-400/35 shadow-[0_14px_40px_-10px_rgba(0,0,0,0.85)] space-y-2.5"
+                        className="cosmic-glass rounded-2xl p-3.5 bg-[#080e24]/88 backdrop-blur-sm border border-amber-400/35 shadow-[0_14px_40px_-10px_rgba(0,0,0,0.85)] space-y-2.5"
                       >
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-semibold text-amber-200">
@@ -1263,7 +1278,7 @@ export function V2HomeDemoClient({
                           whileHover={{ y: -1 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => setIsPickingGrade(true)}
-                          className="cosmic-glass inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-200 bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 backdrop-blur-md transition-colors"
+                          className="cosmic-glass inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-200 bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 backdrop-blur-sm transition-colors"
                         >
                           <RotateCcw className="w-3.5 h-3.5 text-sky-300" />
                           <span>Chọn lại khối lớp</span>
@@ -1295,7 +1310,7 @@ export function V2HomeDemoClient({
 
                 {/* Compact Curriculum Telemetry Strip */}
                 <div className="hero-fade-up grid grid-cols-3 gap-2.5 pt-2 border-t border-white/10">
-                  <div className="p-3 rounded-xl bg-[#070b1a]/65 backdrop-blur-md border border-white/[0.08]">
+                  <div className="p-3 rounded-xl bg-[#070b1a]/65 backdrop-blur-sm border border-white/[0.08]">
                     <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
                       Khối hiện tại
                     </div>
@@ -1303,7 +1318,7 @@ export function V2HomeDemoClient({
                       {activeGrade === 'all' ? 'Tất cả (6–12)' : `Lớp ${activeGrade}`}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-[#070b1a]/65 backdrop-blur-md border border-white/[0.08]">
+                  <div className="p-3 rounded-xl bg-[#070b1a]/65 backdrop-blur-sm border border-white/[0.08]">
                     <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
                       Độ phủ bài học
                     </div>
@@ -1314,7 +1329,7 @@ export function V2HomeDemoClient({
                       %
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-[#070b1a]/65 backdrop-blur-md border border-white/[0.08]">
+                  <div className="p-3 rounded-xl bg-[#070b1a]/65 backdrop-blur-sm border border-white/[0.08]">
                     <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
                       {activeMistakeCount > 0 ? 'Lỗi cần ôn' : 'Quy mô'}
                     </div>
@@ -1338,7 +1353,7 @@ export function V2HomeDemoClient({
                 className="odyssey-left-panel absolute inset-0 flex flex-col justify-center space-y-3.5 pointer-events-auto"
                 style={{ opacity: 0, visibility: 'hidden' }}
               >
-                <div className="cosmic-glass rounded-2xl px-4 py-2.5 bg-[#070b1a]/82 backdrop-blur-xl border border-white/15 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+                <div className="cosmic-glass rounded-2xl px-4 py-2.5 bg-[#070b1a]/82 backdrop-blur-sm border border-white/15 flex flex-wrap items-center justify-between gap-3 shadow-lg">
                   <div className="flex items-center gap-3">
                     <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
                       <svg viewBox="0 0 40 40" className="w-10 h-10 -rotate-90" aria-hidden="true">
@@ -1389,10 +1404,13 @@ export function V2HomeDemoClient({
                     {COSMIC_ERAS.map((era, i) => (
                       <button
                         key={era.id}
+                        ref={(el) => {
+                          actButtonsRef.current[i] = el;
+                        }}
                         type="button"
                         onClick={() => jumpToOdysseyAct(i)}
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all border ${
-                          activeActIdx === i
+                          i === 0
                             ? 'bg-amber-400/20 text-amber-200 border-amber-400/50'
                             : 'bg-white/[0.04] text-slate-400 border-white/10 hover:text-white'
                         }`}
@@ -1415,7 +1433,7 @@ export function V2HomeDemoClient({
                     return (
                       <article
                         key={era.id}
-                        className="odyssey-era-card cosmic-glass absolute inset-0 rounded-[26px] p-5 sm:p-6 bg-[#070b1c]/85 backdrop-blur-2xl border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_28px_70px_-15px_rgba(0,0,0,0.92)] flex flex-col justify-between"
+                        className="odyssey-era-card cosmic-glass absolute inset-0 rounded-[26px] p-5 sm:p-6 bg-[#070b1c]/85 backdrop-blur-sm border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_28px_70px_-15px_rgba(0,0,0,0.92)] flex flex-col justify-between"
                       >
                         <div>
                           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -1534,7 +1552,7 @@ export function V2HomeDemoClient({
               <div
                 role="tablist"
                 aria-label="Chọn khối lớp 6 đến 12"
-                className="cosmic-glass inline-flex flex-wrap items-center gap-1 p-1.5 rounded-2xl bg-[#070b1a]/80 backdrop-blur-xl border border-white/15"
+                className="cosmic-glass inline-flex flex-wrap items-center gap-1 p-1.5 rounded-2xl bg-[#070b1a]/80 backdrop-blur-sm border border-white/15"
               >
                 <button
                   type="button"
@@ -1584,7 +1602,7 @@ export function V2HomeDemoClient({
             {(activeGrade === 'all' || currentBoard) && (
               <div
                 ref={curriculumDeckRef}
-                className="cosmic-glass rounded-[28px] p-5 sm:p-8 bg-[#080d20]/84 backdrop-blur-2xl border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_28px_90px_-20px_rgba(0,0,0,0.95)]"
+                className="cosmic-glass rounded-[28px] p-5 sm:p-8 bg-[#080d20]/84 backdrop-blur-sm border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_28px_90px_-20px_rgba(0,0,0,0.95)]"
               >
                 <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 pb-6 mb-6 border-b border-white/10">
                   <div className="space-y-1.5">
@@ -1938,7 +1956,7 @@ export function V2HomeDemoClient({
                     onClick={markReturnToCurriculum}
                     onPointerMove={handleDockCardPointerMove}
                     onPointerLeave={handleDockCardPointerLeave}
-                    className={`orbital-module-card orbital-tilt-card cosmic-glass group relative md:w-[320px] lg:w-[350px] xl:w-[380px] min-h-[250px] md:h-[275px] lg:h-[295px] shrink-0 rounded-[26px] p-6 bg-[#080d22]/85 backdrop-blur-xl border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_20px_50px_-15px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden ${toneRing}`}
+                    className={`orbital-module-card orbital-tilt-card cosmic-glass group relative md:w-[320px] lg:w-[350px] xl:w-[380px] min-h-[250px] md:h-[275px] lg:h-[295px] shrink-0 rounded-[26px] p-6 bg-[#080d22]/85 backdrop-blur-sm border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_20px_50px_-15px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden ${toneRing}`}
                   >
                     <div
                       aria-hidden="true"
