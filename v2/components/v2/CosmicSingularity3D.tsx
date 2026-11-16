@@ -1245,7 +1245,7 @@ export default function CosmicSingularity3D({
       uBlackHole: { value: 0.0 },
     };
 
-    const diskGeo = new THREE.RingGeometry(1.14, 6.2, 112, 18);
+    const diskGeo = new THREE.RingGeometry(1.14, 8.0, 112, 18);
     const diskMat = new THREE.ShaderMaterial({
       uniforms: diskUniforms,
       vertexShader: `
@@ -1257,7 +1257,7 @@ export default function CosmicSingularity3D({
           vec3 pos = position;
           float r = length(pos.xy);
           float angle = atan(pos.y, pos.x);
-          float t = clamp((r - 1.14) / (6.2 - 1.14), 0.0, 1.0);
+          float t = clamp((r - 1.14) / (8.0 - 1.14), 0.0, 1.0);
           // Subtle organic vertical plasma undulation so the disk never looks like a rigid flat ruler
           pos.z += (sin(angle * 3.0 - uTime * 0.45 + r * 2.2) * 0.045 + cos(angle * 5.0 + uTime * 0.3 - r * 1.6) * 0.025) * smoothstep(0.05, 0.75, t);
           vLocalPos = pos;
@@ -1295,11 +1295,11 @@ export default function CosmicSingularity3D({
 
           // Warp radial coordinate organically so edges dissolve like smoky gas
           float rWarped = r + (macroWarp - 0.5) * 0.65 + (midSwirl - 0.5) * 0.25;
-          float t = clamp((rWarped - 1.14) / (6.2 - 1.14), 0.0, 1.0);
-          float tRaw = clamp((r - 1.14) / (6.2 - 1.14), 0.0, 1.0);
+          float t = clamp((rWarped - 1.14) / (8.0 - 1.14), 0.0, 1.0);
+          float tRaw = clamp((r - 1.14) / (8.0 - 1.14), 0.0, 1.0);
 
           float innerEdge = smoothstep(0.0, 0.06, tRaw);
-          float outerFade = pow(1.0 - smoothstep(0.16, 0.96, t), 2.15) * (1.0 - smoothstep(0.75, 1.0, tRaw));
+          float outerFade = pow(1.0 - smoothstep(0.24, 0.98, t), 1.85) * (1.0 - smoothstep(0.78, 1.0, tRaw));
 
           float strands = smoothstep(0.16, 0.84, mix(midSwirl, fineWisps, 0.52));
           float cloudDensity = mix(0.22, 1.0, strands) * (0.42 + 0.58 * smoothstep(0.18, 0.82, macroWarp)) * (0.72 + 0.42 * gasRipple);
@@ -1432,7 +1432,7 @@ export default function CosmicSingularity3D({
     const pDummyPos = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
-      const r = 1.6 + Math.pow(Math.random(), 1.4) * 3.8;
+      const r = 1.6 + Math.pow(Math.random(), 1.3) * 5.2;
       pRadius[i] = r;
       pAngle[i] = Math.random() * Math.PI * 2;
       pYOffset[i] = (Math.random() - 0.5) * (0.14 + (r - 1.5) * 0.05);

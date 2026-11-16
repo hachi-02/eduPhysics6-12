@@ -14,6 +14,8 @@ import {
   Layers,
   LayoutGrid,
   Printer,
+  ScanSearch,
+  Settings,
   Target,
   X,
 } from 'lucide-react';
@@ -89,6 +91,20 @@ const TOOL_ITEMS: ToolNavItem[] = [
     tag: 'Lớp 6–12',
     icon: FileCheck,
     tone: 'cyan',
+  },
+  {
+    href: '/ai-solver',
+    title: 'AI Quét & Giải Bài Tập',
+    tag: 'Ảnh / PDF',
+    icon: ScanSearch,
+    tone: 'cyan',
+  },
+  {
+    href: '/ai-settings',
+    title: 'Cài đặt AI (API & Model)',
+    tag: 'Gemini / OpenRouter',
+    icon: Settings,
+    tone: 'gold',
   },
 ];
 

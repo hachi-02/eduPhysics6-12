@@ -24,6 +24,7 @@ import {
   Orbit,
   Printer,
   RotateCcw,
+  Settings,
   Target,
   Zap,
 } from 'lucide-react';
@@ -1139,6 +1140,15 @@ export function V2HomeDemoClient({
 
             <div className="flex items-center gap-2.5 shrink-0">
               <GlobalSearchModal variant="glass" />
+              <Link
+                href="/ai-settings"
+                title="Cài đặt AI (API Key & Model)"
+                aria-label="Cài đặt AI (API Key & Model)"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-200 bg-white/[0.05] border border-white/10 hover:bg-white/[0.1] hover:text-white transition-colors"
+              >
+                <Settings className="w-3.5 h-3.5 text-amber-300" />
+                <span className="hidden lg:inline">Cài đặt AI</span>
+              </Link>
               <button
                 type="button"
                 onClick={() => scrollToSection('ecosystem')}
