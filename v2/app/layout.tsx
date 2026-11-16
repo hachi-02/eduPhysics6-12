@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { GlobalToolsMenu } from '@/components/v2/GlobalToolsMenu';
 
 export const metadata: Metadata = {
   title: 'eduPhysics 6–12 | Hệ Sinh Thái Học & Mô Phỏng Vật Lý Chuẩn GDPT 2018',
@@ -40,6 +41,7 @@ export default function RootLayout({
         </div>
 
         <main className="relative z-10 flex-1">{children}</main>
+        <GlobalToolsMenu />
       </body>
     </html>
   );
