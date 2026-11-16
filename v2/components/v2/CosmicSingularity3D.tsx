@@ -157,6 +157,12 @@ export default function CosmicSingularity3D({
     const cosmicRoot = new THREE.Group();
     scene.add(cosmicRoot);
 
+    const sunPos = new THREE.Vector3(6.5, 0.85, 6.5);
+    const earthTarget = new THREE.Vector3(0, -0.1, 0);
+    const sunBhRoot = new THREE.Group();
+    sunBhRoot.position.copy(sunPos);
+    scene.add(sunBhRoot);
+
     const state = {
       time: 0,
       wHero: 1.0,
@@ -165,6 +171,7 @@ export default function CosmicSingularity3D({
       wSun: 0.0,
       wBlackHole: 0.0,
       wBridge: 0.0,
+      orbitEarthToSunP: 0.0,
       viewW: width,
       viewH: height,
       lastShiftPx: -9999,
@@ -313,6 +320,14 @@ export default function CosmicSingularity3D({
       uHasSunMap: { value: 0.0 },
     };
 
+    const sunBhCoreUniforms = {
+      uTime: { value: 0 },
+      uSun: { value: 0.0 },
+      uBlackHole: { value: 0.0 },
+      uSunMap: { value: null as THREE.Texture | null },
+      uHasSunMap: { value: 0.0 },
+    };
+
     const earthDayTex = loadPlanetMap('/textures/planets/earth_atmos_2048.jpg', () => {
       coreUniforms.uHasDayMap.value = 1.0;
     });
@@ -327,6 +342,7 @@ export default function CosmicSingularity3D({
     });
     const sunPhotosphereTex = loadPlanetMap('/textures/planets/sun_photosphere.jpg', () => {
       coreUniforms.uHasSunMap.value = 1.0;
+      sunBhCoreUniforms.uHasSunMap.value = 1.0;
     });
 
     coreUniforms.uEarthDayMap.value = earthDayTex;
@@ -334,6 +350,7 @@ export default function CosmicSingularity3D({
     coreUniforms.uEarthNormalMap.value = earthNormalTex;
     coreUniforms.uEarthNightMap.value = earthNightTex;
     coreUniforms.uSunMap.value = sunPhotosphereTex;
+    sunBhCoreUniforms.uSunMap.value = sunPhotosphereTex;
 
     const coreMat = new THREE.ShaderMaterial({
       uniforms: coreUniforms,
@@ -558,8 +575,8 @@ export default function CosmicSingularity3D({
 
           // --- STAGE 4: BLACK HOLE GARGANTUA CORE ---
           if (uBlackHole > 0.01) {
-            float photonRim = pow(1.0 - ndotv, 6.8) * 2.5;
-            vec3 bhCol = vec3(0.005, 0.007, 0.014) + vec3(1.0, 0.72, 0.34) * photonRim;
+            float photonRim = pow(1.0 - ndotv, 9.5) * 1.15;
+            vec3 bhCol = vec3(0.002, 0.003, 0.006) + vec3(1.0, 0.90, 0.76) * photonRim;
             col += bhCol * uBlackHole;
           }
 
@@ -574,6 +591,115 @@ export default function CosmicSingularity3D({
     // Start rotation angle so Asia/Vietnam/Indian Ocean rotate cleanly across the camera view in Stage 2
     coreMesh.rotation.y = -1.65;
     coreGroup.add(coreMesh);
+
+    // 2A-BIS. DEDICATED SUN + BLACK HOLE CORE AT sunBhRoot (z = -18, behind Earth)
+    const sunBhCoreGroup = new THREE.Group();
+    sunBhRoot.add(sunBhCoreGroup);
+
+    const sunBhCoreMat = new THREE.ShaderMaterial({
+      uniforms: sunBhCoreUniforms,
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormalWorld;
+        varying vec3 vWorldPos;
+        varying vec3 vLocalDir;
+
+        void main() {
+          vUv = uv;
+          vLocalDir = normalize(position);
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vWorldPos = worldPos.xyz;
+          vNormalWorld = normalize(mat3(modelMatrix) * normal);
+          gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+      `,
+      fragmentShader: `
+        varying vec2 vUv;
+        varying vec3 vNormalWorld;
+        varying vec3 vWorldPos;
+        varying vec3 vLocalDir;
+
+        uniform float uTime;
+        uniform float uSun;
+        uniform float uBlackHole;
+        uniform sampler2D uSunMap;
+        uniform float uHasSunMap;
+
+        ${GLSL_NOISE_3D}
+
+        void main() {
+          vec3 N = normalize(vNormalWorld);
+          vec3 V = normalize(cameraPosition - vWorldPos);
+          float ndotv = clamp(dot(N, V), 0.0, 1.0);
+          vec3 col = vec3(0.0);
+
+          // --- STAGE 3: DIRECT-SRGB FIERY BLACKBODY SOLAR PHOTOSPHERE ---
+          if (uSun > 0.01) {
+            float latSun = vLocalDir.y;
+            float diffRot = (0.012 - 0.0045 * latSun * latSun) * uTime;
+
+            vec3 warp = vec3(
+              fbm3(vLocalDir * 2.8 + vec3(uTime * 0.045, 0.0, 0.0)),
+              fbm3(vLocalDir * 2.8 + vec3(0.0, -uTime * 0.038, 5.2)),
+              fbm3(vLocalDir * 2.8 + vec3(8.4, 0.0, uTime * 0.042))
+            );
+            vec3 pSun = vLocalDir * 5.8 + (warp - 0.5) * 1.5;
+            float granMacro = fbm3(pSun * 1.15 - vec3(uTime * 0.04));
+            float granMid = fbm3(pSun * 3.2 + vec3(uTime * 0.08, -uTime * 0.06, uTime * 0.05));
+            float granFine = noise3D(pSun * 9.5 + vec3(uTime * 0.18, -uTime * 0.15, uTime * 0.14));
+            float filaments = pow(1.0 - abs(noise3D(pSun * 4.6 + vec3(uTime * 0.1)) * 2.0 - 1.0), 2.4);
+
+            vec2 sunUv = vec2(
+              vUv.x + diffRot + (warp.x - 0.5) * 0.018,
+              clamp(vUv.y + (warp.y - 0.5) * 0.018, 0.002, 0.998)
+            );
+            float texLum = uHasSunMap > 0.5
+              ? dot(texture2D(uSunMap, sunUv).rgb, vec3(0.32, 0.52, 0.16))
+              : 0.85;
+            float texDetail = clamp((texLum - 0.85) * 4.0, -0.20, 0.20) * uHasSunMap;
+
+            float plasma = clamp(granMacro * 0.25 + granMid * 0.45 + granFine * 0.30 + texDetail, 0.0, 1.0);
+
+            float spotField = fbm3(vLocalDir * 3.4 + vec3(2.1, -uTime * 0.015, 1.3));
+            float umbra = smoothstep(0.23, 0.15, spotField);
+            float penumbra = smoothstep(0.32, 0.21, spotField) * (1.0 - umbra);
+
+            vec3 deepCrimson = vec3(0.42, 0.05, 0.004);
+            vec3 fieryOrange = vec3(0.96, 0.28, 0.015);
+            vec3 moltenGold = vec3(1.00, 0.64, 0.08);
+            vec3 whiteHot = vec3(1.00, 0.95, 0.76);
+
+            vec3 sunCol = mix(deepCrimson, fieryOrange, smoothstep(0.18, 0.46, plasma));
+            sunCol = mix(sunCol, moltenGold, smoothstep(0.46, 0.74, plasma));
+            sunCol = mix(sunCol, whiteHot, smoothstep(0.74, 0.94, plasma + filaments * 0.22));
+            sunCol = mix(sunCol, vec3(0.35, 0.06, 0.008), penumbra * 0.82);
+            sunCol = mix(sunCol, vec3(0.06, 0.008, 0.002), umbra * 0.95);
+
+            // Physical Eddington limb darkening & blazing multi-layer chromospheric rim
+            float limbDark = mix(0.32, 1.06, pow(ndotv, 0.48));
+            sunCol *= limbDark;
+            float rimInner = pow(1.0 - ndotv, 2.2);
+            float rimOuter = pow(1.0 - ndotv, 4.5);
+            sunCol += vec3(1.0, 0.52, 0.08) * rimInner * (0.55 + 0.35 * filaments);
+            sunCol += vec3(1.0, 0.92, 0.62) * rimOuter * (0.95 + 0.45 * filaments);
+
+            col += clamp(sunCol, 0.0, 1.0) * uSun;
+          }
+
+          // --- STAGE 4: BLACK HOLE GARGANTUA CORE ---
+          if (uBlackHole > 0.01) {
+            float photonRim = pow(1.0 - ndotv, 9.5) * 1.15;
+            vec3 bhCol = vec3(0.002, 0.003, 0.006) + vec3(1.0, 0.90, 0.76) * photonRim;
+            col += bhCol * uBlackHole;
+          }
+
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+
+    const sunBhCoreMesh = new THREE.Mesh(new THREE.SphereGeometry(1.15, 96, 96), sunBhCoreMat);
+    sunBhCoreGroup.add(sunBhCoreMesh);
 
     // 2B. ELEVATED 3D VOLUMETRIC EARTH CLOUD SPHERE (inherits axial tilt & slow spin from coreMesh)
     const cloudUniforms = {
@@ -767,7 +893,7 @@ export default function CosmicSingularity3D({
     });
 
     const sunProminenceMesh = new THREE.Mesh(new THREE.SphereGeometry(1.28, 72, 72), sunProminenceMat);
-    coreGroup.add(sunProminenceMesh);
+    sunBhCoreGroup.add(sunProminenceMesh);
 
     // 2E. CAMERA-FACING VOLUMETRIC SOLAR CORONA STREAMERS, PROMINENCES & BLOOM HALO
     const sunCoronaBillboardUniforms = {
@@ -847,7 +973,7 @@ export default function CosmicSingularity3D({
     const sunCoronaBillboard = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 6.6), sunCoronaBillboardMat);
     sunCoronaBillboard.visible = false;
     sunCoronaBillboard.renderOrder = 4;
-    coreGroup.add(sunCoronaBillboard);
+    sunBhCoreGroup.add(sunCoronaBillboard);
 
     // Outer Atmosphere / Solar Corona / Gravitational Scattering Halo (BackSide Sphere)
     const coronaUniforms = {
@@ -907,6 +1033,43 @@ export default function CosmicSingularity3D({
 
     const coronaMesh = new THREE.Mesh(new THREE.SphereGeometry(1.62, 48, 48), coronaMat);
     coreGroup.add(coronaMesh);
+
+    // Black Hole gravitational scattering halo attached to sunBhCoreGroup
+    const bhCoronaUniforms = {
+      uBlackHole: { value: 0.0 },
+    };
+    const bhCoronaMat = new THREE.ShaderMaterial({
+      uniforms: bhCoronaUniforms,
+      vertexShader: `
+        varying vec3 vNormalWorld;
+        varying vec3 vWorldPos;
+        void main() {
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vWorldPos = worldPos.xyz;
+          vNormalWorld = normalize(mat3(modelMatrix) * normal);
+          gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vNormalWorld;
+        varying vec3 vWorldPos;
+        uniform float uBlackHole;
+        void main() {
+          vec3 N = normalize(vNormalWorld);
+          vec3 V = normalize(cameraPosition - vWorldPos);
+          float d = clamp(dot(-N, V), 0.0, 1.0);
+          float softHalo = pow(clamp(1.0 - d * 1.75, 0.0, 1.0), 3.6) * smoothstep(0.0, 0.25, d);
+          vec3 bhHalo = vec3(1.0, 0.85, 0.68) * 0.08 * softHalo;
+          gl_FragColor = vec4(bhHalo * uBlackHole, clamp(softHalo * uBlackHole * 0.12, 0.0, 0.18));
+        }
+      `,
+      side: THREE.BackSide,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const bhCoronaMesh = new THREE.Mesh(new THREE.SphereGeometry(1.26, 48, 48), bhCoronaMat);
+    sunBhCoreGroup.add(bhCoronaMesh);
 
     // ------------------------------------------------------------------
     // 3. EINSTEIN SPACETIME GRAVITY WELL GRID (Stage 1 + subtle Stage 4)
@@ -1070,22 +1233,33 @@ export default function CosmicSingularity3D({
       uBlackHole: { value: 0.0 },
     };
 
-    const diskGeo = new THREE.RingGeometry(1.25, 5.2, 144, 16);
+    const diskGeo = new THREE.RingGeometry(1.14, 6.2, 180, 32);
     const diskMat = new THREE.ShaderMaterial({
       uniforms: diskUniforms,
       vertexShader: `
         varying vec3 vWorldPos;
         varying vec3 vLocalPos;
+        varying vec3 vWorldVelDir;
+        uniform float uTime;
         void main() {
-          vLocalPos = position;
-          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vec3 pos = position;
+          float r = length(pos.xy);
+          float angle = atan(pos.y, pos.x);
+          float t = clamp((r - 1.14) / (6.2 - 1.14), 0.0, 1.0);
+          // Subtle organic vertical plasma undulation so the disk never looks like a rigid flat ruler
+          pos.z += (sin(angle * 3.0 - uTime * 0.45 + r * 2.2) * 0.045 + cos(angle * 5.0 + uTime * 0.3 - r * 1.6) * 0.025) * smoothstep(0.05, 0.75, t);
+          vLocalPos = pos;
+          vec4 worldPos = modelMatrix * vec4(pos, 1.0);
           vWorldPos = worldPos.xyz;
+          vec3 localTangent = cross(vec3(0.0, 0.0, 1.0), normalize(position + vec3(0.0001)));
+          vWorldVelDir = normalize(mat3(modelMatrix) * localTangent);
           gl_Position = projectionMatrix * viewMatrix * worldPos;
         }
       `,
       fragmentShader: `
         varying vec3 vWorldPos;
         varying vec3 vLocalPos;
+        varying vec3 vWorldVelDir;
         uniform float uTime;
         uniform float uBlackHole;
         ${GLSL_NOISE_3D}
@@ -1095,33 +1269,50 @@ export default function CosmicSingularity3D({
           float r = length(vLocalPos.xy);
           float angle = atan(vLocalPos.y, vLocalPos.x);
 
-          float t = clamp((r - 1.25) / (5.2 - 1.25), 0.0, 1.0);
-          float innerEdge = smoothstep(0.0, 0.08, t);
-          float outerFade = 1.0 - smoothstep(0.45, 1.0, t);
+          // Steady-pitch spiral rotation (never winds up into flat rings over time)
+          float spiral1 = angle - uTime * 0.34 + 3.6 / max(r, 0.8);
+          float spiral2 = angle - uTime * 0.56 - 2.2 / max(r, 0.8);
 
-          float omega = 0.72 / pow(max(r, 0.85), 1.15);
-          float spiralAngle = angle - uTime * omega + 3.0 / max(r, 0.7);
+          // Domain-warped organic plasma turbulence (breaks rigid concentric circles)
+          float macroWarp = fbm3(vec3(cos(spiral1) * (1.6 + r * 0.35), sin(spiral1) * (1.6 + r * 0.35), r * 1.8 - uTime * 0.16));
+          float midSwirl = fbm3(vec3(cos(spiral2 + macroWarp * 2.4) * (2.6 + r * 0.55), sin(spiral2 + macroWarp * 2.4) * (2.6 + r * 0.55), r * 4.2 + macroWarp * 1.6));
+          float fineWisps = fbm3(vec3(cos(spiral1 * 2.0 + midSwirl * 2.0) * 3.8, sin(spiral1 * 2.0 + midSwirl * 2.0) * 3.8, r * 9.5 - uTime * 0.25));
 
-          float turb = fbm2(vec2(spiralAngle * 2.0, r * 3.4));
-          float fineRings = 0.5 + 0.5 * sin(r * 19.0 - uTime * 1.35 + turb * 5.0);
-          float density = pow(clamp(mix(turb, fineRings, 0.45), 0.0, 1.0), 1.35);
+          // Continuous rippling gas waves inside the disk
+          float gasRipple = 0.5 + 0.5 * sin(r * 3.5 - uTime * 1.35 + macroWarp * 4.2);
 
-          float iscoSpike = exp(-pow((t - 0.07) * 14.0, 2.0)) * 1.45;
+          // Warp radial coordinate organically so edges dissolve like smoky gas
+          float rWarped = r + (macroWarp - 0.5) * 0.65 + (midSwirl - 0.5) * 0.25;
+          float t = clamp((rWarped - 1.14) / (6.2 - 1.14), 0.0, 1.0);
+          float tRaw = clamp((r - 1.14) / (6.2 - 1.14), 0.0, 1.0);
 
-          vec3 approxWorldVel = normalize(cross(vec3(0.0, 1.0, 0.0), normalize(vWorldPos + vec3(0.0001))));
+          float innerEdge = smoothstep(0.0, 0.045, tRaw);
+          float outerFade = pow(1.0 - smoothstep(0.16, 0.96, t), 2.15) * (1.0 - smoothstep(0.75, 1.0, tRaw));
+
+          float strands = smoothstep(0.16, 0.84, mix(midSwirl, fineWisps, 0.52));
+          float cloudDensity = mix(0.22, 1.0, strands) * (0.42 + 0.58 * smoothstep(0.18, 0.82, macroWarp)) * (0.72 + 0.42 * gasRipple);
+
+          // Soft incandescent inner ISCO glow
+          float iscoSpike = exp(-pow((tRaw - 0.035) * 16.0, 2.0)) * 1.05;
+          float innerGlow = exp(-t * 4.2) * 0.50;
+
+          // Relativistic Doppler beaming relative to black hole center
           vec3 toCam = normalize(cameraPosition - vWorldPos);
-          float doppler = dot(approxWorldVel, toCam);
-          float beaming = pow(1.0 + 0.45 * doppler, 2.0);
+          float doppler = dot(normalize(vWorldVelDir), toCam);
+          float beaming = pow(clamp(1.0 + 0.36 * doppler, 0.54, 1.45), 1.4);
 
-          vec3 hotInner = vec3(1.0, 0.95, 0.82);
-          vec3 midGold = vec3(1.0, 0.56, 0.14);
-          vec3 outerCrimson = vec3(0.48, 0.12, 0.08);
-          vec3 diskCol = mix(hotInner, midGold, smoothstep(0.03, 0.36, t));
-          diskCol = mix(diskCol, outerCrimson, smoothstep(0.35, 0.92, t));
-          diskCol = mix(diskCol, vec3(0.75, 0.9, 1.0), clamp(doppler, 0.0, 1.0) * 0.25);
+          // Rich thermal gradient: white-gold -> fiery amber -> warm copper -> smoky ember
+          vec3 hotCore = vec3(1.0, 0.96, 0.88);
+          vec3 fieryAmber = vec3(1.0, 0.65, 0.24);
+          vec3 warmCopper = vec3(0.82, 0.36, 0.14);
+          vec3 smokyEmber = vec3(0.32, 0.10, 0.06);
+          vec3 diskCol = mix(hotCore, fieryAmber, smoothstep(0.03, 0.28, t));
+          diskCol = mix(diskCol, warmCopper, smoothstep(0.26, 0.60, t));
+          diskCol = mix(diskCol, smokyEmber, smoothstep(0.58, 0.94, t));
+          diskCol = mix(diskCol, vec3(0.88, 0.94, 1.0), clamp(doppler, 0.0, 1.0) * 0.18);
 
-          float alpha = (density * 0.95 + iscoSpike) * innerEdge * outerFade * beaming * uBlackHole;
-          gl_FragColor = vec4(diskCol * beaming * 1.15, clamp(alpha, 0.0, 0.96));
+          float alpha = (cloudDensity * 0.92 + iscoSpike + innerGlow) * innerEdge * outerFade * beaming * uBlackHole;
+          gl_FragColor = vec4(diskCol * (0.92 + 0.38 * beaming), clamp(alpha, 0.0, 0.95));
         }
       `,
       side: THREE.DoubleSide,
@@ -1132,9 +1323,9 @@ export default function CosmicSingularity3D({
 
     const mainDisk = new THREE.Mesh(diskGeo, diskMat);
     mainDisk.rotation.x = -Math.PI / 2;
-    cosmicRoot.add(mainDisk);
+    sunBhRoot.add(mainDisk);
 
-    const lensedHaloGeo = new THREE.RingGeometry(1.05, 2.35, 128, 8);
+    const lensedHaloGeo = new THREE.RingGeometry(1.13, 3.4, 180, 28);
     const lensedHaloMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -1158,20 +1349,40 @@ export default function CosmicSingularity3D({
         void main() {
           if (uBlackHole < 0.01) discard;
           float r = length(vLocalPos.xy);
-          float t = clamp((r - 1.05) / (2.35 - 1.05), 0.0, 1.0);
           float angle = atan(vLocalPos.y, vLocalPos.x);
+          float sinAbs = abs(sin(angle));
 
-          float verticalWeight = pow(abs(sin(angle)), 1.35);
-          float radialProfile = exp(-pow((t - 0.16) * 5.2, 2.0)) * (1.0 - smoothstep(0.55, 1.0, t));
+          // Organic swirling plasma wisps for the lensed arch
+          float flowAngle = angle - uTime * 0.45;
+          float macroFlow = fbm3(vec3(cos(flowAngle) * 2.2, sin(flowAngle) * 2.2, r * 2.4 - uTime * 0.18));
+          float fineWisps = fbm3(vec3(cos(flowAngle + macroFlow * 1.8) * 3.4, sin(flowAngle + macroFlow * 1.8) * 3.4, r * 9.5 - uTime * 0.28));
 
-          float flow = fbm2(vec2(angle * 3.0 - uTime * 0.65, r * 5.0));
-          float fine = 0.65 + 0.35 * sin(r * 22.0 - uTime * 1.6 + flow * 4.0);
+          // Trumpet-like gravitational lensing flare with organic warped outer edge
+          float flare = exp(-sinAbs * 3.8) * 1.42;
+          float outerR = 1.88 + flare + (macroFlow - 0.5) * 0.24;
+          float t = clamp((r - 1.14) / (outerR - 1.14), 0.0, 1.0);
 
-          vec3 col = mix(vec3(1.0, 0.92, 0.75), vec3(1.0, 0.52, 0.12), smoothstep(0.05, 0.65, t));
-          float alpha = radialProfile * (0.45 + 0.55 * flow * fine) * (0.35 + 0.65 * verticalWeight);
-          alpha *= uBlackHole * uEdgeViewStrength * 0.85;
+          float innerEdge = smoothstep(0.0, 0.045, t);
+          float outerFade = pow(1.0 - smoothstep(0.24, 0.98, t), 1.95);
 
-          gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.9));
+          // Soft photon ring hugging the black hole shadow
+          float photonRing = exp(-pow((r - 1.16) * 22.0, 2.0)) * 0.85;
+
+          float strands = smoothstep(0.18, 0.84, mix(macroFlow, fineWisps, 0.58));
+
+          // Same-side Doppler beaming (left approaching = brighter, right receding = softer)
+          float dopplerSide = clamp(1.0 - 0.30 * cos(angle), 0.54, 1.35);
+
+          vec3 hotCore = vec3(1.0, 0.96, 0.88);
+          vec3 fieryAmber = vec3(1.0, 0.65, 0.24);
+          vec3 warmCopper = vec3(0.82, 0.36, 0.14);
+          vec3 col = mix(hotCore, fieryAmber, smoothstep(0.04, 0.42, t));
+          col = mix(col, warmCopper, smoothstep(0.40, 0.92, t));
+
+          float archBody = mix(0.24, 1.0, strands) * innerEdge * outerFade * (0.42 + 0.58 * sinAbs + 0.35 * exp(-sinAbs * 4.2));
+          float alpha = (photonRing + archBody * uEdgeViewStrength * 0.90) * dopplerSide * uBlackHole;
+
+          gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.94));
         }
       `,
       side: THREE.DoubleSide,
@@ -1181,7 +1392,7 @@ export default function CosmicSingularity3D({
     });
 
     const lensedHaloMesh = new THREE.Mesh(lensedHaloGeo, lensedHaloMat);
-    cosmicRoot.add(lensedHaloMesh);
+    sunBhRoot.add(lensedHaloMesh);
 
     // Subtle cosmic dust swarm for Black Hole & Sun corona sparkle
     const particleCount = 1200;
@@ -1231,9 +1442,10 @@ export default function CosmicSingularity3D({
 
         void main() {
           float theta = aAngle + uTime * aSpeed;
+          float waveY = sin(aRadius * 3.6 - uTime * 1.35) * 0.065 + sin(theta * 3.0 - uTime * 0.65 + aRadius * 2.2) * 0.05;
           vec3 pos = vec3(
             aRadius * cos(theta),
-            aYOffset + sin(theta * 2.0 + aRadius) * 0.03,
+            aYOffset + waveY,
             aRadius * sin(theta)
           );
           vHeat = 1.0 - clamp((aRadius - 1.6) / 3.8, 0.0, 1.0);
@@ -1264,7 +1476,7 @@ export default function CosmicSingularity3D({
     });
 
     const particlePoints = new THREE.Points(particleGeo, particleMat);
-    cosmicRoot.add(particlePoints);
+    sunBhRoot.add(particlePoints);
 
     // ------------------------------------------------------------------
     // 6. RESIZE, VISIBILITY & CALM 60FPS MORPH LOOP
@@ -1297,15 +1509,29 @@ export default function CosmicSingularity3D({
     const camDirVec = new THREE.Vector3();
     const horizonNormVec = new THREE.Vector3();
     const targetCamPos = new THREE.Vector3(0.55, 4.05, 7.6);
+    const targetLookAt = new THREE.Vector3().copy(earthTarget);
+    const lookOffsetVec = new THREE.Vector3();
     const yAxis = new THREE.Vector3(0, 1, 0);
 
     // Calm framing camera positions per cosmic evolution stage
+    // Perpendicular layout: Earth at (0, -0.1, 0), Camera at (0, 0.95, 6.5) facing Earth (-Z), Sun at (+6.5, 0.85, 6.5) on the RIGHT (+X)
     const camHero = new THREE.Vector3(0.55, 4.05, 7.6);
     const camSpacetime = new THREE.Vector3(0.25, 7.45, 3.35);
-    const camEarth = new THREE.Vector3(1.45, 0.95, 6.25);
-    const camSun = new THREE.Vector3(-0.9, 0.75, 6.75);
-    const camBlackHole = new THREE.Vector3(4.5, 1.45, 6.9);
-    const camBlackHoleBridge = new THREE.Vector3(2.45, 2.75, 4.85);
+    const camEarth = new THREE.Vector3(0, 0.95, 6.5);
+    const camSun = camEarth.clone();
+    const camBlackHole = new THREE.Vector3(4.5, 1.50, 7.0).add(sunPos);
+    const camBlackHoleBridge = new THREE.Vector3(2.45, 2.75, 4.85).add(sunPos);
+
+    const dirToEarth = earthTarget.clone().sub(camEarth);
+    const dirToSun = sunPos.clone().sub(camEarth);
+    const bhTarget = sunPos.clone().add(new THREE.Vector3(0, -0.1, 0));
+
+    const sunCamOffset = camSun.clone().sub(sunPos);
+    const bhCamOffset = camBlackHole.clone().sub(sunPos);
+    const sunToBhStartAng = Math.atan2(sunCamOffset.x, sunCamOffset.z);
+    const sunToBhEndAng = Math.atan2(bhCamOffset.x, bhCamOffset.z);
+    const sunToBhStartR = Math.hypot(sunCamOffset.x, sunCamOffset.z);
+    const sunToBhEndR = Math.hypot(bhCamOffset.x, bhCamOffset.z);
 
     const tick = (now: number) => {
       rafId = requestAnimationFrame(tick);
@@ -1320,12 +1546,21 @@ export default function CosmicSingularity3D({
       if (!prefersReducedMotion) {
         state.time += dt;
         coreMesh.rotation.y += dt * 0.14;
+        sunBhCoreMesh.rotation.y += dt * 0.08;
       }
 
       // Compute 4 Stage Weights + Hero Core Size synchronized 1-to-1 with V2HomeDemoClient GSAP acts:
-      // Hero [0..0.17] (original 0.85 core & oblique view) -> Act01 (Spacetime) [0.17..0.335] (high top-down view & 0.30 core) -> Act02 (Earth) -> Act03 (Sun) -> Act04 (BlackHole)
+      // Hero [0..0.17] -> Act01 (Spacetime) -> Act02 (Earth A) -> Act03 (Rotate 180 deg at midpoint M to Sun B) -> Act04 (BlackHole at B)
       const targetHero = 1.0 - THREE.MathUtils.smoothstep(sp, 0.04, 0.17);
       const targetBridge = THREE.MathUtils.smoothstep(sp, 0.90, 1.32);
+      const rawOrbitEarthToSun = THREE.MathUtils.smoothstep(sp, 0.48, 0.60);
+      state.orbitEarthToSunP += (rawOrbitEarthToSun - state.orbitEarthToSunP) * 0.12;
+      const isOrbitingEarthToSun =
+        sp >= 0.38 &&
+        sp < 0.62 &&
+        state.orbitEarthToSunP > 0.005 &&
+        state.orbitEarthToSunP < 0.995;
+
       let targetSt = 0;
       let targetEarth = 0;
       let targetSun = 0;
@@ -1336,23 +1571,39 @@ export default function CosmicSingularity3D({
         const pEarth = THREE.MathUtils.smoothstep(sp, 0.29, 0.38);
         targetSt = 1.0 - pEarth;
         targetEarth = pEarth;
+        targetSun = pEarth;
         targetCamPos.lerpVectors(camHero, camSpacetime, pHeroToSt);
         if (pEarth > 0) {
           targetCamPos.lerp(camEarth, pEarth);
         }
+        targetLookAt.copy(earthTarget);
       } else if (sp < 0.60) {
-        const p = THREE.MathUtils.smoothstep(sp, 0.50, 0.60);
-        targetEarth = 1.0 - p;
-        targetSun = p;
-        targetCamPos.lerpVectors(camEarth, camSun, p);
+        const p = state.orbitEarthToSunP;
+        targetEarth = 1.0 - THREE.MathUtils.smoothstep(p, 0.72, 0.98);
+        targetSun = 1.0;
+
+        // Camera stays at camEarth and pans 90 deg to the right so the Sun enters from the right
+        targetCamPos.copy(camEarth);
+        lookOffsetVec.copy(dirToEarth).applyAxisAngle(yAxis, -Math.PI * 0.5 * p);
+        lookOffsetVec.y = THREE.MathUtils.lerp(dirToEarth.y, dirToSun.y, p);
+        targetLookAt.copy(camEarth).add(lookOffsetVec);
       } else if (sp < 0.82) {
         const p = THREE.MathUtils.smoothstep(sp, 0.72, 0.82);
         targetSun = 1.0 - p;
         targetBh = p;
-        targetCamPos.lerpVectors(camSun, camBlackHole, p);
+        const arcAng = THREE.MathUtils.lerp(sunToBhStartAng, sunToBhEndAng, p);
+        const arcR = THREE.MathUtils.lerp(sunToBhStartR, sunToBhEndR, p) + Math.sin(p * Math.PI) * 0.8;
+        const arcY = THREE.MathUtils.lerp(camSun.y, camBlackHole.y, p);
+        targetCamPos.set(
+          sunPos.x + Math.sin(arcAng) * arcR,
+          arcY,
+          sunPos.z + Math.cos(arcAng) * arcR
+        );
+        targetLookAt.lerpVectors(sunPos, bhTarget, p);
       } else {
         targetBh = 1.0;
         targetCamPos.lerpVectors(camBlackHole, camBlackHoleBridge, targetBridge);
+        targetLookAt.copy(bhTarget);
       }
 
       state.wHero += (targetHero - state.wHero) * 0.085;
@@ -1385,28 +1636,31 @@ export default function CosmicSingularity3D({
       // Smooth calm camera flight (or obey gentle drag if user is interacting at top)
       if (!userInteracting) {
         if (sp > 0.03) {
-          camera.position.lerp(targetCamPos, 0.065);
+          camera.position.lerp(targetCamPos, isOrbitingEarthToSun ? 0.35 : 0.065);
         } else {
           camera.position.lerp(camHero, 0.04);
           if (!prefersReducedMotion) {
             camera.position.applyAxisAngle(yAxis, dt * 0.032);
           }
         }
+        controls.target.lerp(targetLookAt, isOrbitingEarthToSun ? 0.22 : 0.08);
       }
 
       // Keep original 0.85 core size on Hero ("trang đầu"), then shrink to 0.30 in Stage 01 (Giếng Không–Thời gian)
       const spacetimeCoreScale = THREE.MathUtils.lerp(0.30, 0.85, state.wHero);
-      const coreScale =
-        state.wSpacetime * spacetimeCoreScale +
-        state.wEarth * 1.12 +
-        state.wSun * 1.28 +
-        state.wBlackHole * (0.92 + state.wBridge * 0.16);
-      coreGroup.scale.setScalar(Math.max(0.25, coreScale));
+      const earthCoreScale = state.wSpacetime * spacetimeCoreScale + state.wEarth * 1.12;
+      coreGroup.scale.setScalar(Math.max(0.25, earthCoreScale));
+      coreGroup.visible = state.wSpacetime > 0.015 || state.wEarth > 0.015;
 
-      // Upward & diagonal tilt when entering the Kinetic Bridge section
-      cosmicRoot.rotation.z = state.wBridge * 0.14;
-      cosmicRoot.rotation.x = state.wBridge * 0.08;
-      cosmicRoot.position.y = state.wBridge * 0.18;
+      const sunBhCoreScale =
+        state.wSun * 1.28 + state.wBlackHole * (0.92 + state.wBridge * 0.16);
+      sunBhCoreGroup.scale.setScalar(Math.max(0.25, sunBhCoreScale));
+      sunBhRoot.visible = state.wSun > 0.015 || state.wBlackHole > 0.015;
+
+      // Dramatic diagonal tilt for Gargantua silhouette + Kinetic Bridge lift
+      sunBhRoot.rotation.z = state.wBlackHole * 0.24 + state.wBridge * 0.10;
+      sunBhRoot.rotation.x = state.wBridge * 0.08;
+      sunBhRoot.position.y = sunPos.y + state.wBridge * 0.18;
 
       // Gentle axial tilt for Earth
       coreMesh.rotation.z = THREE.MathUtils.degToRad(23.4) * state.wEarth;
@@ -1415,8 +1669,12 @@ export default function CosmicSingularity3D({
       coreUniforms.uTime.value = state.time;
       coreUniforms.uSpacetime.value = state.wSpacetime;
       coreUniforms.uEarth.value = state.wEarth;
-      coreUniforms.uSun.value = state.wSun;
-      coreUniforms.uBlackHole.value = state.wBlackHole;
+      coreUniforms.uSun.value = 0.0;
+      coreUniforms.uBlackHole.value = 0.0;
+
+      sunBhCoreUniforms.uTime.value = state.time;
+      sunBhCoreUniforms.uSun.value = state.wSun;
+      sunBhCoreUniforms.uBlackHole.value = state.wBlackHole;
 
       cloudUniforms.uTime.value = state.time;
       cloudUniforms.uEarth.value = state.wEarth;
@@ -1439,10 +1697,17 @@ export default function CosmicSingularity3D({
       coronaUniforms.uTime.value = state.time;
       coronaUniforms.uSpacetime.value = state.wSpacetime;
       coronaUniforms.uEarth.value = state.wEarth;
-      coronaUniforms.uSun.value = state.wSun;
-      coronaUniforms.uBlackHole.value = state.wBlackHole;
+      coronaUniforms.uSun.value = 0.0;
+      coronaUniforms.uBlackHole.value = 0.0;
+
+      bhCoronaUniforms.uBlackHole.value = state.wBlackHole;
+      bhCoronaMesh.visible = state.wBlackHole > 0.015;
 
       // Gravity grid strongest at Hero + Stage 1 (Spacetime) and faint underlay under Stage 4 (Black Hole)
+      const targetGridParent = state.wBlackHole > 0.015 ? sunBhRoot : cosmicRoot;
+      if (gravityGrid.parent !== targetGridParent) {
+        targetGridParent.add(gravityGrid);
+      }
       gridUniforms.uTime.value = state.time;
       gridUniforms.uGridOpacity.value = state.wSpacetime * 0.96 + state.wBlackHole * 0.16;
       gravityGrid.visible = gridUniforms.uGridOpacity.value > 0.015;
@@ -1471,12 +1736,15 @@ export default function CosmicSingularity3D({
       // Accretion Disk & Lensed Halo (Stage 4: Black Hole)
       diskUniforms.uTime.value = state.time;
       diskUniforms.uBlackHole.value = state.wBlackHole;
+      mainDisk.scale.setScalar(Math.max(0.55, sunBhCoreScale));
       mainDisk.visible = state.wBlackHole > 0.015;
 
-      camDirVec.copy(camera.position).setY(0).normalize();
+      sunBhRoot.worldToLocal(camDirVec.copy(camera.position));
+      camDirVec.y = 0;
+      camDirVec.normalize();
       lensedHaloMesh.rotation.y = Math.atan2(camDirVec.x, camDirVec.z);
-      lensedHaloMesh.scale.setScalar(Math.max(0.55, coreScale));
-      horizonNormVec.copy(camera.position).normalize();
+      lensedHaloMesh.scale.setScalar(Math.max(0.55, sunBhCoreScale));
+      horizonNormVec.copy(camera.position).sub(sunBhRoot.position).normalize();
       lensedHaloMat.uniforms.uTime.value = state.time;
       lensedHaloMat.uniforms.uBlackHole.value = state.wBlackHole;
       lensedHaloMat.uniforms.uEdgeViewStrength.value = THREE.MathUtils.clamp(

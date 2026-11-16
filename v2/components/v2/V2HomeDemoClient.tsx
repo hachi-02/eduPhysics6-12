@@ -191,6 +191,15 @@ const UTILITY_MODULES = [
     icon: Printer,
     tone: 'gold',
   },
+  {
+    href: '/exam-prep',
+    num: '09',
+    title: 'Kho Đề Thi Các Năm',
+    tag: '2021 – 2025',
+    desc: 'Ôn thi với đề Giữa kỳ, Cuối kỳ, Tuyển sinh 10 và Tốt nghiệp THPT các năm cho Lớp 6–12.',
+    icon: FileCheck,
+    tone: 'cyan',
+  },
 ];
 
 const KINETIC_STATEMENT_WORDS = [
