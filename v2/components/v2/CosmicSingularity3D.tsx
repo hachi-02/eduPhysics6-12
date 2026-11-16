@@ -1298,15 +1298,15 @@ export default function CosmicSingularity3D({
           float t = clamp((rWarped - 1.14) / (6.2 - 1.14), 0.0, 1.0);
           float tRaw = clamp((r - 1.14) / (6.2 - 1.14), 0.0, 1.0);
 
-          float innerEdge = smoothstep(0.0, 0.045, tRaw);
+          float innerEdge = smoothstep(0.0, 0.06, tRaw);
           float outerFade = pow(1.0 - smoothstep(0.16, 0.96, t), 2.15) * (1.0 - smoothstep(0.75, 1.0, tRaw));
 
           float strands = smoothstep(0.16, 0.84, mix(midSwirl, fineWisps, 0.52));
           float cloudDensity = mix(0.22, 1.0, strands) * (0.42 + 0.58 * smoothstep(0.18, 0.82, macroWarp)) * (0.72 + 0.42 * gasRipple);
 
-          // Soft incandescent inner ISCO glow
-          float iscoSpike = exp(-pow((tRaw - 0.035) * 16.0, 2.0)) * 1.05;
-          float innerGlow = exp(-t * 4.2) * 0.50;
+          // Balanced inner ISCO glow (prevents blown-out white triangle at the sphere junction)
+          float iscoSpike = exp(-pow((tRaw - 0.04) * 14.0, 2.0)) * 0.62;
+          float innerGlow = exp(-t * 4.2) * 0.42;
 
           // Relativistic Doppler beaming relative to black hole center
           vec3 toCam = normalize(cameraPosition - vWorldPos);
@@ -1337,7 +1337,7 @@ export default function CosmicSingularity3D({
     mainDisk.rotation.x = -Math.PI / 2;
     sunBhRoot.add(mainDisk);
 
-    const lensedHaloGeo = new THREE.RingGeometry(1.13, 3.4, 112, 16);
+    const lensedHaloGeo = new THREE.RingGeometry(1.13, 4.8, 128, 20);
     const lensedHaloMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -1362,39 +1362,55 @@ export default function CosmicSingularity3D({
           if (uBlackHole < 0.01) discard;
           float r = length(vLocalPos.xy);
           float angle = atan(vLocalPos.y, vLocalPos.x);
-          float sinAbs = abs(sin(angle));
+          float sinA = sin(angle);
+          float sinAbs = abs(sinA);
 
-          // Organic swirling plasma wisps for the lensed arch (lightweight 3-octave + 1-octave)
+          // Smooth, kink-free dome radius: larger on top (2.22), tighter on bottom (1.54)
+          float isTopSmooth = smoothstep(-0.55, 0.55, sinA);
+          float domeRadius = mix(1.54, 2.22, isTopSmooth);
+
+          // Symmetric concave flare into the equatorial disk wings (zero step/kink at sinA = 0)
+          float wingSweep = exp(-pow(sinAbs, 1.05) * 2.5) * 1.85;
+          float baseOuter = domeRadius + wingSweep;
+
           float flowAngle = angle - uTime * 0.45;
-          float macroFlow = fbm3Fast(vec3(cos(flowAngle) * 2.2, sin(flowAngle) * 2.2, r * 2.4 - uTime * 0.18));
-          float fineWisps = noise3D(vec3(cos(flowAngle + macroFlow * 1.8) * 3.4, sin(flowAngle + macroFlow * 1.8) * 3.4, r * 9.5 - uTime * 0.28));
+          float tApprox = clamp((r - 1.14) / (baseOuter - 1.14), 0.0, 1.0);
+          float macroFlow = fbm3Fast(vec3(cos(flowAngle) * 2.0, sin(flowAngle) * 2.0, tApprox * 3.0 - uTime * 0.18));
 
-          // Trumpet-like gravitational lensing flare with organic warped outer edge
-          float flare = exp(-sinAbs * 3.8) * 1.42;
-          float outerR = 1.88 + flare + (macroFlow - 0.5) * 0.24;
+          float outerR = baseOuter + (macroFlow - 0.5) * 0.18;
           float t = clamp((r - 1.14) / (outerR - 1.14), 0.0, 1.0);
 
-          float innerEdge = smoothstep(0.0, 0.045, t);
-          float outerFade = pow(1.0 - smoothstep(0.24, 0.98, t), 1.95);
+          // Sample fine plasma strands along normalized t so streamlines follow the concave flare
+          float fineWisps = noise3D(vec3(cos(flowAngle + macroFlow * 1.4) * 3.2, sin(flowAngle + macroFlow * 1.4) * 3.2, t * 22.0 - uTime * 0.28));
 
-          // Soft photon ring hugging the black hole shadow
-          float photonRing = exp(-pow((r - 1.16) * 22.0, 2.0)) * 0.85;
+          float innerEdge = smoothstep(0.0, 0.055, t);
+          float outerFade = pow(1.0 - smoothstep(0.24, 0.98, t), 1.85);
 
-          float strands = smoothstep(0.18, 0.84, mix(macroFlow, fineWisps, 0.58));
+          // Soft photon ring hugging the black hole shadow without creating a harsh white seam
+          float photonRing = exp(-pow((r - 1.16) * 20.0, 2.0)) * 0.58;
+
+          // Prevent the wide flared skirt from sticking out below the horizontal disk plane
+          float lowerSkirtMask = mix(smoothstep(-0.18, 0.24, sinA), 1.0, 1.0 - smoothstep(1.42, 1.68, r));
+
+          float strands = smoothstep(0.16, 0.84, mix(macroFlow, fineWisps, 0.62));
 
           // Same-side Doppler beaming (left approaching = brighter, right receding = softer)
-          float dopplerSide = clamp(1.0 - 0.30 * cos(angle), 0.54, 1.35);
+          float dopplerSide = clamp(1.0 - 0.34 * cos(angle), 0.54, 1.38);
 
+          // Exact same warm thermal palette as mainDisk so the ring & disk blend as one continuous fluid
           vec3 hotCore = vec3(1.0, 0.96, 0.88);
           vec3 fieryAmber = vec3(1.0, 0.65, 0.24);
           vec3 warmCopper = vec3(0.82, 0.36, 0.14);
-          vec3 col = mix(hotCore, fieryAmber, smoothstep(0.04, 0.42, t));
-          col = mix(col, warmCopper, smoothstep(0.40, 0.92, t));
+          vec3 smokyEmber = vec3(0.32, 0.10, 0.06);
+          vec3 col = mix(hotCore, fieryAmber, smoothstep(0.03, 0.30, t));
+          col = mix(col, warmCopper, smoothstep(0.28, 0.62, t));
+          col = mix(col, smokyEmber, smoothstep(0.60, 0.95, t));
 
-          float archBody = mix(0.24, 1.0, strands) * innerEdge * outerFade * (0.42 + 0.58 * sinAbs + 0.35 * exp(-sinAbs * 4.2));
+          float asymBoost = mix(0.88, 1.08, isTopSmooth);
+          float archBody = mix(0.24, 1.0, strands) * innerEdge * outerFade * lowerSkirtMask * (0.45 + 0.55 * sinAbs + 0.35 * exp(-sinAbs * 3.4)) * asymBoost;
           float alpha = (photonRing + archBody * uEdgeViewStrength * 0.90) * dopplerSide * uBlackHole;
 
-          gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.94));
+          gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.95));
         }
       `,
       side: THREE.DoubleSide,
