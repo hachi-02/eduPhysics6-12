@@ -62,6 +62,18 @@ const GLSL_NOISE_3D = `
     return v;
   }
 
+  // Lightweight 3-octave FBM (~40% faster per call, normalized to match fbm3 range)
+  float fbm3Fast(vec3 p) {
+    float v = 0.0;
+    float a = 0.54;
+    for (int i = 0; i < 3; i++) {
+      v += a * noise3D(p);
+      p = p * 2.04 + vec3(13.7, -9.2, 5.4);
+      a *= 0.5;
+    }
+    return v;
+  }
+
   float hash21(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
     p += dot(p, p + 45.32);
@@ -128,7 +140,7 @@ export default function CosmicSingularity3D({
       alpha: true,
       powerPreference: 'high-performance',
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
     renderer.setSize(width, height, false);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
@@ -219,7 +231,7 @@ export default function CosmicSingularity3D({
     const starMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 1.5) },
+        uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 1.25) },
       },
       vertexShader: `
         attribute vec3 aColor;
@@ -1233,7 +1245,7 @@ export default function CosmicSingularity3D({
       uBlackHole: { value: 0.0 },
     };
 
-    const diskGeo = new THREE.RingGeometry(1.14, 6.2, 180, 32);
+    const diskGeo = new THREE.RingGeometry(1.14, 6.2, 112, 18);
     const diskMat = new THREE.ShaderMaterial({
       uniforms: diskUniforms,
       vertexShader: `
@@ -1273,10 +1285,10 @@ export default function CosmicSingularity3D({
           float spiral1 = angle - uTime * 0.34 + 3.6 / max(r, 0.8);
           float spiral2 = angle - uTime * 0.56 - 2.2 / max(r, 0.8);
 
-          // Domain-warped organic plasma turbulence (breaks rigid concentric circles)
-          float macroWarp = fbm3(vec3(cos(spiral1) * (1.6 + r * 0.35), sin(spiral1) * (1.6 + r * 0.35), r * 1.8 - uTime * 0.16));
-          float midSwirl = fbm3(vec3(cos(spiral2 + macroWarp * 2.4) * (2.6 + r * 0.55), sin(spiral2 + macroWarp * 2.4) * (2.6 + r * 0.55), r * 4.2 + macroWarp * 1.6));
-          float fineWisps = fbm3(vec3(cos(spiral1 * 2.0 + midSwirl * 2.0) * 3.8, sin(spiral1 * 2.0 + midSwirl * 2.0) * 3.8, r * 9.5 - uTime * 0.25));
+          // Domain-warped organic plasma turbulence (lightweight 3-octave FBM + 1-octave fine wisps)
+          float macroWarp = fbm3Fast(vec3(cos(spiral1) * (1.6 + r * 0.35), sin(spiral1) * (1.6 + r * 0.35), r * 1.8 - uTime * 0.16));
+          float midSwirl = fbm3Fast(vec3(cos(spiral2 + macroWarp * 2.4) * (2.6 + r * 0.55), sin(spiral2 + macroWarp * 2.4) * (2.6 + r * 0.55), r * 4.2 + macroWarp * 1.6));
+          float fineWisps = noise3D(vec3(cos(spiral1 * 2.0 + midSwirl * 2.0) * 3.8, sin(spiral1 * 2.0 + midSwirl * 2.0) * 3.8, r * 9.5 - uTime * 0.25));
 
           // Continuous rippling gas waves inside the disk
           float gasRipple = 0.5 + 0.5 * sin(r * 3.5 - uTime * 1.35 + macroWarp * 4.2);
@@ -1325,7 +1337,7 @@ export default function CosmicSingularity3D({
     mainDisk.rotation.x = -Math.PI / 2;
     sunBhRoot.add(mainDisk);
 
-    const lensedHaloGeo = new THREE.RingGeometry(1.13, 3.4, 180, 28);
+    const lensedHaloGeo = new THREE.RingGeometry(1.13, 3.4, 112, 16);
     const lensedHaloMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -1352,10 +1364,10 @@ export default function CosmicSingularity3D({
           float angle = atan(vLocalPos.y, vLocalPos.x);
           float sinAbs = abs(sin(angle));
 
-          // Organic swirling plasma wisps for the lensed arch
+          // Organic swirling plasma wisps for the lensed arch (lightweight 3-octave + 1-octave)
           float flowAngle = angle - uTime * 0.45;
-          float macroFlow = fbm3(vec3(cos(flowAngle) * 2.2, sin(flowAngle) * 2.2, r * 2.4 - uTime * 0.18));
-          float fineWisps = fbm3(vec3(cos(flowAngle + macroFlow * 1.8) * 3.4, sin(flowAngle + macroFlow * 1.8) * 3.4, r * 9.5 - uTime * 0.28));
+          float macroFlow = fbm3Fast(vec3(cos(flowAngle) * 2.2, sin(flowAngle) * 2.2, r * 2.4 - uTime * 0.18));
+          float fineWisps = noise3D(vec3(cos(flowAngle + macroFlow * 1.8) * 3.4, sin(flowAngle + macroFlow * 1.8) * 3.4, r * 9.5 - uTime * 0.28));
 
           // Trumpet-like gravitational lensing flare with organic warped outer edge
           float flare = exp(-sinAbs * 3.8) * 1.42;
@@ -1395,7 +1407,7 @@ export default function CosmicSingularity3D({
     sunBhRoot.add(lensedHaloMesh);
 
     // Subtle cosmic dust swarm for Black Hole & Sun corona sparkle
-    const particleCount = 1200;
+    const particleCount = 800;
     const pRadius = new Float32Array(particleCount);
     const pAngle = new Float32Array(particleCount);
     const pYOffset = new Float32Array(particleCount);
@@ -1426,7 +1438,7 @@ export default function CosmicSingularity3D({
     const particleMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 1.5) },
+        uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 1.25) },
         uBlackHole: { value: 0.0 },
         uSun: { value: 0.0 },
       },
